@@ -39,6 +39,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --extra sail --no-install-project
 COPY cascade ./cascade
 COPY scripts ./scripts
+# The sample every workspace starts with (cascade/samples.py).
+COPY samples ./samples
 # Real Accel-Sim configs and logs, so a Sail deploy can run end to end with `cascade worker --replay`.
 COPY tests/fixtures ./tests/fixtures
 # Alessio's real OPT-125m output files, which the stand-in replays with --replay-outputs.
