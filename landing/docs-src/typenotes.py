@@ -215,6 +215,10 @@ SETTINGS_NOTES: dict[str, tuple[str | None, str]] = {
         None,
         "Whether `cascade serve` seeds the bundled sample trace and run (`samples/`) into the workspace on startup. Set `false` to start empty. A sample already seeded stays.",
     ),
+    "CASCADE_OPENAI_WAIT_S": (
+        None,
+        "Seconds the OpenAI-compatible endpoint waits for its simulation to finish before giving up. Must be positive.",
+    ),
     "CASCADE_RUN_S3": (
         None,
         "Whether `cascade serve` starts `rclone serve s3` next to the app. Set `false` to run the S3 endpoint yourself.",

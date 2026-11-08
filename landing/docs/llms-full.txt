@@ -606,6 +606,7 @@ Every field of `TraceSummary`, plus these.
 - `entries` (`list[RunEntry]`): The entries the run was created with.
 - `sim_counts` (`dict[SimState, int]`): How many sims are in each state. States with no sims are left out.
 - `sample` (`bool`): True for the sample run seeded with the sample trace. Its results were recorded when the run was made, not in this workspace, and cancelling it changes nothing.
+- `replay` (`bool`): Replays a sample's recorded Accel-Sim results.
 
 ### RunDetail
 
@@ -965,6 +966,7 @@ The sandbox has auto-sleep turned off, so the app keeps running while sims repor
 | `CASCADE_TOKEN` | required | The shared bearer token. The UI and every sim send it. The app refuses to start without it unless `CASCADE_NO_AUTH` is set. |
 | `CASCADE_NO_AUTH` | false | Local development only. Set to `1` to turn off the token check: the API accepts any request, `/api/health` reports `auth: false`, and the web UI skips its token screen. Never set it on a deployment someone else can reach. |
 | `CASCADE_ACCELSIM_DIR` | `/opt/accel-sim-framework` | Accel-Sim checkout. The app reads GPU configs from `gpu-simulator/gpgpu-sim/configs/tested-cfgs/*/gpgpusim.config` under it. |
+| `CASCADE_OPENAI_WAIT_S` | `3600` | Seconds the OpenAI-compatible endpoint waits for its simulation to finish before giving up. Must be positive. |
 | `CASCADE_S3_BUCKET` | `cascade` | The bucket the profiler uploads to. It is a directory under `$CASCADE_DATA_DIR/s3/`. |
 | `CASCADE_DATA_DIR` | `/data` | Where the app keeps `cascade.db`, the S3 bucket directory `s3/`, sims' output files in `files/`, and scratch files in `work/`. |
 | `CASCADE_SIM_CMD` | none | The command each sim runs. On Sail it runs through a shell. Locally it is split into arguments and run without one. Without it, every sim fails at launch. |
@@ -5122,6 +5124,7 @@ Every field of [TraceSummary](types.html#tracesummary), plus these.
 | `entries` | `list[RunEntry]` | The entries the run was created with. |
 | `sim_counts` | `dict[SimState, int]` | How many sims are in each state. States with no sims are left out. |
 | `sample` | `bool` | True for the sample run seeded with the sample trace. Its results were recorded when the run was made, not in this workspace, and cancelling it changes nothing. |
+| `replay` | `bool` | Replays a sample's recorded Accel-Sim results. (default `false`) |
 
 ### `RunDetail`
 
