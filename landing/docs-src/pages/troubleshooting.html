@@ -1,0 +1,48 @@
+<!--
+title: Troubleshooting
+description: Fixes for traces stuck uploading or failing, rejected tokens, disabled configs, lost or failed sims, and an event stream that goes quiet.
+-->
+<p class="lede">Each section starts from what you see. Most problems show their cause in a trace's `error`, a sim's `error`, or a log file on the app's disk.</p>
+
+<h2>The trace is stuck in uploading</h2>
+<ul>
+<li>The profiler sends `metadata.json` and the `traces/kernelslist_ctx_*` and `stats_ctx_*` files after tracing ends. Check that the Modal run finished.</li>
+<li>If `metadata.json` has a `files` list, one listed file may be missing or a different size than listed. Compare the list with what's under `$CASCADE_DATA_DIR/s3/cascade/accelsim-traces/<trace id>/`.</li>
+<li>Without a `files` list, the app also waits for a scan in which no file changed. A trace that keeps changing stays `uploading`.</li>
+</ul>
+
+<h2>The trace failed in processing</h2>
+<p>Read the trace's `error`.</p>
+<ul>
+<li>`post-processor not found` means `CASCADE_POSTPROCESS_CMD` isn't on the image. A deploy without `--base-image` has no post-processor, so only uploads that already include `traces/kernelslist.g` work there.</li>
+<li>`post-processing exited <code>` ends with the last lines of the post-processor's log. The whole log is at `$CASCADE_DATA_DIR/work/postprocess/<trace id>.log`.</li>
+<li>`profiler reported status 'failed'` means tracing failed. The profiler's logs are in the trace's directory.</li>
+</ul>
+
+<h2>The profiler can't reach the bucket</h2>
+<p>Use the S3 endpoint URL, not the app URL, with `--s3-bucket cascade` and `--s3-addressing-style path`. The profiler checks the bucket before it starts tracing, so this fails fast.</p>
+
+<h2>The profiler has no --s3-endpoint flag</h2>
+<p>You're running the older profiler at the root of the app branch. Use `accelsim_trace.py` from the `validate-accelsim-modal` branch, commit `b348d7d`.</p>
+
+<h2>The token is rejected</h2>
+<p>Use the exact `CASCADE_TOKEN` the app was started with. If you deployed without setting one, `deploy_sail.py` printed the one it made as `token:`. Check for a trailing newline or space if you pasted it.</p>
+
+<h2>A config is disabled or the run gets 422</h2>
+<p>The config's architecture differs from the trace's `trace_gpu_arch`. A trace only runs on configs of the GPU architecture it was captured on, so trace on that GPU instead. If a config you expect isn't listed at all, check that its `gpgpusim.config` is under `$CASCADE_ACCELSIM_DIR/gpu-simulator/gpgpu-sim/configs/tested-cfgs/` and has a `-gpgpu_clock_domains` line, then restart the app.</p>
+
+<h2>A sim shows lost</h2>
+<p>The sim hasn't sent a heartbeat for `CASCADE_HEARTBEAT_TIMEOUT_S`. It recovers by itself if it reports again. If it doesn't, read its output at `$CASCADE_DATA_DIR/work/sims/<sim id>.out` on its sandbox. After 10 times the timeout it fails with `no heartbeat for 600s`.</p>
+
+<h2>Every sim fails at launch</h2>
+<ul>
+<li>`launch: CASCADE_SIM_CMD is not set` means the app has no simulator command.</li>
+<li>`launcher prepare:` means the app couldn't checkpoint its own sandbox. Check that `SAIL_API_KEY` is set in the app's environment.</li>
+<li>Locally, `could not start` means the first word of `CASCADE_SIM_CMD` isn't an executable path.</li>
+</ul>
+
+<h2>A sim fails right away with kernelslist.g not found</h2>
+<p>The trace has no processed `traces/kernelslist.g`. The stand-in simulator and Accel-Sim both need it. Check that the trace reached `ready` through post-processing, not through a partial upload.</p>
+
+<h2>The event stream goes quiet</h2>
+<p>The stream sends `: keepalive` every 15 seconds when nothing happens. If even that stops, a proxy may be buffering. The app sets `X-Accel-Buffering: no`, but other proxies may need their own setting. If your client fell more than 2000 events behind, the app closed the stream. Reconnect to get a fresh snapshot.</p>

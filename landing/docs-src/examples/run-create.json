@@ -1,0 +1,97 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/runs",
+    "body": {
+      "trace_id": "demo",
+      "entries": [
+        {
+          "gpu_config": "SM86_RTX3070",
+          "count": 2
+        }
+      ]
+    }
+  },
+  "status": 201,
+  "content_type": "application/json",
+  "body": {
+    "id": "run-d96aefcba965",
+    "trace_id": "demo",
+    "created_at": "2026-11-08T03:05:34.001386Z",
+    "state": "active",
+    "entries": [
+      {
+        "gpu_config": "SM86_RTX3070",
+        "count": 2
+      }
+    ],
+    "sim_counts": {
+      "pending": 2
+    },
+    "trace": {
+      "id": "demo",
+      "state": "ready",
+      "error": null,
+      "created_at": "2026-11-08T03:05:31.585353Z",
+      "updated_at": "2026-11-08T03:05:31.586920Z",
+      "model": null,
+      "layers": [],
+      "source_gpu": null,
+      "trace_gpu_arch": "sm_86",
+      "suggested_sim_config": "SM86_RTX3070",
+      "kernel_count": 4,
+      "bytes": 31660273,
+      "has_real_timing": false
+    },
+    "sims": [
+      {
+        "id": "sim-45609b32f314",
+        "run_id": "run-d96aefcba965",
+        "gpu_config": "SM86_RTX3070",
+        "replica": 0,
+        "state": "pending",
+        "error": null,
+        "launcher_ref": null,
+        "created_at": "2026-11-08T03:05:34.001386Z",
+        "started_at": null,
+        "finished_at": null,
+        "last_heartbeat_at": null,
+        "exit_code": null,
+        "kernels_done": 0,
+        "kernels_total": 4,
+        "current_kernel": null,
+        "latest": {
+          "gpu_tot_sim_cycle": null,
+          "gpu_tot_sim_insn": null,
+          "gpu_tot_ipc": null,
+          "sim_rate_ips": null
+        },
+        "log_tail": []
+      },
+      {
+        "id": "sim-d698ff59b168",
+        "run_id": "run-d96aefcba965",
+        "gpu_config": "SM86_RTX3070",
+        "replica": 1,
+        "state": "pending",
+        "error": null,
+        "launcher_ref": null,
+        "created_at": "2026-11-08T03:05:34.001386Z",
+        "started_at": null,
+        "finished_at": null,
+        "last_heartbeat_at": null,
+        "exit_code": null,
+        "kernels_done": 0,
+        "kernels_total": 4,
+        "current_kernel": null,
+        "latest": {
+          "gpu_tot_sim_cycle": null,
+          "gpu_tot_sim_insn": null,
+          "gpu_tot_ipc": null,
+          "sim_rate_ips": null
+        },
+        "log_tail": []
+      }
+    ]
+  }
+}

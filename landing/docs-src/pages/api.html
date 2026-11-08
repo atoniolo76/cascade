@@ -1,0 +1,43 @@
+<!--
+title: API overview and auth
+nav: Overview and auth
+description: Base URL, bearer-token auth, ids, timestamps and errors for the Cascade app's HTTP API, with every route on one page.
+-->
+<p class="lede">Everything the UI does goes through this HTTP API. It serves JSON over the app's URL, the one `deploy_sail.py` prints as `app:`.</p>
+
+<div class="note"><p>Every response on these pages was captured from a running server, by `landing/docs-src/capture_examples.py`. The sims in that run replayed a recorded Accel-Sim log of BabelStream on an RTX 3070, so the cycles, IPC and kernel names come from that log, not from the uploaded trace. That's also why a finished sim shows `kernels_done` 6 against `kernels_total` 4: the log has six kernels and the uploaded trace has four. Long lists and maps are trimmed, and each cut is marked with a `/* ... trimmed */` comment.</p></div>
+
+<h2>Base URL</h2>
+<p>The samples read the app's URL and your token from the environment.</p>
+```bash
+export CASCADE_URL=https://<your-app>
+export CASCADE_TOKEN=<your token>
+```
+<p>Locally, the app's URL is `http://127.0.0.1:8000`.</p>
+
+<h2>Authentication</h2>
+<p>Send the token the app was started with as a bearer token on every request.</p>
+```bash
+curl -H "Authorization: Bearer $CASCADE_TOKEN" "$CASCADE_URL/api/traces"
+```
+<p>A missing or wrong token gets `401` with a `WWW-Authenticate: Bearer` header. Two routes differ.</p>
+<ul>
+<li>[Check health](#health) needs no token.</li>
+<li>[Stream run events](api-events.html#run-events) also accepts the token as `?token=`, because the browser's `EventSource` can't send headers.</li>
+</ul>
+<p>There is one token per app, shared by the UI, the profiler and every sim. The app compares it in constant time.</p>
+
+<h2>Conventions</h2>
+<ul>
+<li>Request and response bodies are JSON. Every [type](types.html) is generated from `cascade/models.py`.</li>
+<li>Timestamps are ISO 8601 in UTC, such as `2026-11-08T03:05:34.001386Z`.</li>
+<li>A trace's id is the profiler's run name. Runs and sims get generated ids, `run-` or `sim-` and 12 hex digits.</li>
+<li>Lists come back whole. There is no pagination.</li>
+<li>Errors are JSON with a `detail` field. See [Errors](errors.html).</li>
+</ul>
+
+<h2>Routes</h2>
+{{endpoint-index}}
+<p>Any other path under `/api/` returns `404` with `{"detail": "Not Found"}`, without checking the token. Paths outside `/api/` serve the web UI.</p>
+
+{{endpoints api}}

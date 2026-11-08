@@ -1,0 +1,10 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/sims/sim-45609b32f314/log",
+    "body": null
+  },
+  "status": 200,
+  "content_type": "text/plain",
+  "body": "GPGPU-Sim version 4.2.0 (build gpgpu-sim_git-commit-13c67115070dc2f0876254a790d0238073ca364a-modified_590.0) configured with AccelWattch.\n\n----------------------------------------------------------------------------\nINFO - If you only care about PTX execution, ignore this message. GPGPU-Sim supports PTX execution in modern CUDA.\nIf you want to run PTXPLUS (sm_1x SASS) with a modern card configuration - set the envronment variable\n$PTXAS_CUDA_INSTALL_PATH to point a CUDA version compabible with your card configurations (i.e. 8+ for PASCAL, 9+ for VOLTA etc..)\nFor example: \"export $PTXAS_CUDA_INSTALL_PATH=/usr/local/cuda-9.1\"\n\nThe following text describes why:\nIf you are using PTXPLUS, only sm_1x is supported and it requires that the app and simulator binaries are compiled in CUDA 4.2 or less.\nThe simulator requires it since CUDA headers desribe struct sizes in the exec which change from gen to gen.\nThe apps require 4.2 because new versions of CUDA tools have dropped parsing support for generating sm_1x\n$trimmed 10672 more lines"
+}

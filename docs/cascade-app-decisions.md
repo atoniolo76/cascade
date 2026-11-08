@@ -40,9 +40,9 @@ Sail facts (from docs.sailresearch.com, checked 2026-11-07):
 
 Decision:
 
-- A `Launcher` interface with `launch(sim_id, config)` and `terminate(sim_id)`.
-- `SailLauncher`: one checkpoint per run, shared by all sims in that run. Then per sim: `from_checkpoint` → background `exec` of `cascade simulate` with `CASCADE_SIM_ID` and `CASCADE_MAIN_URL` env.
-- `LocalLauncher`: runs `cascade simulate` as a local subprocess. Used for laptop dev.
+- A `Launcher` interface: `prepare(run_id)` (Sail: the run's one checkpoint), `launch(sim, trace_dir)` and `terminate(sim)`.
+- `SailLauncher`: one checkpoint per run, shared by all sims in that run. Then per sim: `from_checkpoint` → background `exec` of `$CASCADE_SIM_CMD` (through a shell) with the sim env from docs/api.md.
+- `LocalLauncher` (the default): runs `$CASCADE_SIM_CMD` as a local subprocess, split into arguments with no shell, so `$VARS` in it don't expand. Used for laptop dev.
 - Both launchers drive the same simulator-mode code path.
 
 ## Auth
@@ -64,7 +64,7 @@ Contract from Alessio (2026-11-07, tested end to end from a Modal H100):
 
 - boto3 `upload_file`, raw files (no archive), path-style addressing, multipart for files over 128 MiB. Unsigned requests for now, so the endpoint must allow anonymous writes.
 - Layout: `s3://<bucket>/<prefix>/<run_name>/` with `metadata.json`, `traces/kernel-<N>-ctx_<0x..>.trace.xz`, `traces/kernelslist_ctx_<0x..>`, `traces/stats_ctx_<0x..>`, `spinlock_detection/`, `*.log`. Kernel files trickle in during tracing. Kernel numbers have gaps; sort numerically.
-- Done signal: `metadata.json` is uploaded last, with `status` (`ok`/`failed`) and `files: [{key, bytes}]`. Until that ships, done = `metadata.json` exists AND `traces/kernelslist_ctx_*` exists.
+- Done signal (planned by Alessio): `metadata.json` uploaded last, with `status` and `files: [{key, bytes}]`. Today's profiler (b348d7d) uploads in sorted path order, so `metadata.json` lands before `traces/kernelslist_ctx_*` and `stats_ctx_*` and has no `files`. Until that changes, ingest treats a trace as done when `metadata.json` exists, every `kernelslist_ctx_*` has its `stats_ctx_*`, and two scans 2 s apart see no change.
 - Uploads are RAW. The simulator needs processed `kernelslist.g` + `kernel-*.tracez`, so main runs `post-traces-processing <run>/traces -j 8` once per trace, before any run checkpoint.
 - Sizes: ~14 MiB raw for the small test, GBs to hundreds of GBs for real models. Disk needed is ~2.2x uploaded bytes.
 
@@ -80,7 +80,8 @@ Decision:
 
 - These traces contain Hopper-only instructions, so they are valid only on sm_90 configs (`SM90_H100`, likely `SM90_H200`).
 - `metadata.json` will carry `trace_gpu_arch` and `suggested_sim_config`. The New run screen only offers configs matching the trace's arch (default `sm_90` when missing) and preselects the suggested one.
-- Simulator: Accel-Sim tag v2.0.1 (`1c9cc831`), built with CMake (the legacy make fails). Profiler will pin the same version.
+- Simulator: Accel-Sim tag v2.0.1 (`1c9cc831`), built with CMake (the legacy make fails). The profiler still pins dev `7ba54ded`; per Alessio the only difference is job-launcher scripts, and he plans to pin v2.0.1.
+- The profiler doesn't write `suggested_sim_config` or `trace_gpu_arch` yet, so the app assumes `sm_90` and the UI preselects the first compatible config.
 
 ## Real vs. simulated comparison
 
@@ -116,3 +117,8 @@ Superseded 2026-11-07: per-kernel real-vs-simulated comparison is now in scope (
 
 - A sim with no heartbeat for `CASCADE_HEARTBEAT_TIMEOUT_S` (60s) becomes `lost`. A later heartbeat revives it.
 - A sim still lost after 10x that timeout is marked `failed` and its sandbox is terminated, so runs always finish.
+
+## Local dev mode
+
+- `CASCADE_NO_AUTH=1` turns off the token check for local play only. `/api/health` reports `auth: false` and the UI skips the token screen. A missing token without this flag still refuses to start, so a deployment can't end up open by accident.
+- `scripts/seed_demo.py` fills a local app with demo traces and runs (one processed trace re-labeled, source GPU marked "(demo)").

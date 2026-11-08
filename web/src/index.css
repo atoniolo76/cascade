@@ -49,14 +49,14 @@
   --st-off-bg: light-dark(#f1f1ef, rgb(143 142 136 / 0.1));
   --st-off-dot: light-dark(#b4b3ad, #5e5d58);
 
-  --series-1: light-dark(#2a78d6, #3987e5);
-  --series-2: light-dark(#eb6834, #d95926);
-  --series-3: light-dark(#1baf7a, #199e70);
-  --series-4: light-dark(#eda100, #c98500);
-  --series-5: light-dark(#e87ba4, #d55181);
-  --series-6: light-dark(#008300, #008300);
-  --series-7: light-dark(#6250d6, #9085e9);
-  --series-8: light-dark(#e34948, #e66767);
+  --series-1: light-dark(#5165d3, #6076de);
+  --series-2: light-dark(#dd9314, #c48001);
+  --series-3: light-dark(#009e98, #04a19b);
+  --series-4: light-dark(#cd5537, #d05f43);
+  --series-5: light-dark(#834bb9, #9763cc);
+  --series-6: light-dark(#47944c, #4e9a52);
+  --series-7: light-dark(#3f99c8, #4d9cc7);
+  --series-8: light-dark(#cc4a7c, #cf5582);
   --series-ref: light-dark(#8a8983, #8f8e88);
   --grid: light-dark(#efefec, #262624);
   --axis: light-dark(#dcdcd8, #3a3a37);

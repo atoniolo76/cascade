@@ -1,0 +1,20 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/runs",
+    "body": {
+      "trace_id": "demo-failed",
+      "entries": [
+        {
+          "gpu_config": "SM86_RTX3070",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "status": 409,
+  "content_type": "application/json",
+  "body": {
+    "detail": "trace demo-failed is failed, not ready"
+  }
+}

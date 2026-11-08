@@ -1,0 +1,43 @@
+<!--
+title: Runs
+description: Launch a Cascade run on a ready trace, choose GPU configs and counts, follow its sims, and cancel it.
+-->
+<p class="lede">A run simulates one ready trace on a list of GPU configs, with a count for each. Every count is its own sim, and every sim is its own sandbox.</p>
+
+<h2>Launch a run in the UI</h2>
+<ol>
+<li>Open a `ready` trace and choose **New run**.</li>
+<li>Add a row per config and set its count, from 1 to 64. The trace's `suggested_sim_config` is preselected. Without one, the first compatible config is.</li>
+<li>Choose **Launch 6 simulations**. The button counts the sims for you. The run screen opens and updates live.</li>
+</ol>
+<p>Configs for a different architecture than the trace's `trace_gpu_arch` are disabled. An H100 trace contains Hopper-only instructions, so it runs only on `sm_90` configs such as `SM90_H100` and `SM90_H200`. To model another architecture, trace on that GPU.</p>
+
+<h2>Launch a run over the API</h2>
+<p>[Create a run](api-runs.html#create-run) takes the trace id and the entries.</p>
+```bash
+curl -X POST "$CASCADE_URL/api/runs" \
+  -H "Authorization: Bearer $CASCADE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"trace_id": "demo", "entries": [{"gpu_config": "SM90_H100", "count": 4}, {"gpu_config": "SM90_H200", "count": 2}]}'
+```
+<p>The app checks the request before creating anything.</p>
+<ul>
+<li>The trace must exist (`404`) and be `ready` (`409`).</li>
+<li>Every `gpu_config` must be one [List GPU configs](api-runs.html#list-gpu-configs) returns, with the trace's architecture (`422`).</li>
+<li>`entries` can't be empty and every `count` is 1 to 64 (`422`).</li>
+</ul>
+<p>The response is the new run with every sim `pending` or `launching`. Launching happens in the background. [Concepts](concepts.html#how-a-run-launches) walks through it.</p>
+
+<h2>Follow a run</h2>
+<p>The run screen shows a card per sim with its state, how long since its last heartbeat, kernels done out of the trace's kernel count, the kernel it's on, its latest metrics, and the last lines of its log. Over the API, read [Get a run](api-runs.html#get-run) or subscribe to [Stream run events](api-events.html).</p>
+<p>The run's own state comes from its sims.</p>
+{{run-state-table}}
+
+<h2>Cancel a run</h2>
+<p>On the run screen, choose **Cancel run** and then **Confirm cancel**, or call [Cancel a run](api-runs.html#cancel-run). Every sim that hasn't finished becomes `cancelled`, the app stops its sandbox, and the simulator's next heartbeat gets `cancel: true`. Sims that already finished keep their results. Cancelling twice is harmless.</p>
+
+<h2>When a sim goes quiet</h2>
+<p>A sim with no heartbeat for 60 seconds shows as `lost`. It goes back to `running` when it reports again. A sim still `lost` after 600 seconds becomes `failed` and its sandbox is stopped. Both times scale with `CASCADE_HEARTBEAT_TIMEOUT_S`.</p>
+
+<h2>After a restart</h2>
+<p>The app keeps everything in SQLite at `$CASCADE_DATA_DIR/cascade.db`. When it starts again, it launches any sims still `pending`. Sims on Sail run in their own sandboxes, so they keep going and their heartbeats land again once the app is back.</p>

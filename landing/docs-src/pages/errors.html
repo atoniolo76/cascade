@@ -1,0 +1,29 @@
+<!--
+title: Errors
+description: The status codes the Cascade API returns, the two error body shapes, and a captured example of each.
+-->
+<p class="lede">Errors come back as JSON with a `detail` field. For errors the app raises, `detail` is a sentence. For a body that fails validation, it's a list with one entry per problem.</p>
+
+<h2 id="e401">401 Unauthorized</h2>
+<p>The `Authorization` header is missing, doesn't start with `Bearer `, or carries the wrong token. On the event stream, a wrong `?token=` gets the same error. The response has a `WWW-Authenticate: Bearer` header.</p>
+{{example error-401}}
+
+<h2 id="e404">404 Not Found</h2>
+<p>The trace, run or sim in the path doesn't exist, or `trace_id` in a new run names no trace. `detail` names what's missing.</p>
+{{example error-404-run}}
+<p>A path under `/api/` that no route serves gets a plain `Not Found`, without a token check.</p>
+{{example error-404-route}}
+
+<h2 id="e409">409 Conflict</h2>
+<p>Only [Create a run](api-runs.html#create-run) returns `409`, when the trace exists but isn't `ready`. Wait for it to finish processing, or check its `error` if it `failed`.</p>
+{{example error-409}}
+
+<h2 id="e422">422 Unprocessable Entity</h2>
+<p>`422` has two shapes. When a run asks for a config the app doesn't have, or one for another architecture, `detail` is a sentence.</p>
+{{example error-422-unknown-config}}
+{{example error-422-arch}}
+<p>When the body doesn't match its model, `detail` is a list. Each entry has a `type`, a `loc` path into the request, a `msg`, the `input` it rejected, and sometimes a `ctx` with the limit.</p>
+{{example error-422-validation}}
+
+<h2>Server errors</h2>
+<p>The app doesn't return `5xx` on purpose. A `5xx` means something failed inside the app, such as the disk filling up. Simulators should retry `5xx` and network errors with backoff, and stop on any `4xx`.</p>

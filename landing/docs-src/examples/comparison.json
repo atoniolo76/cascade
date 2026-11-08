@@ -1,0 +1,44 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/runs/run-d96aefcba965/comparison",
+    "body": null
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "body": {
+    "has_real_timing": false,
+    "configs": [
+      "SM86_RTX3070"
+    ],
+    "rows": [
+      {
+        "kernel_index": 0,
+        "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
+        "real_ns": null,
+        "sim_ns": {
+          "SM86_RTX3070": 5454.063604240282
+        }
+      },
+      {
+        "kernel_index": 1,
+        "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
+        "real_ns": null,
+        "sim_ns": {
+          "SM86_RTX3070": 5232.332155477032
+        }
+      },
+      {
+        "kernel_index": 2,
+        "kernel_name": "_Z10mul_kernelIdEvPT_PKS0_",
+        "real_ns": null,
+        "sim_ns": {
+          "SM86_RTX3070": 5491.166077738516
+        }
+      },
+      {
+        "$trimmed": "3 more items"
+      }
+    ]
+  }
+}

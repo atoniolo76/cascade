@@ -1,0 +1,18 @@
+<!--
+title: Types
+description: Every request, response and event model in the Cascade API, its fields and types, and the sim state machine, generated from cascade/models.py.
+-->
+<p class="lede">This page is generated from `cascade/models.py` each time the docs build, so it matches the code. The web UI mirrors the same types in `web/src/api/types.ts`.</p>
+<p>Types are Python annotations as written in the source. `X | None` means the field is always present and may be `null`. `datetime` is an ISO 8601 string in UTC. `tuple[int, int, int]` is a JSON array of three integers.</p>
+
+{{types}}
+
+<h2>Sim transitions</h2>
+<p>`SIM_TRANSITIONS` lists every allowed move. The app ignores any other move, whether it comes from a heartbeat or from the app itself. The comment above it in the source says who makes each move.</p>
+{{transitions-comment}}
+{{transitions-table}}
+<p>`succeeded`, `failed` and `cancelled` are `TERMINAL_SIM_STATES`. Nothing leaves them. [Concepts](concepts.html#sim-states) draws the same table as a diagram.</p>
+
+<h2>Run state</h2>
+<p>`run_state()` derives a run's state from its sims' states. These rows are computed by calling it during the build.</p>
+{{run-state-table}}

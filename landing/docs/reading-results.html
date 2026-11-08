@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading results · Cascade docs</title>
+<meta name="description" content="What Cascade&#x27;s run screen, metrics, comparison panel and results downloads mean, and where each number comes from in Accel-Sim&#x27;s output.">
+<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+<script>try{const t=localStorage.getItem("cascade-docs-theme");if(t)document.documentElement.dataset.theme=t}catch{}</script>
+<script src="search-index.js" defer></script>
+<script src="docs.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+  <a class="brand" href="index.html"><svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><defs><clipPath id="cm0"><path d="M-6.00 -4.00 L-3.50 -4.00 L-1.00 -4.00 L1.50 -4.00 L4.00 -4.00 L6.50 -4.00 L9.00 -4.00 L11.50 -4.00 L14.00 -4.00 L16.50 -4.00 L19.00 -4.00 L21.50 -4.00 L24.00 -4.00 L26.50 -4.00 L29.00 -4.00 L31.50 -4.00 L34.00 -4.00 L36.50 -4.00 L39.00 -4.00 L41.50 -4.00 L44.00 -4.00 L46.50 -4.00 L49.00 -4.00 L51.50 -4.00 L54.00 -4.00 L54.00 18.39 L51.50 17.02 L49.00 15.77 L46.50 14.63 L44.00 13.62 L41.50 12.72 L39.00 11.95 L36.50 11.29 L34.00 10.75 L31.50 10.34 L29.00 10.04 L26.50 9.86 L24.00 9.80 L21.50 9.86 L19.00 10.04 L16.50 10.34 L14.00 10.75 L11.50 11.29 L9.00 11.95 L6.50 12.72 L4.00 13.62 L1.50 14.63 L-1.00 15.77 L-3.50 17.02 L-6.00 18.39Z"/></clipPath><clipPath id="cm1"><path d="M-6.00 21.79 L-3.50 20.42 L-1.00 19.17 L1.50 18.03 L4.00 17.02 L6.50 16.12 L9.00 15.35 L11.50 14.69 L14.00 14.15 L16.50 13.74 L19.00 13.44 L21.50 13.26 L24.00 13.20 L26.50 13.26 L29.00 13.44 L31.50 13.74 L34.00 14.15 L36.50 14.69 L39.00 15.35 L41.50 16.12 L44.00 17.02 L46.50 18.03 L49.00 19.17 L51.50 20.42 L54.00 21.79 L54.00 32.39 L51.50 31.02 L49.00 29.77 L46.50 28.63 L44.00 27.62 L41.50 26.72 L39.00 25.95 L36.50 25.29 L34.00 24.75 L31.50 24.34 L29.00 24.04 L26.50 23.86 L24.00 23.80 L21.50 23.86 L19.00 24.04 L16.50 24.34 L14.00 24.75 L11.50 25.29 L9.00 25.95 L6.50 26.72 L4.00 27.62 L1.50 28.63 L-1.00 29.77 L-3.50 31.02 L-6.00 32.39Z"/></clipPath><clipPath id="cm2"><path d="M-6.00 35.79 L-3.50 34.42 L-1.00 33.17 L1.50 32.03 L4.00 31.02 L6.50 30.12 L9.00 29.35 L11.50 28.69 L14.00 28.15 L16.50 27.74 L19.00 27.44 L21.50 27.26 L24.00 27.20 L26.50 27.26 L29.00 27.44 L31.50 27.74 L34.00 28.15 L36.50 28.69 L39.00 29.35 L41.50 30.12 L44.00 31.02 L46.50 32.03 L49.00 33.17 L51.50 34.42 L54.00 35.79 L54.00 52.00 L51.50 52.00 L49.00 52.00 L46.50 52.00 L44.00 52.00 L41.50 52.00 L39.00 52.00 L36.50 52.00 L34.00 52.00 L31.50 52.00 L29.00 52.00 L26.50 52.00 L24.00 52.00 L21.50 52.00 L19.00 52.00 L16.50 52.00 L14.00 52.00 L11.50 52.00 L9.00 52.00 L6.50 52.00 L4.00 52.00 L1.50 52.00 L-1.00 52.00 L-3.50 52.00 L-6.00 52.00Z"/></clipPath></defs><g transform="translate(-4 0)"><circle cx="24" cy="24" r="21" fill="currentColor" clip-path="url(#cm0)"/></g><g transform="translate(0 0)"><circle cx="24" cy="24" r="21" fill="#6D4AE0" clip-path="url(#cm1)"/></g><g transform="translate(4 0)"><circle cx="24" cy="24" r="21" fill="#A35CE8" clip-path="url(#cm2)"/></g></svg><span>Cascade</span><span class="brand-docs">docs</span></a>
+  <button class="search-btn" type="button" aria-label="Search docs"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search docs</span><kbd>/</kbd></button>
+  <nav class="top-links" aria-label="Site">
+    <a href="../index.html">Home</a>
+    <a href="../writeup.html">Writeup</a>
+    <a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg></button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html" aria-current="page">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div><div class="nav-group site-links"><h2>Cascade</h2><ul><li><a href="../index.html">Home</a></li><li><a href="../writeup.html">Writeup</a></li><li><a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a></li></ul></div></aside>
+  <main id="content" class="content">
+    <p class="eyebrow">Guides</p>
+    <h1>Reading results</h1>
+<p class="lede">Every number Cascade shows comes from Accel-Sim's own output. Sims send raw stdout, and the app parses one stats block per finished kernel out of it.</p>
+
+<h2 id="metrics-on-a-sim-card">Metrics on a sim card<a class="anchor" href="#metrics-on-a-sim-card" aria-label="Link to this section">#</a></h2>
+<p>Each sim card shows its latest totals. They update every time the sim sends a log chunk with a new kernel block.</p>
+<div class="table-wrap"><table class="table"><thead><tr><th>metric</th><th>Accel-Sim line</th><th>meaning</th></tr></thead><tbody>
+<tr><td>Cycles</td><td><code>gpu_tot_sim_cycle</code></td><td>Simulated GPU cycles so far, over every finished kernel.</td></tr>
+<tr><td>IPC</td><td><code>gpu_tot_ipc</code></td><td>Instructions per cycle over the whole simulated GPU so far.</td></tr>
+<tr><td>Sim rate</td><td><code>gpgpu_simulation_rate</code></td><td>How fast the simulator itself runs, in simulated instructions per wall-clock second.</td></tr>
+<tr><td>Kernels</td><td><code>kernel_name</code> blocks</td><td>Kernel blocks parsed so far, out of the trace's kernel count.</td></tr>
+</tbody></table></div>
+<p>In the examples on these pages, one sim finished with <code>gpu_tot_sim_cycle</code> 76713, <code>gpu_tot_ipc</code> 346.2289 and a sim rate of 510774 instructions per second. Those numbers come from the recorded BabelStream log that the stand-in simulator replays.</p>
+
+<h2 id="simulated-time-per-kernel">Simulated time per kernel<a class="anchor" href="#simulated-time-per-kernel" aria-label="Link to this section">#</a></h2>
+<p>Accel-Sim counts cycles. To turn cycles into time, the app divides by the config's core clock, the first value of <code>-gpgpu_clock_domains</code> in its <code>gpgpusim.config</code>.</p>
+<div class="code"><div class="code-bar"><span>text</span><button class="copy" type="button">Copy</button></div><pre><code>sim_time_ns = gpu_sim_cycle / core_clock_mhz * 1000</code></pre></div><p>For example, the first kernel in the captured run took 6174 cycles on <code>SM86_RTX3070</code>, whose core clock is 1132 MHz, so its <code>sim_time_ns</code> is 6174 / 1132 * 1000 = 5454.06.</p>
+
+<h2 id="real-against-simulated">Real against simulated<a class="anchor" href="#real-against-simulated" aria-label="Link to this section">#</a></h2>
+<p>The comparison panel lines kernels up by position. Row <code>i</code> is the <code>i</code>th kernel the sims finished, and for each config it shows the median <code>sim_time_ns</code> over that config's replicas. With several replicas, one odd sim can't skew the row.</p>
+<p>When a trace has real timings from the original GPU, row <code>i</code> also shows the <code>i</code>th real kernel by <code>kernel_id</code>, and the panel shows each config's relative error per kernel and its mean absolute error over all kernels. The app reads them from <code>real_timing.json</code> in the trace, or the file <code>metadata.json</code> names in <code>real_timing</code>, as a list of <code>{kernel_id, kernel_name, duration_ns, grid, block}</code>.</p>
+<div class="note"><p>The profiler doesn't capture real timings yet. Until it does, <code>has_real_timing</code> is false, <code>real_ns</code> is <code>null</code> on every row, and the panel shows simulated time only.</p></div>
+
+<h2 id="downloads">Downloads<a class="anchor" href="#downloads" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table class="table"><thead><tr><th>download</th><th>where</th><th>contents</th></tr></thead><tbody>
+<tr><td>Run results</td><td><strong>Download results</strong> on the run screen, or <a href="api-runs.html#get-run-results">the API</a></td><td>One <a href="types.html#runresults"><code>RunResults</code></a> JSON file: the run, the trace, every sim's per-kernel stats, and the comparison.</td></tr>
+<tr><td>Sim results</td><td><strong>Results</strong> on a sim card, or <a href="api-runs.html#get-sim-results">the API</a></td><td>One <a href="types.html#simresults"><code>SimResults</code></a> file: the sim, its config, its kernels and its totals.</td></tr>
+<tr><td>Log</td><td><strong>Log</strong> on a sim card, or <a href="api-runs.html#get-sim-log">the API</a></td><td>The sim's full raw output, as plain text.</td></tr>
+</tbody></table></div>
+<p>Each kernel in a results file has a <code>stats</code> map with every <code>key = value</code> line in its Accel-Sim block, about 950 keys and 30 KB per kernel. Numbers are parsed as floats, and anything else stays a string. The live run screen leaves <code>stats</code> out to stay small. Use the downloads for it.</p>
+
+<h2 id="how-the-parser-reads-a-log">How the parser reads a log<a class="anchor" href="#how-the-parser-reads-a-log" aria-label="Link to this section">#</a></h2>
+<p>A kernel's block starts at a <code>kernel_name = ...</code> line and ends at the next <code>gpgpu_simulation_time</code>, <code>launching kernel name:</code>, <code>Processing kernel</code>, <code>Header info loaded</code> or <code>GPGPU-Sim: *** exit detected</code> line, or at the next <code>kernel_name</code>. A block still open when the sim finishes is closed then. The <code>launching kernel name: X uid: N</code> line sets the sim's <code>current_kernel</code>.</p>
+<p>The app stores the raw log as well as the parsed stats. After a restart, it rebuilds a running sim's parser by replaying that sim's stored log, so parsing picks up where it stopped.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="runs.html"><span>Previous</span>Runs</a><a class="next" href="simulator.html"><span>Next</span>Bring your own simulator</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#metrics-on-a-sim-card">Metrics on a sim card</a></li><li class="l2"><a href="#simulated-time-per-kernel">Simulated time per kernel</a></li><li class="l2"><a href="#real-against-simulated">Real against simulated</a></li><li class="l2"><a href="#downloads">Downloads</a></li><li class="l2"><a href="#how-the-parser-reads-a-log">How the parser reads a log</a></li></ul></nav>
+</div>
+<div class="scrim" hidden></div>
+<dialog class="search" aria-label="Search docs">
+  <div class="search-box"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><input type="search" placeholder="Search titles and headings" aria-label="Search" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
+  <ul class="results" role="listbox"></ul>
+</dialog>
+</body>
+</html>

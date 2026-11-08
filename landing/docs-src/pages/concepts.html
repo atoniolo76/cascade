@@ -1,0 +1,60 @@
+<!--
+title: Concepts
+description: Traces, runs, sims and GPU configs in Cascade, their state machines, and how each sim forks from one checkpoint.
+-->
+<p class="lede">Cascade has four nouns. A trace is what you captured. A GPU config is what you simulate it on. A run asks for some number of sims per config. A sim is one simulator process working through the trace.</p>
+
+<h2>Trace</h2>
+<p>A trace is one profiler run: Accel-Sim SASS traces for every kernel the traced layers launched, plus the profiler's `metadata.json`. Its id is the profiler's run name, such as `20261107-120000__facebook_opt-125m__model.decoder.layers.10.self_attn`.</p>
+<p>The app keeps each trace as plain files at `$CASCADE_DATA_DIR/s3/cascade/accelsim-traces/<trace id>/`, because `rclone serve s3` writes uploaded objects to disk as files. Sims read the trace from the same path on their own copy of that disk.</p>
+<p>A trace records the architecture it was captured on in `trace_gpu_arch`. An H100 trace contains Hopper-only instructions, so it can only run on `sm_90` configs. If `metadata.json` has no `trace_gpu_arch`, the app assumes `sm_90`, which is what the H100 profiler produces.</p>
+
+<h3>Trace states</h3>
+{{trace-diagram}}
+<ul>
+<li>`uploading` starts when the first file of the trace appears in the bucket.</li>
+<li>`processing` starts when the upload is complete. [Traces](traces.html#when-an-upload-counts-as-complete) explains how the app decides that.</li>
+<li>`ready` means `traces/kernelslist.g` exists and runs can launch.</li>
+<li>`failed` means `metadata.json` says `status: "failed"`, or post-processing failed.</li>
+</ul>
+
+<h2>GPU config</h2>
+<p>A GPU config is one of Accel-Sim's tested configs, a directory under `gpu-simulator/gpgpu-sim/configs/tested-cfgs/` such as `SM90_H100`. The app reads two things from each one: the architecture, from the directory name, and the core clock, from the first value of `-gpgpu_clock_domains` in `gpgpusim.config`. The clock turns simulated cycles into simulated time.</p>
+
+<h2>Run</h2>
+<p>A run is one trace plus a list of entries. Each entry names a config and a count from 1 to 64, so `[{"gpu_config": "SM90_H100", "count": 4}, {"gpu_config": "SM90_H200", "count": 2}]` asks for six sims. The app doesn't store a run's state. It derives the run's state from its sims every time you read it.</p>
+{{run-state-table}}
+
+<h2>Sim</h2>
+<p>A sim is one simulator working on one config. Sims of the same entry differ only in `replica`, numbered from 0. Running several replicas of a config tells you whether its numbers are stable.</p>
+<p>The app and the sim share ownership of the sim's state. The app moves sims to `launching`, `lost` and `cancelled`, and to `failed` when a launch fails or a sim stays lost too long. Heartbeats from the sim move it to `running`, `succeeded` or `failed`.</p>
+
+<h3>Sim states</h3>
+{{sim-diagram}}
+<p>The diagram is drawn from `SIM_TRANSITIONS` in `cascade/models.py`, which is the only list of allowed moves. Any move outside it is ignored. `failed` and `cancelled` can be reached from every state that hasn't finished, so they are listed under the diagram instead of drawn.</p>
+<ul>
+<li>A sim with no heartbeat for `CASCADE_HEARTBEAT_TIMEOUT_S` seconds, 60 by default, becomes `lost`. The app checks every 5 seconds.</li>
+<li>A `lost` sim that sends another heartbeat goes back to `running`, or straight to `succeeded` or `failed` if that's what it reports.</li>
+<li>A sim that stays `lost` for 10 times the timeout, 600 seconds by default, becomes `failed` with the error `no heartbeat for 600s`, and the app stops its sandbox. Every run finishes eventually.</li>
+</ul>
+
+<h2>How a run launches</h2>
+<p>When you create a run, the app writes the run and all of its sims as `pending`, returns, and launches in the background. Up to 8 launches run at once.</p>
+<p>On Sail (`CASCADE_LAUNCHER=sail`, which the deploy script sets), launching works like this.</p>
+<ol>
+<li>The app checkpoints its own sandbox once per run, as `cascade-<run id>`. A checkpoint saves the disk, so it includes the ready trace. If a checkpoint with that name already exists, the app reuses it, so a restart mid-launch doesn't take a second one.</li>
+<li>For each sim, the app starts a new sandbox named `cascade-<sim id>` from that checkpoint with `restore_memory=False`. The fork boots fresh from the saved disk instead of cloning the app's running process.</li>
+<li>In the fork, the app runs `CASCADE_SIM_CMD` in the background with the sim's environment, and passes the sim id as the call's idempotency key. The command's output goes to `$CASCADE_DATA_DIR/work/sims/<sim id>.out` on the fork's disk.</li>
+<li>The sim's `launcher_ref` is the fork's sandbox id. When the sim finishes or is cancelled, the app terminates that sandbox.</li>
+</ol>
+<p>Every fork of a run starts from the same checkpoint, so every sim reads an identical trace, and the trace is never copied over the network.</p>
+<p>Locally (`CASCADE_LAUNCHER=local`, the default), the app runs `CASCADE_SIM_CMD` as a subprocess in its own process group, with the same environment, and `launcher_ref` is the process id. To stop it, the app sends `SIGTERM` to the group and `SIGKILL` after 5 seconds.</p>
+<div class="note"><p>The Sail launcher was written against the Sail SDK 0.17.2 source and is covered by tests with a fake SDK. It hasn't run against the live Sail service yet.</p></div>
+
+<h2>How sims report back</h2>
+<p>Sims push and the app listens. A sim needs no public address of its own. It reaches the app at `CASCADE_MAIN_URL` and sends two kinds of request.</p>
+<ul>
+<li>A heartbeat every few seconds, with its state. The reply tells it whether it has been cancelled.</li>
+<li>Its raw output in numbered chunks. The app parses Accel-Sim's per-kernel stats out of the lines itself, so a simulator never has to.</li>
+</ul>
+<p>The app stores every chunk, so you can download a sim's full log at any point. It fans every change out to browsers over server-sent events. [Bring your own simulator](simulator.html) has the full contract.</p>

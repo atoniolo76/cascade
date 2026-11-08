@@ -1,0 +1,39 @@
+<!--
+title: Reading results
+description: What Cascade's run screen, metrics, comparison panel and results downloads mean, and where each number comes from in Accel-Sim's output.
+-->
+<p class="lede">Every number Cascade shows comes from Accel-Sim's own output. Sims send raw stdout, and the app parses one stats block per finished kernel out of it.</p>
+
+<h2>Metrics on a sim card</h2>
+<p>Each sim card shows its latest totals. They update every time the sim sends a log chunk with a new kernel block.</p>
+<div class="table-wrap"><table class="table"><thead><tr><th>metric</th><th>Accel-Sim line</th><th>meaning</th></tr></thead><tbody>
+<tr><td>Cycles</td><td>`gpu_tot_sim_cycle`</td><td>Simulated GPU cycles so far, over every finished kernel.</td></tr>
+<tr><td>IPC</td><td>`gpu_tot_ipc`</td><td>Instructions per cycle over the whole simulated GPU so far.</td></tr>
+<tr><td>Sim rate</td><td>`gpgpu_simulation_rate`</td><td>How fast the simulator itself runs, in simulated instructions per wall-clock second.</td></tr>
+<tr><td>Kernels</td><td>`kernel_name` blocks</td><td>Kernel blocks parsed so far, out of the trace's kernel count.</td></tr>
+</tbody></table></div>
+<p>In the examples on these pages, one sim finished with `gpu_tot_sim_cycle` 76713, `gpu_tot_ipc` 346.2289 and a sim rate of 510774 instructions per second. Those numbers come from the recorded BabelStream log that the stand-in simulator replays.</p>
+
+<h2>Simulated time per kernel</h2>
+<p>Accel-Sim counts cycles. To turn cycles into time, the app divides by the config's core clock, the first value of `-gpgpu_clock_domains` in its `gpgpusim.config`.</p>
+```text
+sim_time_ns = gpu_sim_cycle / core_clock_mhz * 1000
+```
+<p>For example, the first kernel in the captured run took 6174 cycles on `SM86_RTX3070`, whose core clock is 1132 MHz, so its `sim_time_ns` is 6174 / 1132 * 1000 = 5454.06.</p>
+
+<h2>Real against simulated</h2>
+<p>The comparison panel lines kernels up by position. Row `i` is the `i`th kernel the sims finished, and for each config it shows the median `sim_time_ns` over that config's replicas. With several replicas, one odd sim can't skew the row.</p>
+<p>When a trace has real timings from the original GPU, row `i` also shows the `i`th real kernel by `kernel_id`, and the panel shows each config's relative error per kernel and its mean absolute error over all kernels. The app reads them from `real_timing.json` in the trace, or the file `metadata.json` names in `real_timing`, as a list of `{kernel_id, kernel_name, duration_ns, grid, block}`.</p>
+<div class="note"><p>The profiler doesn't capture real timings yet. Until it does, `has_real_timing` is false, `real_ns` is `null` on every row, and the panel shows simulated time only.</p></div>
+
+<h2>Downloads</h2>
+<div class="table-wrap"><table class="table"><thead><tr><th>download</th><th>where</th><th>contents</th></tr></thead><tbody>
+<tr><td>Run results</td><td>**Download results** on the run screen, or [the API](api-runs.html#get-run-results)</td><td>One `RunResults` JSON file: the run, the trace, every sim's per-kernel stats, and the comparison.</td></tr>
+<tr><td>Sim results</td><td>**Results** on a sim card, or [the API](api-runs.html#get-sim-results)</td><td>One `SimResults` file: the sim, its config, its kernels and its totals.</td></tr>
+<tr><td>Log</td><td>**Log** on a sim card, or [the API](api-runs.html#get-sim-log)</td><td>The sim's full raw output, as plain text.</td></tr>
+</tbody></table></div>
+<p>Each kernel in a results file has a `stats` map with every `key = value` line in its Accel-Sim block, about 950 keys and 30 KB per kernel. Numbers are parsed as floats, and anything else stays a string. The live run screen leaves `stats` out to stay small. Use the downloads for it.</p>
+
+<h2>How the parser reads a log</h2>
+<p>A kernel's block starts at a `kernel_name = ...` line and ends at the next `gpgpu_simulation_time`, `launching kernel name:`, `Processing kernel`, `Header info loaded` or `GPGPU-Sim: *** exit detected` line, or at the next `kernel_name`. A block still open when the sim finishes is closed then. The `launching kernel name: X uid: N` line sets the sim's `current_kernel`.</p>
+<p>The app stores the raw log as well as the parsed stats. After a restart, it rebuilds a running sim's parser by replaying that sim's stored log, so parsing picks up where it stopped.</p>

@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Runs · Cascade docs</title>
+<meta name="description" content="List GPU configs, create and cancel runs, read run and sim state, and download results and logs from the Cascade API.">
+<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+<script>try{const t=localStorage.getItem("cascade-docs-theme");if(t)document.documentElement.dataset.theme=t}catch{}</script>
+<script src="search-index.js" defer></script>
+<script src="docs.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+  <a class="brand" href="index.html"><svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><defs><clipPath id="cm0"><path d="M-6.00 -4.00 L-3.50 -4.00 L-1.00 -4.00 L1.50 -4.00 L4.00 -4.00 L6.50 -4.00 L9.00 -4.00 L11.50 -4.00 L14.00 -4.00 L16.50 -4.00 L19.00 -4.00 L21.50 -4.00 L24.00 -4.00 L26.50 -4.00 L29.00 -4.00 L31.50 -4.00 L34.00 -4.00 L36.50 -4.00 L39.00 -4.00 L41.50 -4.00 L44.00 -4.00 L46.50 -4.00 L49.00 -4.00 L51.50 -4.00 L54.00 -4.00 L54.00 18.39 L51.50 17.02 L49.00 15.77 L46.50 14.63 L44.00 13.62 L41.50 12.72 L39.00 11.95 L36.50 11.29 L34.00 10.75 L31.50 10.34 L29.00 10.04 L26.50 9.86 L24.00 9.80 L21.50 9.86 L19.00 10.04 L16.50 10.34 L14.00 10.75 L11.50 11.29 L9.00 11.95 L6.50 12.72 L4.00 13.62 L1.50 14.63 L-1.00 15.77 L-3.50 17.02 L-6.00 18.39Z"/></clipPath><clipPath id="cm1"><path d="M-6.00 21.79 L-3.50 20.42 L-1.00 19.17 L1.50 18.03 L4.00 17.02 L6.50 16.12 L9.00 15.35 L11.50 14.69 L14.00 14.15 L16.50 13.74 L19.00 13.44 L21.50 13.26 L24.00 13.20 L26.50 13.26 L29.00 13.44 L31.50 13.74 L34.00 14.15 L36.50 14.69 L39.00 15.35 L41.50 16.12 L44.00 17.02 L46.50 18.03 L49.00 19.17 L51.50 20.42 L54.00 21.79 L54.00 32.39 L51.50 31.02 L49.00 29.77 L46.50 28.63 L44.00 27.62 L41.50 26.72 L39.00 25.95 L36.50 25.29 L34.00 24.75 L31.50 24.34 L29.00 24.04 L26.50 23.86 L24.00 23.80 L21.50 23.86 L19.00 24.04 L16.50 24.34 L14.00 24.75 L11.50 25.29 L9.00 25.95 L6.50 26.72 L4.00 27.62 L1.50 28.63 L-1.00 29.77 L-3.50 31.02 L-6.00 32.39Z"/></clipPath><clipPath id="cm2"><path d="M-6.00 35.79 L-3.50 34.42 L-1.00 33.17 L1.50 32.03 L4.00 31.02 L6.50 30.12 L9.00 29.35 L11.50 28.69 L14.00 28.15 L16.50 27.74 L19.00 27.44 L21.50 27.26 L24.00 27.20 L26.50 27.26 L29.00 27.44 L31.50 27.74 L34.00 28.15 L36.50 28.69 L39.00 29.35 L41.50 30.12 L44.00 31.02 L46.50 32.03 L49.00 33.17 L51.50 34.42 L54.00 35.79 L54.00 52.00 L51.50 52.00 L49.00 52.00 L46.50 52.00 L44.00 52.00 L41.50 52.00 L39.00 52.00 L36.50 52.00 L34.00 52.00 L31.50 52.00 L29.00 52.00 L26.50 52.00 L24.00 52.00 L21.50 52.00 L19.00 52.00 L16.50 52.00 L14.00 52.00 L11.50 52.00 L9.00 52.00 L6.50 52.00 L4.00 52.00 L1.50 52.00 L-1.00 52.00 L-3.50 52.00 L-6.00 52.00Z"/></clipPath></defs><g transform="translate(-4 0)"><circle cx="24" cy="24" r="21" fill="currentColor" clip-path="url(#cm0)"/></g><g transform="translate(0 0)"><circle cx="24" cy="24" r="21" fill="#6D4AE0" clip-path="url(#cm1)"/></g><g transform="translate(4 0)"><circle cx="24" cy="24" r="21" fill="#A35CE8" clip-path="url(#cm2)"/></g></svg><span>Cascade</span><span class="brand-docs">docs</span></a>
+  <button class="search-btn" type="button" aria-label="Search docs"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search docs</span><kbd>/</kbd></button>
+  <nav class="top-links" aria-label="Site">
+    <a href="../index.html">Home</a>
+    <a href="../writeup.html">Writeup</a>
+    <a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg></button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html" aria-current="page">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div><div class="nav-group site-links"><h2>Cascade</h2><ul><li><a href="../index.html">Home</a></li><li><a href="../writeup.html">Writeup</a></li><li><a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a></li></ul></div></aside>
+  <main id="content" class="content">
+    <p class="eyebrow">API reference</p>
+    <h1>Runs</h1>
+<p class="lede">A run simulates one ready trace on a list of GPU configs. These routes create and cancel runs, read their sims, and download what the sims produced. <a href="runs.html">Runs</a> covers the same ground as a guide.</p>
+
+<section class="endpoint"><h2 id="list-gpu-configs">List GPU configs<a class="anchor" href="#list-gpu-configs" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method get">GET</span><span class="path">/api/gpu-configs</span><span class="auth">bearer token</span></div>
+<p>Lists the GPU configs the app found at startup under <code>$CASCADE_ACCELSIM_DIR/gpu-simulator/gpgpu-sim/configs/tested-cfgs/*/gpgpusim.config</code>. The app derives <code>arch</code> from the directory name (<code>SM90_H100</code> is <code>sm_90</code>, <code>SM7_QV100</code> is <code>sm_70</code>) and reads <code>core_clock_mhz</code> from the first value of <code>-gpgpu_clock_domains</code>. A directory whose name or clock it can't read is skipped.</p>
+<h3 id="returns">Returns<a class="anchor" href="#returns" aria-label="Link to this section">#</a></h3><p><code>200</code> with a list of <a href="types.html#gpuconfig"><code>GpuConfig</code></a>, sorted by name.</p>
+<h3 id="errors">Errors<a class="anchor" href="#errors" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr></tbody></table></div>
+<h3 id="example">Example<a class="anchor" href="#example" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/gpu-configs"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/gpu-configs"</span>, headers=headers)
+resp.raise_for_status()
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/gpu-configs`</span>, {
+  headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
+});
+console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>[
+  {
+    <span class="tk-k">"name"</span>: <span class="tk-s">"SM7_QV100"</span>,
+    <span class="tk-k">"arch"</span>: <span class="tk-s">"sm_70"</span>,
+    <span class="tk-k">"core_clock_mhz"</span>: <span class="tk-n">1132.0</span>
+  },
+  {
+    <span class="tk-k">"name"</span>: <span class="tk-s">"SM80_A100"</span>,
+    <span class="tk-k">"arch"</span>: <span class="tk-s">"sm_80"</span>,
+    <span class="tk-k">"core_clock_mhz"</span>: <span class="tk-n">1410.0</span>
+  },
+  {
+    <span class="tk-k">"name"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+    <span class="tk-k">"arch"</span>: <span class="tk-s">"sm_86"</span>,
+    <span class="tk-k">"core_clock_mhz"</span>: <span class="tk-n">1132.0</span>
+  },
+  {
+    <span class="tk-k">"name"</span>: <span class="tk-s">"SM90_H100"</span>,
+    <span class="tk-k">"arch"</span>: <span class="tk-s">"sm_90"</span>,
+    <span class="tk-k">"core_clock_mhz"</span>: <span class="tk-n">1980.0</span>
+  },
+  {
+    <span class="tk-k">"name"</span>: <span class="tk-s">"SM90_H200"</span>,
+    <span class="tk-k">"arch"</span>: <span class="tk-s">"sm_90"</span>,
+    <span class="tk-k">"core_clock_mhz"</span>: <span class="tk-n">1980.0</span>
+  }
+]</code></pre></div>
+</section>
+<section class="endpoint"><h2 id="create-run">Create a run<a class="anchor" href="#create-run" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method post">POST</span><span class="path">/api/runs</span><span class="auth">bearer token</span></div>
+<p>Creates a run and starts launching its sims in the background. Each entry fans out to <code>count</code> sims, numbered by <code>replica</code> from 0. The response comes back before any sim has launched, so every sim is <code>pending</code> or <code>launching</code>. Follow progress with <a href="api-events.html#run-events">Stream run events</a> or by polling <a href="#get-run">Get a run</a>.</p>
+<h3 id="request-body">Request body<a class="anchor" href="#request-body" aria-label="Link to this section">#</a></h3><p>JSON, <a href="types.html#runcreate">RunCreate</a>.</p>
+<div class="table-wrap"><table class="table fields"><thead><tr><th>field</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>trace_id</code></td><td><code class="type">str</code></td><td>A trace in state <code>ready</code>.</td></tr><tr><td><code>entries</code></td><td><code class="type">list[<a href="types.html#runentry">RunEntry</a>]</code></td><td>One entry per config. Each fans out to <code>count</code> sims. <span class="constraint">at least 1 item</span></td></tr></tbody></table></div>
+<p>Each <a href="types.html#runentry">RunEntry</a> has these fields.</p><div class="table-wrap"><table class="table fields"><thead><tr><th>field</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>gpu_config</code></td><td><code class="type">str</code></td><td>A <code>GpuConfig.name</code> whose <code>arch</code> matches the trace's <code>trace_gpu_arch</code>.</td></tr><tr><td><code>count</code></td><td><code class="type">int</code></td><td>How many sims run this config. <span class="constraint">at least 1, at most 64</span></td></tr></tbody></table></div>
+<h3 id="returns-2">Returns<a class="anchor" href="#returns-2" aria-label="Link to this section">#</a></h3><p><code>201</code> with a <a href="types.html#rundetail"><code>RunDetail</code></a>.</p>
+<h3 id="errors-2">Errors<a class="anchor" href="#errors-2" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td><code>trace_id</code> names no trace.</td></tr><tr><td><a href="errors.html#e409"><code>409</code></a></td><td>The trace is not <code>ready</code>.</td></tr><tr><td><a href="errors.html#e422"><code>422</code></a></td><td>An entry names an unknown <code>gpu_config</code>, or a config whose <code>arch</code> differs from the trace's <code>trace_gpu_arch</code>.</td></tr><tr><td><a href="errors.html#e422"><code>422</code></a></td><td>The body fails validation: <code>entries</code> is empty, or a <code>count</code> is outside 1 to 64.</td></tr></tbody></table></div>
+<h3 id="example-2">Example<a class="anchor" href="#example-2" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -X POST <span class="tk-s">"$CASCADE_URL/api/runs"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span> \
+  -H <span class="tk-s">"Content-Type: application/json"</span> \
+  -d <span class="tk-s">'{"trace_id": "demo", "entries": [{"gpu_config": "SM86_RTX3070", "count": 2}]}'</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
+resp = httpx.post(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs"</span>, headers=headers, json={<span class="tk-s">"trace_id"</span>: <span class="tk-s">"demo"</span>, <span class="tk-s">"entries"</span>: [{<span class="tk-s">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>, <span class="tk-s">"count"</span>: 2}]})
+resp.raise_for_status()
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs`</span>, {
+  method: <span class="tk-s">"POST"</span>,
+  headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span>, <span class="tk-s">"Content-Type"</span>: <span class="tk-s">"application/json"</span> },
+  body: JSON.stringify({<span class="tk-s">"trace_id"</span>: <span class="tk-s">"demo"</span>, <span class="tk-s">"entries"</span>: [{<span class="tk-s">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>, <span class="tk-s">"count"</span>: 2}]}),
+});
+console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 201 Created · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"id"</span>: <span class="tk-s">"run-d96aefcba965"</span>,
+  <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
+  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.001386Z"</span>,
+  <span class="tk-k">"state"</span>: <span class="tk-s">"active"</span>,
+  <span class="tk-k">"entries"</span>: [
+    {
+      <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+      <span class="tk-k">"count"</span>: <span class="tk-n">2</span>
+    }
+  ],
+  <span class="tk-k">"sim_counts"</span>: {
+    <span class="tk-k">"pending"</span>: <span class="tk-n">2</span>
+  },
+  <span class="tk-k">"trace"</span>: {
+    <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
+    <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
+    <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.585353Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.586920Z"</span>,
+    <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"layers"</span>: [],
+    <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
+    <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">31660273</span>,
+    <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>
+  },
+  <span class="tk-k">"sims"</span>: [
+    {
+      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-45609b32f314"</span>,
+      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-d96aefcba965"</span>,
+      <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+      <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
+      <span class="tk-k">"state"</span>: <span class="tk-s">"pending"</span>,
+      <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"launcher_ref"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.001386Z"</span>,
+      <span class="tk-k">"started_at"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"finished_at"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"exit_code"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"kernels_done"</span>: <span class="tk-n">0</span>,
+      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+      <span class="tk-k">"current_kernel"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"latest"</span>: {
+        <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"gpu_tot_sim_insn"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"gpu_tot_ipc"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"sim_rate_ips"</span>: <span class="tk-l">null</span>
+      },
+      <span class="tk-k">"log_tail"</span>: []
+    },
+    {
+      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-d698ff59b168"</span>,
+      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-d96aefcba965"</span>,
+      <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+      <span class="tk-k">"replica"</span>: <span class="tk-n">1</span>,
+      <span class="tk-k">"state"</span>: <span class="tk-s">"pending"</span>,
+      <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"launcher_ref"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.001386Z"</span>,
+      <span class="tk-k">"started_at"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"finished_at"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"exit_code"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"kernels_done"</span>: <span class="tk-n">0</span>,
+      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+      <span class="tk-k">"current_kernel"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"latest"</span>: {
+        <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"gpu_tot_sim_insn"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"gpu_tot_ipc"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"sim_rate_ips"</span>: <span class="tk-l">null</span>
+      },
+      <span class="tk-k">"log_tail"</span>: []
+    }
+  ]
+}</code></pre></div>
+<div class="code"><div class="code-bar"><span>409 response · 409 Conflict · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"detail"</span>: <span class="tk-s">"trace demo-failed is failed, not ready"</span>
+}</code></pre></div>
+<div class="code"><div class="code-bar"><span>422 response, arch mismatch · 422 Unprocessable Entity · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"detail"</span>: <span class="tk-s">"SM90_H100 is sm_90 but trace demo is sm_86"</span>
+}</code></pre></div>
+<div class="code"><div class="code-bar"><span>422 response, validation · 422 Unprocessable Entity · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"detail"</span>: [
+    {
+      <span class="tk-k">"type"</span>: <span class="tk-s">"greater_than_equal"</span>,
+      <span class="tk-k">"loc"</span>: [
+        <span class="tk-s">"body"</span>,
+        <span class="tk-s">"entries"</span>,
+        <span class="tk-n">0</span>,
+        <span class="tk-s">"count"</span>
+      ],
+      <span class="tk-k">"msg"</span>: <span class="tk-s">"Input should be greater than or equal to 1"</span>,
+      <span class="tk-k">"input"</span>: <span class="tk-n">0</span>,
+      <span class="tk-k">"ctx"</span>: {
+        <span class="tk-k">"ge"</span>: <span class="tk-n">1</span>
+      }
+    }
+  ]
+}</code></pre></div>
+</section>
+<section class="endpoint"><h2 id="list-runs">List runs<a class="anchor" href="#list-runs" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method get">GET</span><span class="path">/api/runs</span><span class="auth">bearer token</span></div>
+<p>Lists every run, newest first, with per-state sim counts. Use <a href="#get-run">Get a run</a> for the sims themselves.</p>
+<h3 id="returns-3">Returns<a class="anchor" href="#returns-3" aria-label="Link to this section">#</a></h3><p><code>200</code> with a list of <a href="types.html#runsummary"><code>RunSummary</code></a>.</p>
+<h3 id="errors-3">Errors<a class="anchor" href="#errors-3" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr></tbody></table></div>
+<h3 id="example-3">Example<a class="anchor" href="#example-3" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs"</span>, headers=headers)
+resp.raise_for_status()
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs`</span>, {
+  headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
+});
+console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>[
+  {
+    <span class="tk-k">"id"</span>: <span class="tk-s">"run-d96aefcba965"</span>,
+    <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.001386Z"</span>,
+    <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
+    <span class="tk-k">"entries"</span>: [
+      {
+        <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+        <span class="tk-k">"count"</span>: <span class="tk-n">2</span>
+      }
+    ],
+    <span class="tk-k">"sim_counts"</span>: {
+      <span class="tk-k">"succeeded"</span>: <span class="tk-n">2</span>
+    }
+  }
+]</code></pre></div>
+</section>
+<section class="endpoint"><h2 id="get-run">Get a run<a class="anchor" href="#get-run" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method get">GET</span><span class="path">/api/runs/<span class="pp">{run_id}</span></span><span class="auth">bearer token</span></div>
+<p>Returns the run, its trace, and every sim with its state, progress, latest metrics and last 20 log lines.</p>
+<h3 id="path-parameters">Path parameters<a class="anchor" href="#path-parameters" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>run_id</code></td><td><code class="type">str</code></td><td>The run's <code>id</code>, such as <code>run-d96aefcba965</code>.</td></tr></tbody></table></div>
+<h3 id="returns-4">Returns<a class="anchor" href="#returns-4" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#rundetail"><code>RunDetail</code></a>.</p>
+<h3 id="errors-4">Errors<a class="anchor" href="#errors-4" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
+<h3 id="example-4">Example<a class="anchor" href="#example-4" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-d96aefcba965"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-d96aefcba965"</span>, headers=headers)
+resp.raise_for_status()
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-d96aefcba965`</span>, {
+  headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
+});
+console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"id"</span>: <span class="tk-s">"run-d96aefcba965"</span>,
+  <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
+  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.001386Z"</span>,
+  <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
+  <span class="tk-k">"entries"</span>: [
+    {
+      <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+      <span class="tk-k">"count"</span>: <span class="tk-n">2</span>
+    }
+  ],
+  <span class="tk-k">"sim_counts"</span>: {
+    <span class="tk-k">"succeeded"</span>: <span class="tk-n">2</span>
+  },
+  <span class="tk-k">"trace"</span>: {
+    <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
+    <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
+    <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.585353Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.586920Z"</span>,
+    <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"layers"</span>: [],
+    <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
+    <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">31660273</span>,
+    <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>
+  },
+  <span class="tk-k">"sims"</span>: [
+    {
+      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-45609b32f314"</span>,
+      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-d96aefcba965"</span>,
+      <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+      <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
+      <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
+      <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"91078"</span>,
+      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.001386Z"</span>,
+      <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.066598Z"</span>,
+      <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.087222Z"</span>,
+      <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.087222Z"</span>,
+      <span class="tk-k">"exit_code"</span>: <span class="tk-n">0</span>,
+      <span class="tk-k">"kernels_done"</span>: <span class="tk-n">6</span>,
+      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+      <span class="tk-k">"current_kernel"</span>: <span class="tk-s">"_Z10dot_kernelIdEvPKT_S2_PS0_i"</span>,
+      <span class="tk-k">"latest"</span>: {
+        <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
+        <span class="tk-k">"gpu_tot_sim_insn"</span>: <span class="tk-n">26560256.0</span>,
+        <span class="tk-k">"gpu_tot_ipc"</span>: <span class="tk-n">346.2289</span>,
+        <span class="tk-k">"sim_rate_ips"</span>: <span class="tk-n">510774.0</span>
+      },
+      <span class="tk-k">"log_tail"</span>: [
+        <span class="tk-s">""</span>,
+        <span class="tk-s">"Reply_Network_injected_packets_num = 4096"</span>,
+        <span class="tk-s">"Reply_Network_cycles = 76713"</span>
+        <span class="tk-c">/* 17 more items trimmed */</span>
+      ]
+    },
+    {
+      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-d698ff59b168"</span>,
+      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-d96aefcba965"</span>,
+      <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+      <span class="tk-k">"replica"</span>: <span class="tk-n">1</span>,
+      <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
+      <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"91079"</span>,
+      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.001386Z"</span>,
+      <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.066118Z"</span>,
+      <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.088830Z"</span>,
+      <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.088830Z"</span>,
+      <span class="tk-k">"exit_code"</span>: <span class="tk-n">0</span>,
+      <span class="tk-k">"kernels_done"</span>: <span class="tk-n">6</span>,
+      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+      <span class="tk-k">"current_kernel"</span>: <span class="tk-s">"_Z10dot_kernelIdEvPKT_S2_PS0_i"</span>,
+      <span class="tk-k">"latest"</span>: {
+        <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
+        <span class="tk-k">"gpu_tot_sim_insn"</span>: <span class="tk-n">26560256.0</span>,
+        <span class="tk-k">"gpu_tot_ipc"</span>: <span class="tk-n">346.2289</span>,
+        <span class="tk-k">"sim_rate_ips"</span>: <span class="tk-n">510774.0</span>
+      },
+      <span class="tk-k">"log_tail"</span>: [
+        <span class="tk-s">""</span>,
+        <span class="tk-s">"Reply_Network_injected_packets_num = 4096"</span>,
+        <span class="tk-s">"Reply_Network_cycles = 76713"</span>
+        <span class="tk-c">/* 17 more items trimmed */</span>
+      ]
+    }
+  ]
+}</code></pre></div>
+<div class="code"><div class="code-bar"><span>404 response · 404 Not Found · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"detail"</span>: <span class="tk-s">"run run-000000000000 not found"</span>
+}</code></pre></div>
+</section>
+<section class="endpoint"><h2 id="cancel-run">Cancel a run<a class="anchor" href="#cancel-run" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method post">POST</span><span class="path">/api/runs/<span class="pp">{run_id}</span>/cancel</span><span class="auth">bearer token</span></div>
+<p>Moves every sim that has not finished to <code>cancelled</code> and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets <code>cancel: true</code>. Calling it again changes nothing, so it is safe to retry.</p>
+<h3 id="path-parameters-2">Path parameters<a class="anchor" href="#path-parameters-2" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>run_id</code></td><td><code class="type">str</code></td><td>The run's <code>id</code>, such as <code>run-d96aefcba965</code>.</td></tr></tbody></table></div>
+<h3 id="returns-5">Returns<a class="anchor" href="#returns-5" aria-label="Link to this section">#</a></h3><p><code>200</code> with the <a href="types.html#rundetail"><code>RunDetail</code></a> after cancelling.</p>
+<h3 id="errors-5">Errors<a class="anchor" href="#errors-5" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
+<h3 id="example-5">Example<a class="anchor" href="#example-5" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -X POST <span class="tk-s">"$CASCADE_URL/api/runs/run-06e0e1ec00a9/cancel"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
+resp = httpx.post(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-06e0e1ec00a9/cancel"</span>, headers=headers)
+resp.raise_for_status()
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-06e0e1ec00a9/cancel`</span>, {
+  method: <span class="tk-s">"POST"</span>,
+  headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
+});
+console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"id"</span>: <span class="tk-s">"run-06e0e1ec00a9"</span>,
+  <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
+  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.604429Z"</span>,
+  <span class="tk-k">"state"</span>: <span class="tk-s">"cancelled"</span>,
+  <span class="tk-k">"entries"</span>: [
+    {
+      <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+      <span class="tk-k">"count"</span>: <span class="tk-n">1</span>
+    }
+  ],
+  <span class="tk-k">"sim_counts"</span>: {
+    <span class="tk-k">"cancelled"</span>: <span class="tk-n">1</span>
+  },
+  <span class="tk-k">"trace"</span>: {
+    <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
+    <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
+    <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.585353Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.586920Z"</span>,
+    <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"layers"</span>: [],
+    <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
+    <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">31660273</span>,
+    <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>
+  },
+  <span class="tk-k">"sims"</span>: [
+    {
+      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-47077db646b1"</span>,
+      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-06e0e1ec00a9"</span>,
+      <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+      <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
+      <span class="tk-k">"state"</span>: <span class="tk-s">"cancelled"</span>,
+      <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"91173"</span>,
+      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.604429Z"</span>,
+      <span class="tk-k">"started_at"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.608132Z"</span>,
+      <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"exit_code"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"kernels_done"</span>: <span class="tk-n">0</span>,
+      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+      <span class="tk-k">"current_kernel"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"latest"</span>: {
+        <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"gpu_tot_sim_insn"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"gpu_tot_ipc"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"sim_rate_ips"</span>: <span class="tk-l">null</span>
+      },
+      <span class="tk-k">"log_tail"</span>: []
+    }
+  ]
+}</code></pre></div>
+</section>
+<section class="endpoint"><h2 id="get-comparison">Compare real and simulated time<a class="anchor" href="#get-comparison" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method get">GET</span><span class="path">/api/runs/<span class="pp">{run_id}</span>/comparison</span><span class="auth">bearer token</span></div>
+<p>Lines up kernels by order. Row <code>i</code> holds the <code>i</code>th kernel the sims finished and the <code>i</code>th row of the trace's real timing, sorted by <code>kernel_id</code>. For each config, <code>sim_ns</code> is the median <code>sim_time_ns</code> over that config's replicas, or <code>null</code> if no replica has finished that kernel. <code>real_ns</code> is <code>null</code> until the trace has real timing, which the profiler does not capture yet.</p>
+<h3 id="path-parameters-3">Path parameters<a class="anchor" href="#path-parameters-3" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>run_id</code></td><td><code class="type">str</code></td><td>The run's <code>id</code>, such as <code>run-d96aefcba965</code>.</td></tr></tbody></table></div>
+<h3 id="returns-6">Returns<a class="anchor" href="#returns-6" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#comparison"><code>Comparison</code></a>.</p>
+<h3 id="errors-6">Errors<a class="anchor" href="#errors-6" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
+<h3 id="example-6">Example<a class="anchor" href="#example-6" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-d96aefcba965/comparison"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-d96aefcba965/comparison"</span>, headers=headers)
+resp.raise_for_status()
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-d96aefcba965/comparison`</span>, {
+  headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
+});
+console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
+  <span class="tk-k">"configs"</span>: [
+    <span class="tk-s">"SM86_RTX3070"</span>
+  ],
+  <span class="tk-k">"rows"</span>: [
+    {
+      <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
+      <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
+      <span class="tk-k">"real_ns"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"sim_ns"</span>: {
+        <span class="tk-k">"SM86_RTX3070"</span>: <span class="tk-n">5454.063604240282</span>
+      }
+    },
+    {
+      <span class="tk-k">"kernel_index"</span>: <span class="tk-n">1</span>,
+      <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
+      <span class="tk-k">"real_ns"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"sim_ns"</span>: {
+        <span class="tk-k">"SM86_RTX3070"</span>: <span class="tk-n">5232.332155477032</span>
+      }
+    },
+    {
+      <span class="tk-k">"kernel_index"</span>: <span class="tk-n">2</span>,
+      <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z10mul_kernelIdEvPT_PKS0_"</span>,
+      <span class="tk-k">"real_ns"</span>: <span class="tk-l">null</span>,
+      <span class="tk-k">"sim_ns"</span>: {
+        <span class="tk-k">"SM86_RTX3070"</span>: <span class="tk-n">5491.166077738516</span>
+      }
+    }
+    <span class="tk-c">/* 3 more items trimmed */</span>
+  ]
+}</code></pre></div>
+</section>
+<section class="endpoint"><h2 id="get-run-kernels">List a run's kernel timings<a class="anchor" href="#get-run-kernels" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method get">GET</span><span class="path">/api/runs/<span class="pp">{run_id}</span>/kernels</span><span class="auth">bearer token</span></div>
+<p>Returns a <a href="types.html#kernelstat"><code>KernelStat</code></a> for every kernel every sim in the run has finished, ordered by config, replica, then kernel. Each <code>stats</code> map is empty to keep the response small; the full maps are in the results downloads. Laying each sim's kernels end to end by <code>sim_time_ns</code> gives its timeline, which is what the app's timeline and Compare views draw.</p>
+<h3 id="path-parameters-4">Path parameters<a class="anchor" href="#path-parameters-4" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>run_id</code></td><td><code class="type">str</code></td><td>The run's <code>id</code>, such as <code>run-d96aefcba965</code>.</td></tr></tbody></table></div>
+<h3 id="returns-7">Returns<a class="anchor" href="#returns-7" aria-label="Link to this section">#</a></h3><p><code>200</code> with a list of <a href="types.html#kernelstat"><code>KernelStat</code></a>.</p>
+<h3 id="errors-7">Errors<a class="anchor" href="#errors-7" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
+<h3 id="example-7">Example<a class="anchor" href="#example-7" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-a4297b7960e3/kernels"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-a4297b7960e3/kernels"</span>, headers=headers)
+resp.raise_for_status()
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-a4297b7960e3/kernels`</span>, {
+  headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
+});
+console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>[
+  {
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-b4ded55fc48b"</span>,
+    <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
+    <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
+    <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1</span>,
+    <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">6174</span>,
+    <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">19456</span>,
+    <span class="tk-k">"gpu_ipc"</span>: <span class="tk-n">3.1513</span>,
+    <span class="tk-k">"sim_time_ns"</span>: <span class="tk-n">3118.181818181818</span>,
+    <span class="tk-k">"stats"</span>: {}
+  },
+  {
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-b4ded55fc48b"</span>,
+    <span class="tk-k">"kernel_index"</span>: <span class="tk-n">1</span>,
+    <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
+    <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2</span>,
+    <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">5923</span>,
+    <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">11264</span>,
+    <span class="tk-k">"gpu_ipc"</span>: <span class="tk-n">1.9017</span>,
+    <span class="tk-k">"sim_time_ns"</span>: <span class="tk-n">2991.4141414141413</span>,
+    <span class="tk-k">"stats"</span>: {}
+  }
+  <span class="tk-c">/* 46 more kernel stats trimmed */</span>
+]</code></pre></div>
+</section>
+<section class="endpoint"><h2 id="get-run-results">Download run results<a class="anchor" href="#get-run-results" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method get">GET</span><span class="path">/api/runs/<span class="pp">{run_id}</span>/results</span><span class="auth">bearer token</span></div>
+<p>Returns everything about a run as one JSON download, with <code>Content-Disposition: attachment; filename="&lt;run_id&gt;-results.json"</code>. Each sim's <code>kernels</code> carry the full <code>stats</code> map, every <code>key = value</code> line Accel-Sim printed for that kernel, which is about 30 KB per kernel.</p>
+<h3 id="path-parameters-5">Path parameters<a class="anchor" href="#path-parameters-5" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>run_id</code></td><td><code class="type">str</code></td><td>The run's <code>id</code>, such as <code>run-d96aefcba965</code>.</td></tr></tbody></table></div>
+<h3 id="returns-8">Returns<a class="anchor" href="#returns-8" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#runresults"><code>RunResults</code></a>.</p>
+<h3 id="errors-8">Errors<a class="anchor" href="#errors-8" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
+<h3 id="example-8">Example<a class="anchor" href="#example-8" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/runs/run-d96aefcba965/results"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-d96aefcba965/results"</span>, headers=headers)
+resp.raise_for_status()
+open(<span class="tk-s">"run-d96aefcba965-results.json"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-d96aefcba965/results`</span>, {
+  headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
+});
+<span class="tk-k">const</span> results = <span class="tk-k">await</span> resp.json();</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"run"</span>: {
+    <span class="tk-k">"id"</span>: <span class="tk-s">"run-d96aefcba965"</span>,
+    <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.001386Z"</span>,
+    <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
+    <span class="tk-k">"entries"</span>: [
+      {
+        <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+        <span class="tk-k">"count"</span>: <span class="tk-n">2</span>
+      }
+    ],
+    <span class="tk-k">"sim_counts"</span>: {
+      <span class="tk-k">"succeeded"</span>: <span class="tk-n">2</span>
+    }
+  },
+  <span class="tk-k">"trace"</span>: {
+    <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
+    <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
+    <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.585353Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.586920Z"</span>,
+    <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"layers"</span>: [],
+    <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
+    <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">31660273</span>,
+    <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
+    <span class="tk-k">"metadata"</span>: {
+      <span class="tk-k">"status"</span>: <span class="tk-s">"ok"</span>,
+      <span class="tk-k">"files"</span>: [
+        {
+          <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/trace.log"</span>,
+          <span class="tk-k">"bytes"</span>: <span class="tk-n">55</span>
+        },
+        {
+          <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/traces/kernel-1.traceg"</span>,
+          <span class="tk-k">"bytes"</span>: <span class="tk-n">7942581</span>
+        }
+        <span class="tk-c">/* 6 more items trimmed */</span>
+      ],
+      <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
+      <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>
+    },
+    <span class="tk-k">"kernels"</span>: [
+      {
+        <span class="tk-k">"kernel_id"</span>: <span class="tk-n">3</span>,
+        <span class="tk-k">"name"</span>: <span class="tk-s">"_Z6euclidPcffPfiii"</span>,
+        <span class="tk-k">"grid"</span>: [
+          <span class="tk-n">938</span>,
+          <span class="tk-n">1</span>,
+          <span class="tk-n">1</span>
+        ],
+        <span class="tk-k">"block"</span>: [
+          <span class="tk-n">16</span>,
+          <span class="tk-n">1</span>,
+          <span class="tk-n">1</span>
+        ],
+        <span class="tk-k">"instructions"</span>: <span class="tk-n">161428</span>
+      },
+      {
+        <span class="tk-k">"kernel_id"</span>: <span class="tk-n">4</span>,
+        <span class="tk-k">"name"</span>: <span class="tk-s">"_Z6euclidPcffPfiii"</span>,
+        <span class="tk-k">"grid"</span>: [
+          <span class="tk-n">938</span>,
+          <span class="tk-n">1</span>,
+          <span class="tk-n">1</span>
+        ],
+        <span class="tk-k">"block"</span>: [
+          <span class="tk-n">16</span>,
+          <span class="tk-n">1</span>,
+          <span class="tk-n">1</span>
+        ],
+        <span class="tk-k">"instructions"</span>: <span class="tk-n">161308</span>
+      }
+    ]
+  },
+  <span class="tk-k">"sims"</span>: [
+    {
+      <span class="tk-k">"sim"</span>: {
+        <span class="tk-k">"id"</span>: <span class="tk-s">"sim-45609b32f314"</span>,
+        <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-d96aefcba965"</span>,
+        <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+        <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
+        <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
+        <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"91078"</span>,
+        <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.001386Z"</span>,
+        <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.066598Z"</span>,
+        <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.087222Z"</span>,
+        <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.087222Z"</span>,
+        <span class="tk-k">"exit_code"</span>: <span class="tk-n">0</span>,
+        <span class="tk-k">"kernels_done"</span>: <span class="tk-n">6</span>,
+        <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+        <span class="tk-k">"current_kernel"</span>: <span class="tk-s">"_Z10dot_kernelIdEvPKT_S2_PS0_i"</span>,
+        <span class="tk-k">"latest"</span>: {
+          <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
+          <span class="tk-k">"gpu_tot_sim_insn"</span>: <span class="tk-n">26560256.0</span>,
+          <span class="tk-k">"gpu_tot_ipc"</span>: <span class="tk-n">346.2289</span>,
+          <span class="tk-k">"sim_rate_ips"</span>: <span class="tk-n">510774.0</span>
+        },
+        <span class="tk-k">"log_tail"</span>: [
+          <span class="tk-s">""</span>,
+          <span class="tk-s">"Reply_Network_injected_packets_num = 4096"</span>,
+          <span class="tk-s">"Reply_Network_cycles = 76713"</span>
+          <span class="tk-c">/* 17 more items trimmed */</span>
+        ]
+      },
+      <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
+      <span class="tk-k">"gpu_config"</span>: {
+        <span class="tk-k">"name"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+        <span class="tk-k">"arch"</span>: <span class="tk-s">"sm_86"</span>,
+        <span class="tk-k">"core_clock_mhz"</span>: <span class="tk-n">1132.0</span>
+      },
+      <span class="tk-k">"kernels"</span>: [
+        {
+          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-45609b32f314"</span>,
+          <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
+          <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
+          <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1</span>,
+          <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">6174</span>,
+          <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">19456</span>,
+          <span class="tk-k">"gpu_ipc"</span>: <span class="tk-n">3.1513</span>,
+          <span class="tk-k">"sim_time_ns"</span>: <span class="tk-n">5454.063604240282</span>,
+          <span class="tk-k">"stats"</span>: {
+            <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
+            <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1.0</span>,
+            <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">6174.0</span>,
+            <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">19456.0</span>
+            <span class="tk-c">/* 945 more keys trimmed */</span>
+          }
+        },
+        {
+          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-45609b32f314"</span>,
+          <span class="tk-k">"kernel_index"</span>: <span class="tk-n">1</span>,
+          <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
+          <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2</span>,
+          <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">5923</span>,
+          <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">11264</span>,
+          <span class="tk-k">"gpu_ipc"</span>: <span class="tk-n">1.9017</span>,
+          <span class="tk-k">"sim_time_ns"</span>: <span class="tk-n">5232.332155477032</span>,
+          <span class="tk-k">"stats"</span>: {
+            <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
+            <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2.0</span>,
+            <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">5923.0</span>,
+            <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">11264.0</span>
+            <span class="tk-c">/* 950 more keys trimmed */</span>
+          }
+        }
+        <span class="tk-c">/* 4 more items trimmed */</span>
+      ],
+      <span class="tk-k">"totals"</span>: {
+        <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
+        <span class="tk-k">"gpu_tot_sim_insn"</span>: <span class="tk-n">26560256.0</span>,
+        <span class="tk-k">"gpu_tot_ipc"</span>: <span class="tk-n">346.2289</span>,
+        <span class="tk-k">"sim_rate_ips"</span>: <span class="tk-n">510774.0</span>
+      }
+    },
+    {
+      <span class="tk-k">"sim"</span>: {
+        <span class="tk-k">"id"</span>: <span class="tk-s">"sim-d698ff59b168"</span>,
+        <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-d96aefcba965"</span>,
+        <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+        <span class="tk-k">"replica"</span>: <span class="tk-n">1</span>,
+        <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
+        <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"91079"</span>,
+        <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.001386Z"</span>,
+        <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.066118Z"</span>,
+        <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.088830Z"</span>,
+        <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.088830Z"</span>,
+        <span class="tk-k">"exit_code"</span>: <span class="tk-n">0</span>,
+        <span class="tk-k">"kernels_done"</span>: <span class="tk-n">6</span>,
+        <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+        <span class="tk-k">"current_kernel"</span>: <span class="tk-s">"_Z10dot_kernelIdEvPKT_S2_PS0_i"</span>,
+        <span class="tk-k">"latest"</span>: {
+          <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
+          <span class="tk-k">"gpu_tot_sim_insn"</span>: <span class="tk-n">26560256.0</span>,
+          <span class="tk-k">"gpu_tot_ipc"</span>: <span class="tk-n">346.2289</span>,
+          <span class="tk-k">"sim_rate_ips"</span>: <span class="tk-n">510774.0</span>
+        },
+        <span class="tk-k">"log_tail"</span>: [
+          <span class="tk-s">""</span>,
+          <span class="tk-s">"Reply_Network_injected_packets_num = 4096"</span>,
+          <span class="tk-s">"Reply_Network_cycles = 76713"</span>
+          <span class="tk-c">/* 17 more items trimmed */</span>
+        ]
+      },
+      <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
+      <span class="tk-k">"gpu_config"</span>: {
+        <span class="tk-k">"name"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+        <span class="tk-k">"arch"</span>: <span class="tk-s">"sm_86"</span>,
+        <span class="tk-k">"core_clock_mhz"</span>: <span class="tk-n">1132.0</span>
+      },
+      <span class="tk-k">"kernels"</span>: [
+        {
+          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-d698ff59b168"</span>,
+          <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
+          <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
+          <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1</span>,
+          <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">6174</span>,
+          <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">19456</span>,
+          <span class="tk-k">"gpu_ipc"</span>: <span class="tk-n">3.1513</span>,
+          <span class="tk-k">"sim_time_ns"</span>: <span class="tk-n">5454.063604240282</span>,
+          <span class="tk-k">"stats"</span>: {
+            <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
+            <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1.0</span>,
+            <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">6174.0</span>,
+            <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">19456.0</span>
+            <span class="tk-c">/* 945 more keys trimmed */</span>
+          }
+        },
+        {
+          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-d698ff59b168"</span>,
+          <span class="tk-k">"kernel_index"</span>: <span class="tk-n">1</span>,
+          <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
+          <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2</span>,
+          <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">5923</span>,
+          <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">11264</span>,
+          <span class="tk-k">"gpu_ipc"</span>: <span class="tk-n">1.9017</span>,
+          <span class="tk-k">"sim_time_ns"</span>: <span class="tk-n">5232.332155477032</span>,
+          <span class="tk-k">"stats"</span>: {
+            <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
+            <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2.0</span>,
+            <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">5923.0</span>,
+            <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">11264.0</span>
+            <span class="tk-c">/* 950 more keys trimmed */</span>
+          }
+        }
+        <span class="tk-c">/* 4 more items trimmed */</span>
+      ],
+      <span class="tk-k">"totals"</span>: {
+        <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
+        <span class="tk-k">"gpu_tot_sim_insn"</span>: <span class="tk-n">26560256.0</span>,
+        <span class="tk-k">"gpu_tot_ipc"</span>: <span class="tk-n">346.2289</span>,
+        <span class="tk-k">"sim_rate_ips"</span>: <span class="tk-n">510774.0</span>
+      }
+    }
+  ],
+  <span class="tk-k">"comparison"</span>: {
+    <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
+    <span class="tk-k">"configs"</span>: [
+      <span class="tk-s">"SM86_RTX3070"</span>
+    ],
+    <span class="tk-k">"rows"</span>: [
+      {
+        <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
+        <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
+        <span class="tk-k">"real_ns"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"sim_ns"</span>: {
+          <span class="tk-k">"SM86_RTX3070"</span>: <span class="tk-n">5454.063604240282</span>
+        }
+      },
+      {
+        <span class="tk-k">"kernel_index"</span>: <span class="tk-n">1</span>,
+        <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
+        <span class="tk-k">"real_ns"</span>: <span class="tk-l">null</span>,
+        <span class="tk-k">"sim_ns"</span>: {
+          <span class="tk-k">"SM86_RTX3070"</span>: <span class="tk-n">5232.332155477032</span>
+        }
+      }
+      <span class="tk-c">/* 4 more items trimmed */</span>
+    ]
+  }
+}</code></pre></div>
+</section>
+<section class="endpoint"><h2 id="get-sim-results">Download sim results<a class="anchor" href="#get-sim-results" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method get">GET</span><span class="path">/api/sims/<span class="pp">{sim_id}</span>/results</span><span class="auth">bearer token</span></div>
+<p>Returns one sim's results as a JSON download named <code>&lt;sim_id&gt;-results.json</code>. <code>totals</code> is the sim's latest <a href="types.html#simmetrics"><code>SimMetrics</code></a>.</p>
+<h3 id="path-parameters-6">Path parameters<a class="anchor" href="#path-parameters-6" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>sim_id</code></td><td><code class="type">str</code></td><td>The sim's <code>id</code>, such as <code>sim-45609b32f314</code>. Find it in <code>RunDetail.sims</code>.</td></tr></tbody></table></div>
+<h3 id="returns-9">Returns<a class="anchor" href="#returns-9" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#simresults"><code>SimResults</code></a>.</p>
+<h3 id="errors-9">Errors<a class="anchor" href="#errors-9" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No sim has this id.</td></tr></tbody></table></div>
+<h3 id="example-9">Example<a class="anchor" href="#example-9" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/sims/sim-45609b32f314/results"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/sims/sim-45609b32f314/results"</span>, headers=headers)
+resp.raise_for_status()
+open(<span class="tk-s">"sim-45609b32f314-results.json"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/sims/sim-45609b32f314/results`</span>, {
+  headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
+});
+<span class="tk-k">const</span> results = <span class="tk-k">await</span> resp.json();</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"sim"</span>: {
+    <span class="tk-k">"id"</span>: <span class="tk-s">"sim-45609b32f314"</span>,
+    <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-d96aefcba965"</span>,
+    <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+    <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
+    <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
+    <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"91078"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.001386Z"</span>,
+    <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T03:05:34.066598Z"</span>,
+    <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.087222Z"</span>,
+    <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T03:05:37.087222Z"</span>,
+    <span class="tk-k">"exit_code"</span>: <span class="tk-n">0</span>,
+    <span class="tk-k">"kernels_done"</span>: <span class="tk-n">6</span>,
+    <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+    <span class="tk-k">"current_kernel"</span>: <span class="tk-s">"_Z10dot_kernelIdEvPKT_S2_PS0_i"</span>,
+    <span class="tk-k">"latest"</span>: {
+      <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
+      <span class="tk-k">"gpu_tot_sim_insn"</span>: <span class="tk-n">26560256.0</span>,
+      <span class="tk-k">"gpu_tot_ipc"</span>: <span class="tk-n">346.2289</span>,
+      <span class="tk-k">"sim_rate_ips"</span>: <span class="tk-n">510774.0</span>
+    },
+    <span class="tk-k">"log_tail"</span>: [
+      <span class="tk-s">""</span>,
+      <span class="tk-s">"Reply_Network_injected_packets_num = 4096"</span>,
+      <span class="tk-s">"Reply_Network_cycles = 76713"</span>
+      <span class="tk-c">/* 17 more items trimmed */</span>
+    ]
+  },
+  <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
+  <span class="tk-k">"gpu_config"</span>: {
+    <span class="tk-k">"name"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
+    <span class="tk-k">"arch"</span>: <span class="tk-s">"sm_86"</span>,
+    <span class="tk-k">"core_clock_mhz"</span>: <span class="tk-n">1132.0</span>
+  },
+  <span class="tk-k">"kernels"</span>: [
+    {
+      <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-45609b32f314"</span>,
+      <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
+      <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
+      <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1</span>,
+      <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">6174</span>,
+      <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">19456</span>,
+      <span class="tk-k">"gpu_ipc"</span>: <span class="tk-n">3.1513</span>,
+      <span class="tk-k">"sim_time_ns"</span>: <span class="tk-n">5454.063604240282</span>,
+      <span class="tk-k">"stats"</span>: {
+        <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
+        <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1.0</span>,
+        <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">6174.0</span>,
+        <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">19456.0</span>
+        <span class="tk-c">/* 945 more keys trimmed */</span>
+      }
+    },
+    {
+      <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-45609b32f314"</span>,
+      <span class="tk-k">"kernel_index"</span>: <span class="tk-n">1</span>,
+      <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
+      <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2</span>,
+      <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">5923</span>,
+      <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">11264</span>,
+      <span class="tk-k">"gpu_ipc"</span>: <span class="tk-n">1.9017</span>,
+      <span class="tk-k">"sim_time_ns"</span>: <span class="tk-n">5232.332155477032</span>,
+      <span class="tk-k">"stats"</span>: {
+        <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
+        <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2.0</span>,
+        <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">5923.0</span>,
+        <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">11264.0</span>
+        <span class="tk-c">/* 950 more keys trimmed */</span>
+      }
+    }
+    <span class="tk-c">/* 4 more items trimmed */</span>
+  ],
+  <span class="tk-k">"totals"</span>: {
+    <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
+    <span class="tk-k">"gpu_tot_sim_insn"</span>: <span class="tk-n">26560256.0</span>,
+    <span class="tk-k">"gpu_tot_ipc"</span>: <span class="tk-n">346.2289</span>,
+    <span class="tk-k">"sim_rate_ips"</span>: <span class="tk-n">510774.0</span>
+  }
+}</code></pre></div>
+</section>
+<section class="endpoint"><h2 id="get-sim-log">Download a sim's log<a class="anchor" href="#get-sim-log" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method get">GET</span><span class="path">/api/sims/<span class="pp">{sim_id}</span>/log</span><span class="auth">bearer token</span></div>
+<p>Streams every line the simulator sent, in <code>seq</code> order, as <code>text/plain</code> named <code>&lt;sim_id&gt;.log</code>.</p>
+<h3 id="path-parameters-7">Path parameters<a class="anchor" href="#path-parameters-7" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>sim_id</code></td><td><code class="type">str</code></td><td>The sim's <code>id</code>, such as <code>sim-45609b32f314</code>. Find it in <code>RunDetail.sims</code>.</td></tr></tbody></table></div>
+<h3 id="returns-10">Returns<a class="anchor" href="#returns-10" aria-label="Link to this section">#</a></h3><p><code>200</code> with the log as plain text.</p>
+<h3 id="errors-10">Errors<a class="anchor" href="#errors-10" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No sim has this id.</td></tr></tbody></table></div>
+<h3 id="example-10">Example<a class="anchor" href="#example-10" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/sims/sim-45609b32f314/log"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/sims/sim-45609b32f314/log"</span>, headers=headers)
+resp.raise_for_status()
+open(<span class="tk-s">"sim-45609b32f314.log"</span>, <span class="tk-s">"w"</span>).write(resp.text)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/sims/sim-45609b32f314/log`</span>, {
+  headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
+});
+<span class="tk-k">const</span> log = <span class="tk-k">await</span> resp.text();</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 200 OK · text/plain</span><button class="copy" type="button">Copy</button></div><pre><code>GPGPU-Sim version 4.2.0 (build gpgpu-sim_git-commit-13c67115070dc2f0876254a790d0238073ca364a-modified_590.0) configured with AccelWattch.
+
+----------------------------------------------------------------------------
+INFO - If you only care about PTX execution, ignore this message. GPGPU-Sim supports PTX execution in modern CUDA.
+If you want to run PTXPLUS (sm_1x SASS) with a modern card configuration - set the envronment variable
+$PTXAS_CUDA_INSTALL_PATH to point a CUDA version compabible with your card configurations (i.e. 8+ for PASCAL, 9+ for VOLTA etc..)
+For example: "export $PTXAS_CUDA_INSTALL_PATH=/usr/local/cuda-9.1"
+
+The following text describes why:
+If you are using PTXPLUS, only sm_1x is supported and it requires that the app and simulator binaries are compiled in CUDA 4.2 or less.
+The simulator requires it since CUDA headers desribe struct sizes in the exec which change from gen to gen.
+The apps require 4.2 because new versions of CUDA tools have dropped parsing support for generating sm_1x
+<span class="tk-c">/* 10672 more lines trimmed */</span></code></pre></div>
+</section>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="api-traces.html"><span>Previous</span>Traces</a><a class="next" href="api-events.html"><span>Next</span>Live events (SSE)</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#list-gpu-configs">List GPU configs</a></li><li class="l2"><a href="#create-run">Create a run</a></li><li class="l2"><a href="#list-runs">List runs</a></li><li class="l2"><a href="#get-run">Get a run</a></li><li class="l2"><a href="#cancel-run">Cancel a run</a></li><li class="l2"><a href="#get-comparison">Compare real and simulated time</a></li><li class="l2"><a href="#get-run-kernels">List a run's kernel timings</a></li><li class="l2"><a href="#get-run-results">Download run results</a></li><li class="l2"><a href="#get-sim-results">Download sim results</a></li><li class="l2"><a href="#get-sim-log">Download a sim's log</a></li></ul></nav>
+</div>
+<div class="scrim" hidden></div>
+<dialog class="search" aria-label="Search docs">
+  <div class="search-box"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><input type="search" placeholder="Search titles and headings" aria-label="Search" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
+  <ul class="results" role="listbox"></ul>
+</dialog>
+</body>
+</html>

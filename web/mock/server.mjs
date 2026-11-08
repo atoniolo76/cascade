@@ -37,21 +37,29 @@ const CONFIGS = [
 const IPC_SCALE = { SM90_H100: 1, SM90_H200: 1.08, SM90_GH200: 1.12, SM80_A100: 0.74, SM86_RTX3070: 0.41 };
 
 const KERNEL_KINDS = [
-  { kind: "norm", ipc: 38, name: "_ZN4vllm15rms_norm_kernelIN3c104HalfELi8ELi1EEEvPT_PKS3_S6_fii", grid: [16, 1, 1], block: [256, 1, 1], insn: 98_304 },
-  { kind: "gemm", ipc: 112, name: "sm90_xmma_gemm_f16f16_f16f32_f32_tn_n_tilesize128x128x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas", grid: [18, 1, 1], block: [384, 1, 1], insn: 2_359_296 },
-  { kind: "rope", ipc: 54, name: "_ZN4vllm23rotary_embedding_kernelIN3c104HalfELb1EEEvPKlPT_S6_PKS4_iiiiii", grid: [16, 1, 1], block: [512, 1, 1], insn: 262_144 },
-  { kind: "cache", ipc: 29, name: "_ZN4vllm30reshape_and_cache_flash_kernelIN3c104HalfES2_LNS_18Fp8KVCacheDataTypeE0EEEvPKT_S7_PT0_S9_PKlliiiiiPKfSD_", grid: [16, 1, 1], block: [768, 1, 1], insn: 147_456 },
-  { kind: "attn", ipc: 86, name: "_ZN5flash22flash_fwd_splitkv_kernelI23Flash_fwd_kernel_traitsILi64ELi64ELi128ELi4ELb0ELb0EN7cutlass6half_tELb0EELb0ELb0ELb0ELb0ELb1ELb0ELb0ELb0EEEv13Flash_fwd_params", grid: [1, 12, 16], block: [128, 1, 1], insn: 1_572_864 },
-  { kind: "gemm_out", ipc: 104, name: "sm90_xmma_gemm_f16f16_f16f32_f32_tn_n_tilesize64x128x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas", grid: [12, 1, 1], block: [384, 1, 1], insn: 786_432 },
-  { kind: "add", ipc: 47, name: "_ZN2at6native29vectorized_elementwise_kernelILi4ENS0_15CUDAFunctor_addIN3c104HalfEEESt5arrayIPcLm3EEEEviT0_T1_", grid: [96, 1, 1], block: [128, 1, 1], insn: 196_608 },
+  { kind: "norm", ipc: 38, bias: 1.34, name: "_ZN4vllm15rms_norm_kernelIN3c104HalfELi8ELi1EEEvPT_PKS3_S6_fii", grid: [16, 1, 1], block: [256, 1, 1], insn: 98_304 },
+  { kind: "gemm", ipc: 112, bias: 0.9, name: "sm90_xmma_gemm_f16f16_f16f32_f32_tn_n_tilesize128x128x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas", grid: [18, 1, 1], block: [384, 1, 1], insn: 2_359_296 },
+  { kind: "rope", ipc: 54, bias: 1.08, name: "_ZN4vllm23rotary_embedding_kernelIN3c104HalfELb1EEEvPKlPT_S6_PKS4_iiiiii", grid: [16, 1, 1], block: [512, 1, 1], insn: 262_144 },
+  { kind: "cache", ipc: 29, bias: 1.58, name: "_ZN4vllm30reshape_and_cache_flash_kernelIN3c104HalfES2_LNS_18Fp8KVCacheDataTypeE0EEEvPKT_S7_PT0_S9_PKlliiiiiPKfSD_", grid: [16, 1, 1], block: [768, 1, 1], insn: 147_456 },
+  { kind: "attn", ipc: 86, bias: 0.8, name: "_ZN5flash24flash_fwd_splitkv_kernelI23Flash_fwd_kernel_traitsILi64ELi64ELi128ELi4ELb0ELb0EN7cutlass6half_tELb0EELb0ELb0ELb0ELb0ELb1ELb0ELb0ELb0EEEv13Flash_fwd_params", grid: [1, 12, 16], block: [128, 1, 1], insn: 1_572_864 },
+  { kind: "gemm_out", ipc: 104, bias: 0.96, name: "sm90_xmma_gemm_f16f16_f16f32_f32_tn_n_tilesize64x128x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas", grid: [12, 1, 1], block: [384, 1, 1], insn: 786_432 },
+  { kind: "add", ipc: 47, bias: 1.2, name: "_ZN2at6native29vectorized_elementwise_kernelILi4ENS0_15CUDAFunctor_addIN3c104HalfEEESt5arrayIPcLm3EEEEviT0_T1_", grid: [96, 1, 1], block: [128, 1, 1], insn: 196_608 },
 ];
 
-function buildKernels(count, seed) {
+const DECODE_KINDS = [
+  ...KERNEL_KINDS,
+  { kind: "silu", ipc: 44, bias: 1.12, name: "triton_poi_fused_mul_silu_0", grid: [112, 1, 1], block: [128, 1, 1], insn: 344_064 },
+  { kind: "down", ipc: 98, bias: 0.86, name: "_ZN7cutlass7Kernel2I64cutlass_80_tensorop_f16_s16816gemm_relu_f16_64x64_64x4_tn_align8EEvNT_6ParamsE", grid: [24, 4, 1], block: [128, 1, 1], insn: 1_179_648 },
+  { kind: "argmax", ipc: 31, bias: 1.27, name: "void at::native::(anonymous namespace)::cunn_SoftMaxForward<4, float, float, float, at::native::(anonymous namespace)::SoftMaxForwardEpilogue>(float*, float const*, int)", grid: [1, 1, 1], block: [1024, 1, 1], insn: 425_984 },
+];
+const LM_HEAD = { kind: "lm_head", ipc: 118, bias: 0.93, name: "sm90_xmma_gemm_f16f16_f16f32_f32_tn_n_tilesize256x128x64_warpgroupsize2x1x1_execute_segment_k_off_kernel__5x_cublas", grid: [132, 1, 1], block: [384, 1, 1], insn: 31_457_280 };
+
+function buildKernels(count, seed, kinds = KERNEL_KINDS) {
   const r = rng(seed);
   const kernels = [];
   let id = 1;
   for (let i = 0; i < count; i++) {
-    const k = KERNEL_KINDS[i % KERNEL_KINDS.length];
+    const k = kinds === DECODE_KINDS && i === count - 1 ? LM_HEAD : kinds[i % kinds.length];
     const scale = 0.8 + r() * 0.5;
     kernels.push({
       kernel_id: id,
@@ -61,21 +69,22 @@ function buildKernels(count, seed) {
       instructions: Math.round(k.insn * scale),
       _kind: k.kind,
       _ipc: k.ipc,
+      _bias: k.bias,
     });
     id += r() < 0.18 ? 2 : 1;
   }
   return kernels;
 }
-const publicKernel = ({ _kind, _ipc, ...k }) => k;
+const publicKernel = ({ _kind, _ipc, _bias, ...k }) => k;
 
-function makeTrace({ id, state, error = null, createdAgo, model, layers, sourceGpu, arch = "sm_90", suggested = "SM90_H100", kernelCount, bytes, realTiming, seed }) {
+function makeTrace({ id, state, error = null, createdAgo, model, layers, sourceGpu, arch = "sm_90", suggested = "SM90_H100", kernelCount, bytes, realTiming, seed, kinds }) {
   const created = BOOT - createdAgo;
-  const kernels = buildKernels(kernelCount, seed);
+  const kernels = buildKernels(kernelCount, seed, kinds);
   const real = realTiming
     ? kernels.map((k) => {
         const cycles = k.instructions / k._ipc;
         const simNs = (cycles / 1755) * 1000;
-        return { kernel_id: k.kernel_id, kernel_name: k.name, duration_ns: Math.round(simNs * (0.72 + rand() * 0.5)), grid: k.grid, block: k.block };
+        return { kernel_id: k.kernel_id, kernel_name: k.name, duration_ns: Math.round(simNs * k._bias * (0.92 + rand() * 0.16)), grid: k.grid, block: k.block };
       })
     : null;
   return {
@@ -196,6 +205,36 @@ for (const t of traces) t._metadata = t.state === "uploading" ? null : t._meta;
 const traceById = (id) => allTraces.find((t) => t.id === id);
 const traceSummary = ({ _kernels, _real, _metadata, _meta, _processingAt, ...t }) => t;
 const traceDetail = (t) => ({ ...traceSummary(t), metadata: t._metadata, kernels: t.state === "uploading" ? t._kernels.slice(0, t.kernel_count).map(publicKernel) : t._kernels.map(publicKernel) });
+
+const SMALL_TRACE = makeTrace({
+  id: "20261107-142215__Qwen_Qwen2.5-0.5B__model.layers.0.input_layernorm",
+  state: "ready",
+  createdAgo: 4 * HOUR,
+  model: "Qwen/Qwen2.5-0.5B",
+  layers: ["model.layers.0.input_layernorm"],
+  sourceGpu: "NVIDIA H100 80GB HBM3",
+  kernelCount: 6,
+  bytes: 3_204_112,
+  realTiming: true,
+  seed: 6,
+});
+const DECODE_TRACE = makeTrace({
+  id: "20261107-131907__meta-llama_Llama-3.1-8B-Instruct__decode_step",
+  state: "ready",
+  createdAgo: 5 * HOUR,
+  model: "meta-llama/Llama-3.1-8B-Instruct",
+  layers: ["model.layers.*"],
+  sourceGpu: "NVIDIA H100 80GB HBM3",
+  kernelCount: 242,
+  bytes: 2_610_883_420,
+  realTiming: true,
+  seed: 8,
+  kinds: DECODE_KINDS,
+});
+for (const t of [SMALL_TRACE, DECODE_TRACE]) {
+  t._metadata = t._meta;
+  traces.push(t);
+}
 
 const uploading = traces[0];
 uploading._uploadStart = SCENARIO === "empty" ? BOOT + 30_000 : BOOT;
@@ -442,6 +481,27 @@ createRun({
   launchSpread: 9000,
   trouble: { "SM90_H200#7": OOM, "SM90_GH200#12": { ...OOM, atKernel: 8 } },
 });
+createRun({
+  trace_id: SMALL_TRACE.id,
+  entries: [{ gpu_config: "SM90_H100", count: 2 }],
+  createdAt: BOOT - 4 * HOUR + 10 * MIN,
+  live: false,
+  settle: settleSucceeded,
+});
+createRun({
+  trace_id: traces[3].id,
+  entries: [{ gpu_config: "SM90_H100", count: 2 }, { gpu_config: "SM90_H200", count: 1 }, { gpu_config: "SM90_GH200", count: 1 }],
+  createdAt: BOOT - 2.5 * HOUR,
+  live: false,
+  settle: settleSucceeded,
+});
+createRun({
+  trace_id: DECODE_TRACE.id,
+  entries: [{ gpu_config: "SM90_H100", count: 2 }, { gpu_config: "SM90_H200", count: 2 }],
+  createdAt: BOOT - 5 * HOUR + 20 * MIN,
+  live: false,
+  settle: settleSucceeded,
+});
 }
 
 const TERMINAL = new Set(["succeeded", "failed", "cancelled"]);
@@ -571,7 +631,7 @@ const routes = [
     const t = traceById(id);
     return t ? send(res, 200, traceDetail(t)) : send(res, 404, { detail: "trace not found" });
   }],
-  ["GET", /^\/api\/runs$/, (_m, _req, res) => send(res, 200, runs.map(runSummary))],
+  ["GET", /^\/api\/runs$/, (_m, _req, res) => send(res, 200, runs.toSorted((a, b) => b.created_at.localeCompare(a.created_at)).map(runSummary))],
   ["POST", /^\/api\/runs$/, async (_m, req, res) => {
     const body = await readJson(req);
     const trace = traceById(body?.trace_id);
