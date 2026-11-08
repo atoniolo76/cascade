@@ -16,6 +16,7 @@ To drive a Cascade app from an AI agent, give the agent [agent-prompt.md](agent-
 - [Deploy the app](deploy.html): Create a Cascade workspace on Sail from the Get started page or with cascade deploy, with the stand-in simulator or a real Accel-Sim image.
 - [Trace a workload](trace-a-workload.html): Profile a vLLM workload in your own Modal app, collect selected NVBit traces, and download the run or upload it to S3-compatible storage.
 - [OPT-125m sample: GPU profiling → instruction simulation → request replay](sample-analysis-opt125m.html): Native H100 and A100 profiling and simulation results, H200 counterfactual, pipeline costs, replay errors and limitations.
+- [Request simulation and scheduling](request-simulation.html): Estimate arbitrary prompt/output sizes and single-GPU continuous batching from finished simulations, with explicit roofline, host and scheduler assumptions.
 - [Traces](traces.html): How the Cascade app notices an upload, decides it is complete, post-processes it, and marks it ready to simulate.
 - [Runs](runs.html): Launch a Cascade run on a ready trace, choose GPU configs and counts, follow its sims, and cancel it.
 - [Reading results](reading-results.html): What Cascade's run screen, metrics, comparison panel, output files, Perfetto trace and downloads mean, and where each number comes from in Accel-Sim's output.

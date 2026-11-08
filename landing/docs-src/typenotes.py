@@ -203,6 +203,10 @@ SETTINGS_NOTES: dict[str, tuple[str | None, str]] = {
         None,
         "Seconds without a heartbeat before a sim becomes `lost`. After 10 times this, a `lost` sim becomes `failed`.",
     ),
+    "CASCADE_OPENAI_WAIT_S": (
+        None,
+        "Seconds `/v1` and `/api/scenarios` wait for base-simulation step timing. A timeout returns 504 with the run/sim IDs; it does not cancel the simulation.",
+    ),
     "CASCADE_WORKSPACE": (
         None,
         "The workspace's name. `/api/health` returns it and the web UI shows it in the rail. `cascade deploy` and the Get started page set it.",

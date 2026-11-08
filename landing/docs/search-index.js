@@ -280,6 +280,61 @@ window.DOCS_INDEX = [
 "g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
 },
 {
+"t": "Request simulation and scheduling",
+"u": "request-simulation.html",
+"g": "Guides"
+},
+{
+"t": "Choose the right interface",
+"u": "request-simulation.html#choose-the-right-interface",
+"g": "Request simulation and scheduling"
+},
+{
+"t": "Build a profile from a finished sim",
+"u": "request-simulation.html#build-a-profile-from-a-finished-sim",
+"g": "Request simulation and scheduling"
+},
+{
+"t": "Kernel groups and roofline floors",
+"u": "request-simulation.html#kernel-groups-and-roofline-floors",
+"g": "Request simulation and scheduling"
+},
+{
+"t": "Datasheet assumptions",
+"u": "request-simulation.html#datasheet-assumptions",
+"g": "Request simulation and scheduling"
+},
+{
+"t": "Read provenance before the numbers",
+"u": "request-simulation.html#read-provenance-before-the-numbers",
+"g": "Request simulation and scheduling"
+},
+{
+"t": "Scheduler semantics",
+"u": "request-simulation.html#scheduler-semantics",
+"g": "Request simulation and scheduling"
+},
+{
+"t": "Defaults and KV capacity",
+"u": "request-simulation.html#defaults-and-kv-capacity",
+"g": "Request simulation and scheduling"
+},
+{
+"t": "Scenario API example",
+"u": "request-simulation.html#scenario-api-example",
+"g": "Request simulation and scheduling"
+},
+{
+"t": "OpenAI-compatible single-request example",
+"u": "request-simulation.html#openai-compatible-single-request-example",
+"g": "Request simulation and scheduling"
+},
+{
+"t": "Reported predictions, not new calibration",
+"u": "request-simulation.html#reported-predictions-not-new-calibration",
+"g": "Request simulation and scheduling"
+},
+{
 "t": "Traces",
 "u": "traces.html",
 "g": "Guides"

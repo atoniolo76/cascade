@@ -33,6 +33,8 @@ The same eager workload generates 32 tokens from `Hello, my name is`, with four 
 
 The A100 result is the complete Modal SM80_A100 reference, not the partial Sail attempt. Small request errors retain measured eager host time and are not equivalent to small GPU-model errors. See the [full sample analysis](sample-analysis-opt125m.html) for timings, coverage and limitations.
 
+To ask about a different prompt length, output length or concurrent arrival pattern, use the [request model and scheduler](request-simulation.html). The Request simulator UI and `/api/scenarios` build estimates from a finished sim; `/v1` estimates each request alone. Predictions outside the six-token prefill / decode-context 7–37 calibration range are **unvalidated extrapolations, not measured results**.
+
 ## Where to go next
 
 - [Get started](../start.html): Create your own Cascade app on Sail from the browser with a workspace name and a Sail API key. No clone.
@@ -965,6 +967,7 @@ The sandbox has auto-sleep turned off, so the app keeps running while sims repor
 | `CASCADE_TOKEN` | required | The shared bearer token. The UI and every sim send it. The app refuses to start without it unless `CASCADE_NO_AUTH` is set. |
 | `CASCADE_NO_AUTH` | false | Local development only. Set to `1` to turn off the token check: the API accepts any request, `/api/health` reports `auth: false`, and the web UI skips its token screen. Never set it on a deployment someone else can reach. |
 | `CASCADE_ACCELSIM_DIR` | `/opt/accel-sim-framework` | Accel-Sim checkout. The app reads GPU configs from `gpu-simulator/gpgpu-sim/configs/tested-cfgs/*/gpgpusim.config` under it. |
+| `CASCADE_OPENAI_WAIT_S` | `3600` | Seconds `/v1` and `/api/scenarios` wait for base-simulation step timing. A timeout returns 504 with the run/sim IDs; it does not cancel the simulation. |
 | `CASCADE_S3_BUCKET` | `cascade` | The bucket the profiler uploads to. It is a directory under `$CASCADE_DATA_DIR/s3/`. |
 | `CASCADE_DATA_DIR` | `/data` | Where the app keeps `cascade.db`, the S3 bucket directory `s3/`, sims' output files in `files/`, and scratch files in `work/`. |
 | `CASCADE_SIM_CMD` | none | The command each sim runs. On Sail it runs through a shell. Locally it is split into arguments and run without one. Without it, every sim fails at launch. |
@@ -1391,6 +1394,231 @@ uv run cascade compare "$RUN/corrected_timeline.json" \
 ```
 
 These commands run from the simulator checkout at the pinned source commit. Both native A100 replays compare against the real A100 baseline, never the H100 baseline.
+
+
+# Request simulation and scheduling
+
+Page: request-simulation.html
+
+A finished instruction simulation is a hardware performance profile, not a measurement of every possible request. Cascade uses that profile to estimate new prompt/output sizes and to run a discrete-event, vLLM-v1-like request scheduler. No model inference or new GPU calibration is performed by this request layer.
+
+> **Outside-calibration predictions are unvalidated.** The bundled OPT-125m profiles have one prefill size, **6 tokens**, and decode contexts **7–37**. Longer prompts, longer contexts and concurrent/chunked batches have not been validated by new GPU runs. Do not interpret a plausible latency or throughput number as measured performance or a proven accuracy bound.
+
+## Choose the right interface
+
+- **Request simulator UI:** open the sidebar entry and choose a ready trace and supported GPU config, or use the link on a finished run/sim to prefill both. Enter prompt/output tokens, request count and arrival rate; expand the advanced scheduler assumptions if needed. Results include percentile cards, sortable/paginated request metrics, step charts, calibration and provenance.
+- **`POST /api/scenarios`:** simulate explicit arrivals or a shorthand workload with continuous batching. It uses the usual API bearer authentication. Results are transient, not persisted as new inference runs.
+- **`POST /v1/completions` or `/v1/chat/completions`:** estimate one submitted request with the same performance profile. **`/v1` never batches across HTTP requests**, even when calls arrive simultaneously.
+
+The request-sizing targets are exactly `SM90_H100`, `SM90_H200` and `SM80_A100`, and the chosen config must be installed in the app's GPU-config registry. Trace/config architectures must match: H100 traces can use H100/H200; native A100 traces are required for A100. Other targets, quantized models and tensor-parallel models are unsupported. This is a single-GPU, dense-model approximation, not a general vLLM emulator.
+
+## Build a profile from a finished sim
+
+1. Resolve the trace by exact ID or by model name (newest ready trace), then its GPU config. The shared resolver first reuses a successful sim with posted step timing; otherwise it attaches to a pending/launching/running sim, or launches a normal one-sim base run. `fresh: true` requests a new base run.
+2. Wait for base timing up to `CASCADE_OPENAI_WAIT_S`, default 3600 seconds. A timeout is 504, with the base run/sim IDs; it does not cancel the run. Failed sims or success without a step timeline return 502. The UI links matching active simulations while waiting.
+3. Combine the stored real `corrected_timeline.json` metadata with supplied `run.json`/`workload.json` and the stored simulated timeline. `build_profile` requires steady, single-request repeats with one unchunked prefill each and a common profiled prompt/output shape.
+4. Classify kernels, sum simulated durations by group, and take medians over repeats for each kind/context. Record separate prefill and decode host residuals (`step wall − GPU busy`), unattributed GPU busy, inter-step gaps, pre-first-step envelopes and signed post-last-step envelopes.
+5. Cache the resulting `PerfProfile` in process memory by `sim_id`, up to 128 profiles. Different request sizes reuse the base sim; scenario results themselves are not cached or saved. Only an absent/fresh base creates a normal run visible in the existing UI.
+
+Bundled samples reuse their recorded simulations and reject `fresh: true`: instruction traces are not bundled. The CPU Accel-Sim execution remains in the **simulator**, never the profiler. Request sizing is a separate pure-Python performance model over finished timing; it does not generate or replay new-shaped SASS traces.
+
+## Kernel groups and roofline floors
+
+Grouping is heuristic, based on kernel names and launch shape. Model dimensions supply hidden/FFN widths, layers, heads/KV heads, vocabulary and dtype byte width. A missing FFN width is assumed to be `4 × hidden`; missing OPT vocabulary is assumed to be 50,272. Such fallbacks appear in the assumptions list.
+
+| Group | Identification / approximate work |
+|---|---|
+| `linear` | GEMM/GEMV, cuBLAS/CUTLASS/xmma and related matmuls. FLOPs ≈ 2 × non-embedding parameters × total query tokens; bytes include body weights and activation traffic. |
+| `attention` | Flash/attention/paged attention kernels. FLOPs ≈ 4 × layers × hidden × Σ(query tokens × context); KV-read bytes scale with the sum of per-sequence contexts. |
+| `kv_write` | Identifiable reshape/cache writes, separated from attention; bytes scale with query tokens × KV bytes/token. |
+| `lm_head` | Explicit name, or the final linear launch when its grid is at least twice the median linear grid. FLOPs ≈ 2 × hidden × vocabulary × sampling sequences, plus projection-weight bytes. |
+| `sampler` | Sampling/top-k/argmax/softmax-like work, proportional to vocabulary and sampling sequences, not all prompt tokens. |
+| `elementwise` | Remaining operations, including reductions and layer norms; approximate memory traffic scales with query tokens × hidden × layers. |
+
+For a batch, the model receives per-sequence query-token and context vectors, not merely a total token count. LM-head/sampler work counts only sequences that sample on this step: ordinary decode or a completed prefill. Intermediate prefill chunks omit those groups.
+
+```text
+roofline(group, shape) = max(FLOPs / (0.7 × peak compute),
+                            bytes / (0.8 × peak bandwidth))
+predicted group time = max(baseline group floor, anchored roofline time)
+step wall = assumed host(kind) + sum(predicted group times) + residual GPU busy
+```
+
+The roofline is anchored downward if needed so its calibrated-shape value cannot exceed the corresponding simulated group floor. That anchoring is not a fitted scaling law. Decode floors interpolate between available baseline contexts and clamp at endpoints outside their range; the prefill floor comes from its single recorded size. Only the roofline term grows beyond the range. Linear activations assume 8 memory passes and elementwise work 16 passes; the dense FFN is ungated with two projections, and biases/norm parameters are omitted.
+
+Matching calibrated group times reproduce their simulated floors exactly. Full request estimates use median components rather than replaying each repeat, so they need not equal the base timeline's mean E2E exactly. Baseline floors and retained eager host time can dominate: a nearly flat predicted ITL is **not evidence that long contexts are free**.
+
+### Datasheet assumptions
+
+| Config | Dense BF16/FP16 TFLOPS | HBM TB/s | Memory GB |
+|---|---|---|---|
+| `SM90_H100` | 989 | 3.35 | 80 |
+| `SM90_H200` | 989 | 4.8 | 141 |
+| `SM80_A100` | 312 | 2.039 | 80 |
+
+These are NVIDIA SXM datasheet values ([H100](https://www.nvidia.com/en-us/data-center/h100/), [H200](https://www.nvidia.com/en-us/data-center/h200/), [A100](https://www.nvidia.com/en-us/data-center/a100/)), not achieved measurements. The **0.7 compute** and **0.8 bandwidth** fractions are named assumptions, not independently calibrated efficiencies. Datasheet memory GB/TB use decimal units. H200 remains counterfactual: there is no measured H200 baseline or accuracy error.
+
+## Read provenance before the numbers
+
+| Label | Meaning |
+|---|---|
+| `measured` | Single-request shape matches a stored simulated step: prefill at the profiled size, or decode at an available context. It does **not** mean independently measured on physical hardware. |
+| `interpolated` | A single-request decode context lies between available calibration endpoints, without an exact stored point. |
+| `extrapolated:roofline` | Outside the profiled shape/range, or a multi-sequence/chunked shape. An unvalidated model prediction. |
+| `assumed-host` | Host timing is held at the profiled kind median. Every step carries this alongside its GPU provenance label. |
+
+Counts describe steps, not kernels or a probability of correctness. The sample's 7–37 decode-context envelope comes from its finished timeline; only prefill 6 and decode contexts around 8/16/32 were instruction-traced. Upstream deduplication/context interpolation can supply many of the stored durations. Those points are not independent context-scaling measurements. Neither within-range labels nor 100% replay coverage validate new batching behavior. See the [sample analysis](sample-analysis-opt125m.html) for base-run accuracy and dedup limitations.
+
+## Scheduler semantics
+
+1. **Arrivals and idle time.** Arrivals enter a waiting queue in stable order. If no request is runnable, advance to the next arrival rather than consuming fake GPU steps.
+2. **Running first, decode first.** Schedule running decode requests (one query token each) before partial prefills. Respect the sequence and batched-token budgets; a mixed step uses prefill-kind host/gap assumptions if it contains any prefill work.
+3. **FCFS admission and chunked prefill.** Admit waiting requests first-come, first-served as budgets/KV space permit. With chunking enabled, split prompts across steps to fit the token budget. Without it, a prompt larger than the budget is rejected.
+4. **KV blocks and recompute preemption.** Allocate blocks as context crosses block boundaries. Under memory pressure, preempt the most recently admitted running request, free its blocks and place it at the front of waiting. Recompute its prompt plus already generated prefix; retain its emitted tokens and do not emit them twice. It cannot be readmitted in the same step.
+5. **Time and emissions.** Use the batch GPU estimate plus kind-specific host time, profiled inter-step gaps and one pre-step envelope per busy period. Tokens emit at actual step ends. Completion retains the signed post-step envelope; completed requests free their blocks.
+
+TTFT and E2E start at arrival; queue time ends at first GPU-step start. Per-request ITL is computed from successive token timestamps. Aggregate p50 ITL pools those intervals, percentiles use linear interpolation, and output throughput divides total emitted tokens by first-arrival-to-last-completion time. A single request at time zero agrees with `simulate_request` within 1e-6 relative in the consistency tests. Zero output still performs prefill, with null TTFT/ITL; one output has no ITL interval.
+
+### Defaults and KV capacity
+
+| Setting | Default / assumption |
+|---|---|
+| `max_num_seqs` | 256 |
+| `max_num_batched_tokens` | 8192 |
+| `block_size` | 16 tokens |
+| `enable_chunked_prefill` | true |
+| `gpu_memory_utilization` | Supplied run/profile value, otherwise 0.8 |
+| `num_kv_blocks` | Estimated, unless explicitly overridden |
+
+> **Resolved vLLM scheduler defaults and KV-block capacity were not captured in the sample traces.** These settings are scheduler assumptions, not a claim to reproduce the exact vLLM deployment configuration. Memory utilization is distinct from the roofline's bandwidth-efficiency fraction, even though both can be 0.8.
+
+```text
+KV bytes/token = 2 × layers × KV heads × head dimension × dtype bytes
+weight bytes = (dense body parameters + hidden × vocabulary) × dtype bytes
+KV blocks = floor((GPU memory bytes × utilization − weight bytes − 1 GiB)
+                  / (block_size × KV bytes/token))
+```
+
+The embedding/projection weights are assumed tied. The fixed activation reserve is **1 GiB = 1,073,741,824 bytes**; fragmentation is ignored. An explicit `num_kv_blocks` overrides the estimate and can intentionally model a smaller budget. Impossible isolation capacity, or an unchunked recompute prefix exceeding the token budget, returns an error rather than looping indefinitely.
+
+## Scenario API example
+
+This example reuses the H100 bundled sample and submits eight simultaneous requests, each with 512 prompt tokens and 128 output tokens. It performs no new Accel-Sim execution.
+
+```bash
+curl "$CASCADE_URL/api/scenarios" \
+  -H "Authorization: Bearer $CASCADE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "trace_id": "sample__facebook_opt-125m__h100-e2e",
+    "gpu_config": "SM90_H100",
+    "num_requests": 8,
+    "prompt_tokens": 512,
+    "output_tokens": 128,
+    "arrival_rate_rps": 0,
+    "scheduler": {"max_num_seqs": 256, "max_num_batched_tokens": 8192}
+  }'
+```
+
+Rounded response excerpt from the request-simulator example; omitted fields include per-request metrics, per-step records, resolved scheduler and the full assumption list:
+
+json:
+
+```
+{
+  "trace_id": "sample__facebook_opt-125m__h100-e2e",
+  "gpu_config": "SM90_H100",
+  "run_id": "run-sample-opt125m-h100-e2e",
+  "sim_id": "sim-sample-opt125m-h100-e2e",
+  "cached": true,
+  "aggregate": {
+    "p50_ttft_ms": 9.799,
+    "p99_ttft_ms": 9.799,
+    "p50_itl_ms": 8.125,
+    "p50_e2e_ms": 1041.514,
+    "p99_e2e_ms": 1041.514,
+    "throughput_output_tokens_s": 983.184
+  },
+  "steps_total": 128,
+  "steps_returned": 128,
+  "steps_downsampled": false,
+  "provenance_counts": {
+    "measured": 0,
+    "interpolated": 0,
+    "extrapolated:roofline": 128,
+    "assumed-host": 128
+  },
+  "calibration_range": {"prefill_tokens": [6, 6], "decode_context": [7, 37]}
+}
+```
+
+Provide exactly one selector, `trace_id` or `model`. Shorthand requires `num_requests`, `prompt_tokens` and `output_tokens`. Null/zero/omitted arrival rate means all arrive at zero; a positive rate produces deterministic arrival `i / arrival_rate_rps`, not a Poisson process. For explicit requests, replace the shorthand fields with:
+
+json:
+
+```
+{
+  "trace_id": "sample__facebook_opt-125m__h100-e2e",
+  "requests": [
+    {"id": "a", "arrival_s": 0, "prompt_tokens": 512, "output_tokens": 128},
+    {"id": "b", "arrival_s": 0.5, "prompt_tokens": 512, "output_tokens": 128}
+  ]
+}
+```
+
+Do not mix explicit requests with shorthand fields. Omitted IDs become `request-<index>` and must remain unique. Prompts must be positive integers, outputs nonnegative integers, and prompt plus output must fit the supplied model limit (2048 if absent). Invalid bodies return 422. Service safety limits are **4096 requests**, **1,000,000 total prompt/output tokens**, **100,000 executed steps**, and finite arrivals within 0–1e9 seconds. These are not vLLM limits.
+
+Above 5000 steps, the response uniformly downsamples records while retaining first/last and original `step_index`; `steps_total`, `steps_returned`, `steps_downsampled` and `steps_sampling` disclose it. Aggregate/request metrics and provenance counts always use all executed steps. The UI may further subsample chart points; it does not recalculate the metrics from the plotted subset.
+
+## OpenAI-compatible single-request example
+
+```bash
+curl "$CASCADE_URL/v1/completions" \
+  -H "Authorization: Bearer $CASCADE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "sample__facebook_opt-125m__h100-e2e",
+    "gpu_config": "SM90_H100",
+    "prompt": "Hello, my name is",
+    "max_tokens": 32,
+    "seed": 42
+  }'
+```
+
+With the OPT tokenizer reporting six prompt tokens, the requested-shape model predicts **8.946 ms TTFT, 8.125 ms mean ITL and 260.593 ms E2E** (rounded). These request-layer estimates use median profile components; they are not the base replay's per-repeat means. Check `usage.prompt_tokens` and `cascade.prompt_tokens_source` before comparing with this six-token example.
+
+- `cascade.timing` contains requested-size TTFT, mean/p50 ITL, E2E, token counts, calibration, assumptions and provenance. `cascade.profiled` separately retains base-workload real/simulated metrics and its comparison summary. `profile_match` remains a prompt/output match flag, not proof of accuracy.
+- Output length is `max_tokens` for completions; chat accepts `max_tokens` or `max_completion_tokens` (conflicting values are rejected). The default is the trace workload's `max_tokens`. Timing uses that resolved count, not the base workload's output count.
+- Prompt usage and timing use the same tokenizer count. Chat applies a usable cached chat template, otherwise joins message contents with newlines. If the tokenizer is unavailable, the deterministic estimate is `max(1, ceil(UTF-8 bytes / 4))`, flagged `estimated:utf8-bytes/4`; the prompt above then estimates five tokens, not six. Other sources are `tokenizer`, `tokenizer:chat_template` and `tokenizer:joined`.
+- Response text is uniformly sampled non-special vocabulary IDs, seedable with `seed`; unavailable tokenizers use flagged `tok<i>` placeholders. This is not semantic text generation. Completion usage counts sampled IDs, which decoded text may re-tokenize differently.
+- With `stream: true`, final chunks carry the same timing/profiled structure after progress comments and content deltas; chunks are not paced like actual inference. Concurrent `/v1` calls can share a base sim but **never share a scheduler batch**.
+
+## Reported predictions, not new calibration
+
+Standalone request estimates from the bundled H100/A100 profiles; times are ms and ITL is mean. All rows other than the matching 6/32 shape use unvalidated roofline extrapolation; host time is assumed throughout.
+
+| GPU | Prompt / output | TTFT | Mean ITL | E2E |
+|---|---|---|---|---|
+| SM90_H100 | 6 / 32 | 8.946 | 8.125 | 260.593 |
+| SM90_H100 | 128 / 128 | 8.946 | 8.125 | 1040.662 |
+| SM90_H100 | 1024 / 256 | 8.956 | 8.125 | 2080.732 |
+| SM90_H100 | 1800 / 200 | 9.228 | 8.125 | 1625.977 |
+| SM80_A100 | 6 / 32 | 8.190 | 7.139 | 229.340 |
+| SM80_A100 | 128 / 128 | 8.190 | 7.139 | 914.664 |
+| SM80_A100 | 1024 / 256 | 8.398 | 7.139 | 1828.637 |
+| SM80_A100 | 1800 / 200 | 9.371 | 7.139 | 1429.838 |
+
+H100 scheduler estimates for **512 prompt / 128 output** tokens per request, all arriving at zero with default scheduler assumptions:
+
+| Concurrent requests | p50 TTFT ms | p50 ITL ms | p50 E2E ms | Output tok/s |
+|---|---|---|---|---|
+| 1 | 8.946 | 8.125 | 1040.662 | 123.00 |
+| 8 | 9.799 | 8.125 | 1041.514 | 983.18 |
+| 64 | 33.824 | 8.549 | 1122.326 | 7194.53 |
+
+Estimated default H100 KV capacity is 106,267 blocks; those three examples do not preempt. A separate deterministic stress test with three 8/8 requests, block size 4 and only 4 KV blocks finishes all requests with exactly eight output tokens each, preemptions [0, 3, 2], in 23 steps. This checks scheduler bookkeeping, not fidelity to a real memory-pressure run.
+
+> **No new GPU prompt/context/concurrency sweep has calibrated these curves.** Flat ITL, higher estimated batching throughput, within-range provenance or successful recomputation tests do not validate real vLLM performance. The [recorded H100/A100 replay errors](sample-analysis-opt125m.html) apply to the original workload only, not to the arbitrary request sizes or scheduler results on this page.
 
 
 # Traces
