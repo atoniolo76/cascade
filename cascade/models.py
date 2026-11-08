@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import mimetypes
 from datetime import datetime
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -93,6 +95,7 @@ class TraceSummary(BaseModel):
     bytes: int  # bytes on disk under the trace dir
     has_real_timing: bool
     has_step_timeline: bool  # corrected_timeline.json + kernel_mapping.json are in the trace dir
+    sample: bool  # seeded from samples/ at startup; it has no instruction traces to simulate
 
 
 class TraceDetail(TraceSummary):
@@ -158,6 +161,7 @@ class RunSummary(BaseModel):
     state: RunState
     entries: list[RunEntry]
     sim_counts: dict[SimState, int]
+    sample: bool  # seeded from samples/ with its recorded results
 
 
 class RunDetail(RunSummary):
@@ -206,6 +210,18 @@ class SimStepTimeline(BaseModel):
 FILE_NAME_PATTERN = r"^(?!\.\.?$)[A-Za-z0-9._-]{1,128}$"
 FILE_MAX_BYTES = 64 << 20  # per output file; a bigger PUT is 413
 SIM_FILES_MAX_BYTES = 256 << 20  # all of one sim's output files together
+CONTENT_TYPES = {
+    ".csv": "text/csv",
+    ".txt": "text/plain",
+    ".log": "text/plain",
+    ".json": "application/json",
+    ".gz": "application/gzip",
+}
+
+
+def content_type(name: str) -> str:
+    known = CONTENT_TYPES.get(Path(name).suffix.lower())
+    return known or mimetypes.guess_type(name, strict=False)[0] or "application/octet-stream"
 
 
 class SimFile(BaseModel):
