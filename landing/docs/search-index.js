@@ -205,6 +205,71 @@ window.DOCS_INDEX = [
 "g": "Trace a workload"
 },
 {
+"t": "OPT-125m sample: GPU profiling → instruction simulation → request replay",
+"u": "sample-analysis-opt125m.html",
+"g": "Guides"
+},
+{
+"t": "Scope and evidence",
+"u": "sample-analysis-opt125m.html#scope-and-evidence",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Workload and environment",
+"u": "sample-analysis-opt125m.html#workload-and-environment",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Pipeline cost",
+"u": "sample-analysis-opt125m.html#pipeline-cost",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Local-disk optimization and artifact compatibility",
+"u": "sample-analysis-opt125m.html#local-disk-optimization-and-artifact-compatibility",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Real timeline anatomy",
+"u": "sample-analysis-opt125m.html#real-timeline-anatomy",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Real kernel mix per step",
+"u": "sample-analysis-opt125m.html#real-kernel-mix-per-step",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Accel-Sim by kernel group",
+"u": "sample-analysis-opt125m.html#accel-sim-by-kernel-group",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Coverage, dedup verification and context scaling",
+"u": "sample-analysis-opt125m.html#coverage-dedup-verification-and-context-scaling",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Replay errors and eager-mode dilution",
+"u": "sample-analysis-opt125m.html#replay-errors-and-eager-mode-dilution",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Architecture compatibility",
+"u": "sample-analysis-opt125m.html#architecture-compatibility",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Bottlenecks and optimization order",
+"u": "sample-analysis-opt125m.html#bottlenecks-and-optimization-order",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Reproduce and finish the A100 comparison",
+"u": "sample-analysis-opt125m.html#reproduce-and-finish-the-a100-comparison",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
 "t": "Traces",
 "u": "traces.html",
 "g": "Guides"

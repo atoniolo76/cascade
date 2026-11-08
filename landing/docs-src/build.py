@@ -40,7 +40,15 @@ NAV: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Getting started", ("index", "quickstart", "agents", "concepts")),
     (
         "Guides",
-        ("deploy", "trace-a-workload", "traces", "runs", "reading-results", "simulator"),
+        (
+            "deploy",
+            "trace-a-workload",
+            "sample-analysis-opt125m",
+            "traces",
+            "runs",
+            "reading-results",
+            "simulator",
+        ),
     ),
     (
         "API reference",
