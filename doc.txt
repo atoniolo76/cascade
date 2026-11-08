@@ -1,0 +1,75 @@
+Team charter:
+
+teammates:
+amani bobo
+alessio toniolo
+
+project:
+offline simulation of multi-gpu systems
+
+project name:
+cascade
+
+goal:
+the goal is to
+1. take an application trace from an llm workload or other ML workload
+2. simulate it on other gpu hardware
+3. scale this to many gpus beyond the original system that it ran on
+
+components:
+1. profiling
+a python package that is able to flexibly profile the application workload that the original workload ran on
+
+for example, this could be a live vLLM inference server that is running a request metadata trace from many different users
+
+2. cascade app
+
+a "container" that receives the profile being sent over the internet to it's storage. the container exposes a live http
+endpoint where a ui is displayed for manging the simulation run.
+
+3. simulation containers
+
+the cascade app container launches other containers that run a simulation binary with the processed application trace.
+on this, the sim will simulate the performance of the application workload on accelsim2.0, an industry-standard trace-
+driven gpu simulator.
+
+technical implementation:
+
+1. profiling
+once the cascade app is running, the user profiling with the package should pass in the public (or local if in local dev)
+endpoint so that the trace can be sent to this url.
+
+since accelsim can hook into running vllm (inference engine) processes, the python package should have a function that,
+under the hood, calls the necessary api for accelsim to do the tracing. an event should occur when the tracing/vllm
+process is done that tells cascade to send the file saved from accelsim locally to the storage service on the app
+
+2. cascade app
+this should be a container that will run as a sailbox container. when the app receives the trace file, it saves it 
+to the local disk. when the cascade app receives the configurable setup for its simulation, it should use the sail
+research api to spin up other sailboxes, which fork ("copy") the current checkpoint so it has the trace on
+its local disk. 
+
+the cascade app container should have two modes: the main app mode, which launches the other sandbox, and the simulator
+mode, which is the running simulation on the fanned out sandbox. this has to be the same image in order 
+to reuse the checkpoint with the trace file on it. 
+
+3. simulator
+in the "simulator mode of the cascade app, the accelsim program should be started using the trace as input. the accelsim
+process will save observability into a running log, which should be forwarded back to the "main app" container.
+
+contract:
+alessio: profiling and simulator: communicating trace infromation from simulator to the cascade app. sending profile traces
+to the running cascade app.
+amani: cascade app: launching other sailboxes, REST/CRUD api between main container and simulator containers to "receive"
+observability information/health, and ui to visualize the running simulation, the original hardware trace. here,
+there is a lot of flexibility with what should be displayed about the original trace versus the running simulation
+trace and metrics.
+
+
+ambitious goals:
+if we are able to successfully run a copy of the current simulation on different and many hardware, we should add
+some "coordination" component that makes the gpus run as a "system": using our inference example from above,
+if we have a client workload running on an inference service, we should have "cacssade" intercept the application run
+and distribute it to it's many "gpu" simulators. the work should be equally partitioned across thje workers, and the
+application can run faster.5;9
+
