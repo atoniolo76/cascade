@@ -169,13 +169,13 @@ export function architectureTimingRows(
       values: metricValues(reference, "real"), e2eError: null,
     });
     for (const config of configs) {
-      const eligible = trace.id === current.id && config.config === current.real_gpu_config;
+      const eligible = config.config === trace.real_gpu_config;
       const values = metricValues(config, "predicted");
       const real = config.e2e?.real;
       rows.push({
         key: `${trace.id}:${config.config}`, kind: "simulated", config: config.config, label: config.config,
-        note: eligible ? "Native hardware · error vs measured" : trace.id !== current.id
-          ? `Other native trace · ${trace.id} · metrics only`
+        note: eligible ? `${trace.id === current.id ? "Native hardware" : `Native trace · ${trace.id}`} · error vs measured` : trace.id !== current.id
+          ? `Other native trace · ${trace.id} · no real ${config.config} baseline`
           : current.real_gpu_config ? `No real ${config.config} baseline · counterfactual` : "Real hardware config unidentified · metrics only",
         values, e2eError: eligible && values.e2e !== null && real !== undefined && real !== null && real > 0 ? (values.e2e - real) / real : null,
       });

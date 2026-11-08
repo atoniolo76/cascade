@@ -1,0 +1,6 @@
+No $GPGPUSIM_ROOT, testing for local folder in: "/opt/accel-sim-framework/gpu-simulator/gpgpu-sim"
+Found /opt/accel-sim-framework/gpu-simulator/gpgpu-sim, using existing local location. Not sycning anything.
+GPGPU-Sim version 4.2.0 (build gpgpu-sim_git-commit-4195dd4f-modified_625.0) configured with AccelWattch.
+setup_environment succeeded
+Using GPGPU-Sim in /opt/accel-sim-framework/gpu-simulator/gpgpu-sim
+Accel-Sim setup succeeded.

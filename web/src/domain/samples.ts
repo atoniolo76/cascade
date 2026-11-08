@@ -3,7 +3,7 @@ import type { RunEntry, TraceSummary } from "../api/types";
 export const SAMPLE_TOOLTIP =
   "A real profiling and Accel-Sim run included so you can explore Cascade without profiling (about 30 minutes). Results are real; it was not run in this workspace.";
 
-export const SAMPLE_README_URL = "https://github.com/atoniolo76/cascade/tree/amani/samples/opt125m-h100-e2e";
+export const SAMPLE_README_URL = "https://github.com/atoniolo76/cascade/tree/amani/samples";
 
 export const SAMPLE_RUN_BLOCKED = "Sample traces ship without their instruction traces, so Accel-Sim can't run them here. Open the sample run to explore its results.";
 

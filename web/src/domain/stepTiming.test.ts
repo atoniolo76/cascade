@@ -80,7 +80,7 @@ const trace = (id = "h100", real_gpu_config: string | null = "SM90_H100"): Trace
   source_gpu: real_gpu_config === "SM80_A100" ? "NVIDIA A100" : "NVIDIA H100 80GB HBM3",
   trace_gpu_arch: real_gpu_config === "SM80_A100" ? "sm_80" : "sm_90",
   suggested_sim_config: "SM90_H100", sample_sim_configs: [], kernel_count: 1, bytes: 1,
-  has_real_timing: false, has_step_timeline: true,
+  has_real_timing: false, has_step_timeline: true, sample: false,
 });
 
 function requests(config: string, simulated = 262.14): SimStepTimeline {
@@ -113,7 +113,7 @@ describe("architectureTimingRows", () => {
     assert.equal(pending.note, "Pending: native A100 trace not captured yet");
   });
 
-  it("includes other native traces with their own real values but no errors, even if configs match", () => {
+  it("compares each native trace only with its own real config and measured baseline", () => {
     const current = trace(), a100 = trace("a100", "SM80_A100");
     const rows = architectureTimingRows(current, [
       { trace: current, timelines: [requests("SM90_H100")] },
@@ -124,7 +124,8 @@ describe("architectureTimingRows", () => {
     assert.equal(other.length, 3);
     assert.match(other[0]?.label ?? "", /Real NVIDIA A100/);
     assert.equal(other.find((r) => r.config === "SM80_A100" && r.kind === "simulated")?.values.e2e, 200);
-    assert.ok(other.every((r) => r.e2eError === null));
+    assert.equal(other.find((r) => r.config === "SM80_A100" && r.kind === "simulated")?.e2eError, (200 - 254.45) / 254.45);
+    assert.equal(other.find((r) => r.config === "SM90_H100" && r.kind === "simulated")?.e2eError, null);
   });
 
   it("does not infer a baseline from suggested_sim_config when real_gpu_config is missing", () => {
@@ -146,7 +147,7 @@ describe("architectureTimingRows", () => {
 });
 
 describe("latestSampleRuns", () => {
-  const run = (id: string, trace_id: string, state: RunSummary["state"], created_at: string): RunSummary => ({ id, trace_id, state, created_at, entries: [], sim_counts: {} });
+  const run = (id: string, trace_id: string, state: RunSummary["state"], created_at: string): RunSummary => ({ id, trace_id, state, created_at, entries: [], sim_counts: {}, sample: false });
   it("chooses only the newest succeeded run per other trace in this set", () => {
     const current = trace(), a100 = trace("a100", "SM80_A100"), other = { ...trace("unrelated"), sample_set: "other" };
     const runs = [run("older", "a100", "succeeded", "2026-01-01"), run("active", "a100", "active", "2026-01-04"),

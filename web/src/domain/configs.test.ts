@@ -12,7 +12,7 @@ const trace = (sample_sim_configs: string[] = [], suggested_sim_config: string |
   id: "sample", state: "ready", error: null, created_at: "", updated_at: "", model: "facebook/opt-125m",
   layers: [], source_gpu: "NVIDIA H100 80GB HBM3", trace_gpu_arch: "sm_90", suggested_sim_config,
   real_gpu_config: "SM90_H100", sample_sim_configs, sample_set: "cascade-samples",
-  kernel_count: 712, bytes: 0, has_real_timing: true, has_step_timeline: true,
+  kernel_count: 712, bytes: 0, has_real_timing: true, has_step_timeline: true, sample: false,
 });
 
 describe("initialConfigs", () => {

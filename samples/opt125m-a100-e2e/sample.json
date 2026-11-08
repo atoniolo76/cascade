@@ -1,0 +1,30 @@
+{
+  "status": "available",
+  "source_run": "e2e-a100-plan-v1",
+  "trace_id": "sample__facebook_opt-125m__a100-e2e",
+  "run_id": "run-sample-opt125m-a100-e2e",
+  "sim_id": "sim-sample-opt125m-a100-e2e",
+  "gpu_config": "SM80_A100",
+  "real_gpu_config": "SM80_A100",
+  "core_clock_mhz": 1410,
+  "trace_gpu_arch": "sm_80",
+  "sample_set": "cascade-samples",
+  "sample_sim_configs": [
+    "SM80_A100"
+  ],
+  "sim_started_at": "2026-11-08T09:25:09+00:00",
+  "stats_file": "traced/traces/stats_ctx_0xd61a0a0",
+  "configs": [
+    {
+      "gpu_config": "SM80_A100",
+      "sim_dir": "sim"
+    }
+  ],
+  "output_files": [
+    "sim/kernels.csv",
+    "sim/summary.json",
+    "sim/compare.json",
+    "sim/setup.log",
+    "sim/kernel-5419.log"
+  ]
+}
