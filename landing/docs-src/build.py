@@ -93,9 +93,6 @@ def load_pages() -> list[Page]:
     return pages
 
 
-# ---------------------------------------------------------------- inline text and code
-
-
 def esc(s: str) -> str:
     return html.escape(s, quote=False)
 
@@ -162,9 +159,6 @@ def tabs(panels: list[tuple[str, str]]) -> str:
         for i, (label, body) in enumerate(panels)
     )
     return f'<div class="tabs"><div class="tab-list" role="tablist">{buttons}</div>{bodies}</div>'
-
-
-# ---------------------------------------------------------------- captured JSON examples
 
 
 def trimmed_note(value: object) -> str | None:
@@ -244,9 +238,6 @@ def response_block(name: str, label: str | None = None) -> str:
         )
         return code_block(text, label=meta, body=body)
     return code_block(json_text(ex["body"]), label=meta, body=json_html(ex["body"]))
-
-
-# ---------------------------------------------------------------- models introspection
 
 
 @dataclass(frozen=True)
@@ -346,14 +337,10 @@ def sentence(comment: str) -> str:
     return esc(text if text.endswith((".", ")")) else text + ".")
 
 
-def own_fields(name: str) -> tuple[FieldInfo, ...]:
-    return MODELS[name].fields
-
-
 def fields_table(name: str) -> str:
     model = getattr(models, name)
     rows = []
-    for f in own_fields(name):
+    for f in MODELS[name].fields:
         note = FIELD_NOTES.get(f"{name}.{f.name}")
         parts = [inline(note) if note else (sentence(f.comment) if f.comment else "")]
         extra = constraints(model, f.name)
@@ -460,8 +447,6 @@ def types_reference() -> str:
             out.append(alias_section(name) if name in ALIASES else model_section(name))
     return "\n".join(out)
 
-
-# ---------------------------------------------------------------- state machines
 
 S = models.SimState
 TERMINAL_EXITS = (S.failed, S.cancelled)
@@ -615,11 +600,6 @@ def run_state_table() -> str:
         '<div class="table-wrap"><table class="table"><thead><tr><th>sim states</th>'
         f"<th>run state</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
     )
-
-
-# ---------------------------------------------------------------- endpoints
-
-METHOD_ORDER = ("GET", "POST")
 
 
 def path_html(path: str) -> str:
@@ -883,9 +863,6 @@ def event_block(kind: str) -> str:
     return code_block(
         json_text(events["events"][kind]), label=label, body=json_html(events["events"][kind])
     )
-
-
-# ---------------------------------------------------------------- page assembly
 
 
 def slugify(text: str) -> str:
