@@ -24,6 +24,8 @@ neighbouring step. Per-step metadata is written to --step-log (JSON):
 """
 
 import argparse
+import atexit
+import gc
 import json
 import logging
 import os
@@ -101,6 +103,29 @@ def llm_kwargs(exec_mode: str, no_async_scheduling: bool) -> dict:
     return kw
 
 
+class GCPauseRecorder:
+    def __init__(self):
+        self.total_ns = 0
+        self.events = []
+        self.starts = {}
+        gc.callbacks.append(self.callback)
+
+    def callback(self, phase, info):
+        now = time.monotonic_ns()
+        generation = info["generation"]
+        if phase == "start":
+            self.starts[generation] = now
+        elif generation in self.starts:
+            start = self.starts.pop(generation)
+            self.total_ns += now - start
+            self.events.append({"generation": generation, "start_ns": start,
+                                "end_ns": now, "duration_ns": now - start})
+
+    def close(self):
+        if self.callback in gc.callbacks:
+            gc.callbacks.remove(self.callback)
+
+
 class StepRecorder:
     """Wraps LLMEngine.step with NVTX ranges, syncs, optional NVBit enable, and a JSON log."""
 
@@ -111,6 +136,10 @@ class StepRecorder:
         self.profiler_from_repeat = None
         self.profiling = False
         self.sync_steps = True
+        self.gc = GCPauseRecorder()
+        self._previous_gc = None
+        self._closed = False
+        atexit.register(self.close)
         self.nvbit_lib, self.trace_steps, self.log_path = nvbit_lib, trace_steps, log_path
         self.steps: list[dict] = []
         self._sched = None
@@ -151,6 +180,9 @@ class StepRecorder:
         first_id = tracer_next_kernel_id()
         wall_start = time.time_ns()
         monotonic_start = time.monotonic_ns()
+        gc_pause_start = self.gc.total_ns
+        gc_before = {"count": list(gc.get_count()),
+                     "collections": [s["collections"] for s in gc.get_stats()]}
         if nvtx:
             nvtx.push_range(f"vllm_step_{i}", domain="vllm_steps")
         if trace_this:
@@ -170,15 +202,22 @@ class StepRecorder:
                 nvtx.pop_range(domain="vllm_steps")
         wall_end = time.time_ns()
         monotonic_end = time.monotonic_ns()
+        gc_pause_end = self.gc.total_ns
+        gc_after = {"count": list(gc.get_count()),
+                    "collections": [s["collections"] for s in gc.get_stats()]}
         rec = {"step": i, "repeat": self.repeat, "warmup": self.repeat == 0,
                "nvtx_range": f"vllm_step_{i}", "traced": trace_this,
                "wall_start_ns": wall_start, "wall_end_ns": wall_end,
                "monotonic_start_ns": monotonic_start, "monotonic_end_ns": monotonic_end,
                "pre_step_sync_ns": pre_sync_ns, "post_step_sync_ns": post_sync_ns,
+               "gc_before": gc_before, "gc_after": gc_after,
+               "gc_pause_ns_in_step": gc_pause_end - gc_pause_start,
+               "gc_pause_ns_in_gap_before": gc_pause_start - self._previous_gc[1]
+               if self._previous_gc is not None and self._previous_gc[0] == self.repeat else None,
                "first_kernel_id": first_id, "end_kernel_id": tracer_next_kernel_id()}
         rec.update(self._describe(self._sched))
         self.steps.append(rec)
-        self.write()
+        self._previous_gc = (self.repeat, gc_pause_end)
         return out
 
     @staticmethod
@@ -207,6 +246,14 @@ class StepRecorder:
         if self.log_path:
             Path(self.log_path).write_text(json.dumps(self.steps, indent=2))
 
+    def close(self):
+        if self._closed:
+            return
+        self._closed = True
+        self.gc.close()
+        atexit.unregister(self.close)
+        self.write()
+
 
 def main():
     # Surface torch_hook's "Found nvbit tracer, attaching hooks to layer ..." messages.
@@ -234,6 +281,8 @@ def main():
     p.add_argument("--metrics-out", default="")
     p.add_argument("--no-step-sync", action="store_true",
                    help="skip StepRecorder CUDA synchronizations (profiling experiment)")
+    p.add_argument("--gc-between-repeats", action=argparse.BooleanOptionalAction, default=True,
+                   help="collect garbage between generate repeats (default: on)")
     args = p.parse_args()
     if args.layerwise_nvtx and args.exec_mode != "eager":
         p.error("--layerwise-nvtx requires --exec-mode eager")
@@ -296,9 +345,16 @@ def main():
         temperature=0.0, max_tokens=args.max_tokens, ignore_eos=True, seed=0
     )
     requests = []
+    repeat_gc = []
     try:
         for repeat in range(args.repeats):
             recorder.repeat = repeat
+            gc_pause_before = recorder.gc.total_ns
+            collect_ns = 0
+            if repeat > 0 and args.gc_between_repeats:
+                collect_start = time.monotonic_ns()
+                gc.collect()
+                collect_ns = time.monotonic_ns() - collect_start
             outputs = llm.generate(json.loads(args.prompts), sampling_params)
             generate_return_ns = time.monotonic_ns()
             if args.metrics_out:
@@ -315,12 +371,19 @@ def main():
                                    mean_itl_s=decode / (m["num_generation_tokens"] - 1)
                                    if m["num_generation_tokens"] > 1 else None)
                     requests.append(row)
+            repeat_gc.append({"repeat": repeat, "gc_collect_before_ns": collect_ns,
+                              "total_gc_pause_ns": recorder.gc.total_ns - gc_pause_before})
     finally:
-        if recorder.profiling:
-            llm.stop_profile()
+        try:
+            if recorder.profiling:
+                llm.stop_profile()
+        finally:
+            recorder.close()
     if args.metrics_out:
         Path(args.metrics_out).write_text(json.dumps({
             "clock": clock, "requests": requests,
+            "gc": {"between_repeats": args.gc_between_repeats, "repeats": repeat_gc,
+                   "events": recorder.gc.events},
             "metrics": [asdict(m) for m in llm.get_metrics()]}, indent=2))
     for output in outputs:
         print(f"Prompt: {output.prompt!r}, Generated text: {output.outputs[0].text!r}")

@@ -173,15 +173,19 @@ class PhasesTest(unittest.TestCase):
                 "vllm_version": "0.21.0", "layerwise_nvtx": False}
         result = a._corrected_timeline(meta, baseline, profiled, iterations, metrics,
                                        stats, ranges, kernels)
-        self.assertEqual(set(result), {"meta", "steps", "requests", "summary"})
+        self.assertEqual(set(result), {"meta", "steps", "requests", "summary", "gc_summary"})
         self.assertEqual(set(result["meta"]), set(meta) | {"clock"})
         step_keys = {"step", "repeat", "warmup", "kind", "num_reqs", "num_scheduled_tokens",
                      "baseline_wall_ns", "profiled_wall_ns", "gpu_busy_ns", "cuda_api_ns",
                      "host_ns", "kernels", "baseline_wall_start_ns", "baseline_wall_end_ns",
                      "baseline_gap_before_ns", "profiled_wall_start_ns", "profiled_wall_end_ns",
-                     "profiled_gap_before_ns"}
+                     "profiled_gap_before_ns"} | {f"{phase}_{field}" for phase in ("baseline", "profiled")
+                                                 for field in ("gc_before", "gc_after",
+                                                               "gc_pause_ns_in_step", "gc_pause_ns_in_gap_before")}
         for s in result["steps"]:
             self.assertEqual(set(s), step_keys)
+            self.assertIsNone(s["baseline_gc_pause_ns_in_step"])
+            self.assertIsNone(s["profiled_gc_pause_ns_in_gap_before"])
         for s in result["steps"][:2] + result["steps"][3:]:
             for field in ("profiled_wall_ns", "gpu_busy_ns", "cuda_api_ns", "host_ns"):
                 self.assertIsNone(s[field])
@@ -233,7 +237,8 @@ class PhasesTest(unittest.TestCase):
         self.assertEqual(fallback["steps"][0]["num_reqs"], 2)
         self.assertEqual(fallback["steps"][0]["num_scheduled_tokens"], 9)
         empty = a._corrected_timeline(meta, [], [], [], {}, {}, {}, [])
-        self.assertEqual(empty, {"meta": result["meta"], "steps": [], "requests": [], "summary": {}})
+        self.assertEqual(empty, {"meta": result["meta"], "steps": [], "requests": [], "summary": {},
+                                 "gc_summary": {"baseline": [], "profiled": []}})
         with self.assertRaises(ValueError):
             a._corrected_timeline(meta, baseline, profiled, iterations, {}, stats, ranges,
                                   [{**kernels[0], "grid": "invalid"}])
@@ -262,11 +267,23 @@ class PhasesTest(unittest.TestCase):
                                   "arrival_time": 1080e-9, "queued_ts": 90e-9,
                                   "first_token_ts": 115e-9, "last_token_ts": 225e-9},
                                   "generate_return_monotonic_ns": 250}]}
+        baseline[2].update(gc_before={"count": [1, 2, 3], "collections": [10, 5, 1]},
+                           gc_after={"count": [0, 0, 0], "collections": [10, 5, 2]},
+                           gc_pause_ns_in_step=7, gc_pause_ns_in_gap_before=3)
+        profiled[2].update(gc_pause_ns_in_step=11, gc_pause_ns_in_gap_before=6)
+        metrics["gc"] = {"repeats": [{"repeat": 1, "total_gc_pause_ns": 10,
+                                      "gc_collect_before_ns": 2}]}
         result = a._corrected_timeline(meta, baseline, profiled, [], metrics, {}, {}, [],
                                        {"clock": {"wall_minus_monotonic_ns": 2000}})
         self.assertEqual([s["baseline_gap_before_ns"] for s in result["steps"]], [None, None, 30, 40])
         self.assertEqual([s["profiled_gap_before_ns"] for s in result["steps"]], [None, None, 25, None])
         self.assertEqual(result["steps"][1]["profiled_wall_start_ns"], 600)
+        self.assertEqual(result["steps"][2]["baseline_gc_pause_ns_in_step"], 7)
+        self.assertEqual(result["steps"][2]["baseline_gc_pause_ns_in_gap_before"], 3)
+        self.assertEqual(result["steps"][2]["profiled_gc_pause_ns_in_step"], 11)
+        self.assertEqual(result["steps"][2]["profiled_gc_pause_ns_in_gap_before"], 6)
+        self.assertEqual(result["steps"][2]["baseline_gc_before"]["count"], [1, 2, 3])
+        self.assertEqual(result["gc_summary"]["baseline"], metrics["gc"]["repeats"])
         # New profiled timestamps exist even for uncaptured steps; old nsys fields stay null.
         self.assertIsNone(result["steps"][1]["profiled_wall_ns"])
         self.assertIsNone(result["steps"][3]["profiled_wall_end_ns"])
@@ -289,6 +306,15 @@ class PhasesTest(unittest.TestCase):
         missing = a._corrected_timeline(meta, legacy, [], [], {"requests": [{"repeat": 5}]}, {}, {}, [])
         self.assertIsNone(missing["steps"][2]["baseline_wall_start_ns"])
         self.assertIsNone(missing["requests"][0]["post_last_step_ns"])
+
+    def test_unique_run_names(self):
+        with patch.object(a.time, "strftime", return_value="20261108-045308"), \
+                patch.object(a.secrets, "token_hex", side_effect=[f"{i:06x}" for i in range(20)]) as suffix:
+            names = [a._unique_run_name() for _ in range(20)]
+        suffix.assert_called_with(3)
+        self.assertEqual(len(set(names)), 20)
+        for name in names:
+            self.assertRegex(name, r"^20261108-045308-[0-9a-f]{6}$")
 
     def test_workload_repeats_and_profiler_order(self):
         @dataclass
@@ -349,7 +375,7 @@ class PhasesTest(unittest.TestCase):
                 str(metrics), "--step-log", str(steps)]
         with patch.dict(sys.modules, fake_modules), patch.object(sys, "argv", args), \
                 patch.dict(os.environ, {}, clear=True):
-            runpy.run_path(str(Path(__file__).with_name("vllm_trace.py")), run_name="__main__")
+            workload = runpy.run_path(str(Path(__file__).with_name("vllm_trace.py")), run_name="__main__")
         self.assertEqual(kwargs["profiler_config"], {"profiler": "cuda"})
         self.assertFalse(kwargs["disable_log_stats"])
         self.assertTrue(kwargs["enable_layerwise_nvtx_tracing"])
@@ -366,6 +392,10 @@ class PhasesTest(unittest.TestCase):
         self.assertEqual(len(data["requests"]), 3)
         self.assertEqual(data["requests"][0]["ttft_s"], 1)
         self.assertEqual(data["metrics"][0]["buckets"], {"+Inf": 1})
+        self.assertTrue(data["gc"]["between_repeats"])
+        self.assertEqual(len(data["gc"]["repeats"]), 3)
+        self.assertEqual(data["gc"]["repeats"][0]["gc_collect_before_ns"], 0)
+        self.assertTrue(all(r["gc_collect_before_ns"] > 0 for r in data["gc"]["repeats"][1:]))
         self.assertEqual(data["clock"]["step_clock"], "monotonic")
         self.assertIsInstance(data["clock"]["wall_minus_monotonic_ns"], int)
         self.assertGreaterEqual(data["clock"]["sample_bracket_ns"], 0)
@@ -376,14 +406,54 @@ class PhasesTest(unittest.TestCase):
             self.assertGreaterEqual(r["monotonic_end_ns"], r["monotonic_start_ns"])
             self.assertGreaterEqual(r["pre_step_sync_ns"], 0)
             self.assertGreaterEqual(r["post_step_sync_ns"], 0)
+            self.assertEqual(set(r["gc_before"]), {"count", "collections"})
+            self.assertEqual(len(r["gc_after"]["collections"]), 3)
+            self.assertGreaterEqual(r["gc_pause_ns_in_step"], 0)
+        self.assertIsNone(recorded[2]["gc_pause_ns_in_gap_before"])
         calls.clear()
-        with patch.dict(sys.modules, fake_modules), patch.object(sys, "argv", args + ["--no-step-sync"]), \
+        with patch.dict(sys.modules, fake_modules), patch.object(sys, "argv", args + ["--no-step-sync", "--no-gc-between-repeats"]), \
                 patch.dict(os.environ, {}, clear=True):
             runpy.run_path(str(Path(__file__).with_name("vllm_trace.py")), run_name="__main__")
         self.assertEqual(calls.count("sync"), 1)  # LLM initialization sync is unchanged
         for r in json.loads(steps.read_text()):
             self.assertEqual(r["pre_step_sync_ns"], 0)
             self.assertEqual(r["post_step_sync_ns"], 0)
+        data = json.loads(metrics.read_text())
+        self.assertFalse(data["gc"]["between_repeats"])
+        self.assertTrue(all(r["gc_collect_before_ns"] == 0 for r in data["gc"]["repeats"]))
+
+        recorder = workload["StepRecorder"](FakeLLM(), None, set(), str(steps))
+        try:
+            def pause():
+                with patch.object(workload["time"], "monotonic_ns", side_effect=[100, 150]):
+                    recorder.gc.callback("start", {"generation": 2})
+                    recorder.gc.callback("stop", {"generation": 2})
+            with patch.object(recorder, "write", wraps=recorder.write) as write:
+                recorder._orig_step = pause
+                recorder.step()
+                pause()  # gap between two steps
+                recorder.step()
+                self.assertGreaterEqual(recorder.steps[0]["gc_pause_ns_in_step"], 50)
+                self.assertGreaterEqual(recorder.steps[1]["gc_pause_ns_in_gap_before"], 50)
+                self.assertEqual(recorder.gc.events[-1]["generation"], 2)
+                write.assert_not_called()
+                recorder.close()
+                recorder.close()
+                write.assert_called_once()
+        finally:
+            recorder.close()
+        self.assertNotIn(recorder.gc.callback, workload["gc"].callbacks)
+        self.assertEqual(len(json.loads(steps.read_text())), 2)
+
+        def fail_generate(self, prompts, params):
+            self.llm_engine.step()
+            raise RuntimeError("fake workload failure")
+
+        with patch.dict(sys.modules, fake_modules), patch.object(sys, "argv", args), \
+                patch.dict(os.environ, {}, clear=True), patch.object(FakeLLM, "generate", fail_generate):
+            with self.assertRaisesRegex(RuntimeError, "fake workload failure"):
+                runpy.run_path(str(Path(__file__).with_name("vllm_trace.py")), run_name="__main__")
+        self.assertEqual(len(json.loads(steps.read_text())), 1)
 
 
 if __name__ == "__main__":

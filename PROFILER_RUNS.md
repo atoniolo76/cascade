@@ -4,7 +4,9 @@ All commands run from the repo root. Without `--s3-*` flags, `trace_vllm` writes
 dir (raw traces, `kernelslist.g` + `.tracez` from post-traces-processing, `metadata.json`,
 `trace_steps.json`, logs) to the `accelsim-traces` Modal volume at `/<run_name>/`, and
 `nsys_main --trace-run <run_name>` reads it from there. The run name is printed at the end (and is
-`<timestamp>__<model>__<scope>__<exec_mode>`; `modal volume ls accelsim-traces` lists them).
+`<timestamp>-<random hex>__<model>__<scope>__<exec_mode>`; `modal volume ls accelsim-traces` lists them).
+All automatic names include a six-hex-digit random suffix, including phase/microbench names
+and nsys output folders (`nsys_<mode>_<timestamp>-<random hex>`). Explicit names are unchanged.
 Add `--no-post-process` to skip post-processing, or `--s3-endpoint/--s3-bucket` to stream to S3
 instead (no post-processing; then copy the run dir to the volume yourself before `nsys_main`).
 Defaults are unchanged: `modal run accelsim_trace.py::main` still traces one layer in eager mode.
@@ -187,8 +189,9 @@ Code-path findings in vLLM 0.21.0 (paths relative to the unpacked vLLM source):
   `v1/engine/detokenizer.py:95-135`); they cannot be assigned again to the inter-step gap.
 - Our pre-step device synchronize is **outside** the span; post-step synchronize and NVTX
   pushes/pops are **inside**. Record assembly plus writing the entire growing, indented step
-  JSON list happen **after** the end timestamp on every step (`vllm_trace.py::StepRecorder.step/write`).
-  This logging is reachable in both phases and adds gap/post-step overhead, not model time.
+  JSON list used to happen **after** the end timestamp on every step. That growing rewrite is
+  now removed: records append to memory and the same JSON array is written once at finalization
+  (`vllm_trace.py::StepRecorder.step/close/write`).
 - `LLM._run_engine` does loop checks and output collection outside the wrapper, and tqdm setup,
   updates/refresh, closing and final sorting (`entrypoints/llm.py:1839-1892`). However `_add_request`
   sets FINAL_ONLY (`1826-1828`): progress updates are on completed outputs, **not each decode
@@ -208,6 +211,75 @@ vllm_trace.py). The default remains synchronized. With sync disabled, asynchrono
 cross range boundaries: treat GPU attribution and host subtraction with caution. No numeric
 attribution of the reported 34–57 ms deficit is claimed without a fresh instrumented run;
 optional gap-specific CUDA/NVTX attribution is not exported in this change.
+
+### Growing gaps and GC diagnostics
+
+The old `StepRecorder.step()` called `write()` after every appended record; `write()` did
+`json.dumps(self.steps, indent=2)` and `Path.write_text` of the entire array. This was O(n)
+serialization/I/O per step, O(N²) cumulative work across repeats, outside measured spans.
+Both phases set the step-log path, so that path was reachable. It is a concrete mechanism for
+growing gaps, but its share of the observed stall was not measured. Finalization now serializes
+once, O(N) total, with amortized O(1) buffering per step. A try/finally flushes completed records
+on Python exceptions; an idempotent atexit fallback handles normal interpreter exit. JSON-array
+format is unchanged. Abrupt SIGKILL/container loss cannot flush memory. Final file writing is
+after generate-return timestamp collection, not inside request envelopes.
+
+**`--gc-between-repeats` defaults ON**, in both vllm_trace.py and phases_main/profile_phases.
+It calls `gc.collect()` before repeats 1 onward, before generate and outside any step span;
+first-step gaps remain null, so collection is not charged to the next repeat's decode gaps.
+Use `--no-gc-between-repeats` for an A/B comparison. Step synchronization stays ON by default;
+the reported sync/no-sync runs found no difference. Explicit collection may change GC timing
+but does not disable automatic GC or remove live recorded steps.
+
+Each raw step adds `gc_before` and `gc_after`, each containing `count` (`gc.get_count()`) and
+`collections` (cumulative collection counts per generation from `gc.get_stats()`). GC callbacks
+sample monotonic start/stop timestamps and maintain a cumulative pause counter without rescanning
+history. `gc_pause_ns_in_step` is the counter delta across the span; `gc_pause_ns_in_gap_before`
+is the delta since the preceding step end in the same repeat (null for the first step).
+The corrected timeline passes these through as `baseline_gc_before`, `baseline_gc_after`,
+`baseline_gc_pause_ns_in_step`, `baseline_gc_pause_ns_in_gap_before` and the corresponding
+`profiled_*` fields. Legacy/missing records yield null. These are process-local diagnostics
+(appropriate here because EngineCore multiprocessing is disabled).
+
+Each phase's metrics.json adds `gc = {between_repeats, repeats, events}`. Events contain
+`generation`, `start_ns`, `end_ns`, `duration_ns`. Each completed repeat has `repeat`,
+`gc_collect_before_ns` (host time around explicit collection, zero when not requested) and
+`total_gc_pause_ns` (callback pauses during explicit collection, generate, and metrics copying).
+The corrected timeline adds top-level `gc_summary = {baseline: [...], profiled: [...]}` with
+these per-repeat summaries, including warmup. The repeat total can exceed step/gap-attributed
+pauses because it includes collection and work outside step envelopes. Diagnostics themselves
+allocate small fixed-size snapshots; callback event and step buffers append without rewriting.
+
+vLLM growth audit (0.21.0 source; not an exhaustive memory-leak audit):
+
+- Completed frontend requests are removed from request state/ID maps
+  (`v1/engine/output_processor.py:714-727`); scheduler requests are freed/deleted
+  (`v1/core/sched/scheduler.py:1750-1771`), finished IDs reset on schedule (`954-956`), and
+  per-client finished-ID maps clear after export (`1487-1499`). No unbounded finished-request
+  list scanned across these generate calls was found.
+- `_run_engine` creates a fresh local outputs list for each generate and sorts only that batch
+  (`entrypoints/llm.py:1857-1892`). The request counter (`387,1829`) and iteration counter
+  (`v1/engine/core.py:381-404`) increase, but are scalar counters, not growing history scans.
+- IterationStats lists are new each frontend step (`v1/engine/llm_engine.py:299`,
+  `v1/metrics/stats.py:325-340`). Logging counters reset per reporting interval
+  (`v1/metrics/loggers.py:130-148,196-201`); cache metrics retain a bounded recent-request deque
+  (`v1/metrics/stats.py:35-95`). Prometheus is installed once in the logger manager
+  (`v1/metrics/loggers.py:1290-1330`), with fixed bucket histogram objects updated by observe
+  (`1163-1215`), not a new histogram/raw observation list per generate. Counts and cache state
+  persist, but this does not establish increasing loop cost for four identical single requests.
+- EngineCore freezes initialization objects (`v1/engine/core.py:224-226`,
+  `utils/gc_utils.py:106-118`), reducing static-heap scanning but leaving later allocations
+  collectable. A gen-2 pass over new live/garbage objects remains possible. GC callbacks now
+  distinguish such pauses from ordinary host time; there is no evidence yet that it caused
+  the reported 700 ms stall.
+
+Stall candidates: the removed full-file rewrite was definitely reachable in gaps. Automatic
+GC is plausible but requires callback evidence. Logger backpressure/flush is reachable, but
+iteration/stat logging happens **inside** LLMEngine.step; tqdm final-only updates occur at
+request completion, not every decode gap. CUDA-profiler start is lazy at repeat 1 but occurs
+before its first step, whose gap is null; model initialization is before all repeats. These
+cannot directly explain a decode-gap p95 spike on their own. No exact cause of the 700 ms event
+is claimed without the new diagnostics or an nsys/Python host trace from another run.
 
 All nsys entrypoints strip MODAL and secret-named environment variables (except the two HF
 token variables required by gated models), remove environment rows from sqlite and VACUUM.

@@ -37,6 +37,7 @@ post-processed on Modal (kernelslist.g + .tracez) unless --no-post-process.
 import json
 import os
 import re
+import secrets
 import subprocess
 import sys
 import threading
@@ -71,6 +72,10 @@ MULTIPART_CHUNK = 128 * 1024 * 1024
 MULTIPART_CONCURRENCY = 8
 
 KERNEL_FILE_RE = re.compile(r"^kernel-(\d+)-(ctx_0x[0-9a-f]+)\.trace(\.xz)?$")
+
+
+def _unique_run_name() -> str:
+    return f"{time.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(3)}"
 
 # Modal's vLLM image (modal-examples/06_gpu_and_ml/llm-serving/vllm_inference.py),
 # extended with the Accel-Sim tracer build. The CUDA *devel* base provides nvcc for NVBit.
@@ -325,7 +330,7 @@ def trace_vllm(
         what = "+".join(layers) if trace_scope == "layers" else (
             "steps-" + ("-".join(map(str, params["trace_steps"])) or "all"))
         slug = re.sub(r"[^A-Za-z0-9._-]+", "_", f"{model}__{what}__{exec_mode}")
-        run_name = f"{time.strftime('%Y%m%d-%H%M%S')}__{slug}"[:200]
+        run_name = f"{_unique_run_name()}__{slug}"[:200]
 
     work_dir = Path("/tmp/accelsim") / run_name
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -734,7 +739,7 @@ def profile_nsys(trace_run: str, exec_mode: str = "", lock_clocks_mhz: int = 0,
     if exec_mode and exec_mode not in EXEC_MODES:
         raise ValueError(f"exec_mode must be one of {EXEC_MODES}")
     run_mode = exec_mode or meta.get("exec_mode", "eager")
-    out_name = out_name or ("nsys" if run_mode == meta.get("exec_mode", "eager") else f"nsys_{run_mode}")
+    out_name = out_name or f"nsys_{run_mode}_{_unique_run_name()}"
 
     work = Path("/tmp/nsys") / trace_run / out_name
     work.mkdir(parents=True, exist_ok=True)
@@ -1194,7 +1199,7 @@ def microbench_nsys(n: int = 200, tokens: str = "1,6", ops: str = "", run_name: 
     import sqlite3
     import statistics
 
-    run_name = run_name or time.strftime("%Y%m%d-%H%M%S")
+    run_name = run_name or _unique_run_name()
     work = Path("/tmp/microbench") / run_name
     work.mkdir(parents=True, exist_ok=True)
     cmd = [*_nsys_base_cmd(), "-o", str(work / "profile"), sys.executable, MICROBENCH_SCRIPT,
@@ -1442,6 +1447,9 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
                                    ("profiled", profiled_times.get(pid, (None, None, None)))):
             for field, value in zip(("wall_start_ns", "wall_end_ns", "gap_before_ns"), values):
                 steps[-1][f"{phase_name}_{field}"] = value
+        for phase_name, source in (("baseline", record), ("profiled", partner)):
+            for field in ("gc_before", "gc_after", "gc_pause_ns_in_step", "gc_pause_ns_in_gap_before"):
+                steps[-1][f"{phase_name}_{field}"] = source.get(field)
     requests = []
     for record in metrics.get("requests", []):
         m = record.get("metrics") or {}
@@ -1491,7 +1499,9 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
             "clock": {"step_clock": "monotonic", "wall_minus_monotonic_ns": None,
                       "how": "unavailable in legacy metrics", **clock,
                       "profiled_wall_minus_monotonic_ns": profiled_clock.get("wall_minus_monotonic_ns")}},
-        "steps": steps, "requests": requests, "summary": summary}
+        "steps": steps, "requests": requests, "summary": summary,
+        "gc_summary": {"baseline": metrics.get("gc", {}).get("repeats", []),
+                       "profiled": (profiled_metrics or {}).get("gc", {}).get("repeats", [])}}
 
 
 @app.function(
@@ -1501,12 +1511,13 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
 def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is",
                    max_tokens: int = 32, repeats: int = 4, max_model_len: int = 2048,
                    exec_mode: str = "eager", phase: str = "both", layerwise_nvtx: bool = False,
-                   run_name: str = "", keep_nsys_rep: bool = False, no_step_sync: bool = False) -> dict:
+                   run_name: str = "", keep_nsys_rep: bool = False, no_step_sync: bool = False,
+                   gc_between_repeats: bool = True) -> dict:
     if phase not in {"baseline", "profiled", "both"}:
         raise ValueError("phase must be baseline, profiled, or both")
     if repeats < (1 if phase == "baseline" else 2) or exec_mode not in EXEC_MODES:
         raise ValueError("repeats must be positive (>= 2 for capture); exec_mode must be eager, compile, or graphs")
-    run_name = run_name or time.strftime("%Y%m%d-%H%M%S")
+    run_name = run_name or _unique_run_name()
     if Path(run_name).name != run_name or run_name in {".", ".."}:
         raise ValueError("run_name must be a single directory name")
     dest = Path(TRACES_MOUNT) / "phases" / run_name
@@ -1526,6 +1537,8 @@ def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my na
                "--metrics-out", str(work / "metrics.json")]
         if no_step_sync:
             cmd.append("--no-step-sync")
+        if not gc_between_repeats:
+            cmd.append("--no-gc-between-repeats")
         if name == "profiled":
             cmd += ["--cuda-profiler-from-repeat", "1"]
             if exec_mode == "eager" and layerwise_nvtx:
@@ -1601,11 +1614,13 @@ def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my na
 def phases_main(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is",
                 max_tokens: int = 32, repeats: int = 4, max_model_len: int = 2048,
                 exec_mode: str = "eager", phase: str = "both", layerwise_nvtx: bool = False,
-                run_name: str = "", keep_nsys_rep: bool = False, no_step_sync: bool = False):
+                run_name: str = "", keep_nsys_rep: bool = False, no_step_sync: bool = False,
+                gc_between_repeats: bool = True):
     s = profile_phases.remote(model=model, prompt=prompt, max_tokens=max_tokens, repeats=repeats,
                               max_model_len=max_model_len, exec_mode=exec_mode, phase=phase,
                               layerwise_nvtx=layerwise_nvtx, run_name=run_name,
-                              keep_nsys_rep=keep_nsys_rep, no_step_sync=no_step_sync)
+                              keep_nsys_rep=keep_nsys_rep, no_step_sync=no_step_sync,
+                              gc_between_repeats=gc_between_repeats)
     print("kind       A wall mean(ns) B wall mean(ns) delta(%) A elapsed(ms) B elapsed(ms)")
     for r in s["table"]:
         print(r["kind"], *(r[k] for k in ("baseline_wall_ns_mean", "profiled_wall_ns_mean",
