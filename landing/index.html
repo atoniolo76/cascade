@@ -15,6 +15,42 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="site.css">
+<style>
+  .demo { margin-top: 36px; }
+  .demo-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .demo-tab {
+    display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px;
+    border: 1px solid var(--rule); border-radius: 999px; background: transparent; color: var(--ink-70);
+    font: 500 13px/1 Inter, system-ui, sans-serif; cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .demo-tab:hover { color: var(--ink); background: var(--hover); }
+  .demo-tab[aria-selected="true"] { color: var(--ink); background: var(--hover); border-color: color-mix(in srgb, var(--violet) 40%, var(--rule)); }
+  .demo-tab:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+  .demo-tab .n { font: 400 11px/1 "Geist Mono", ui-monospace, monospace; color: var(--ink-45); }
+  .demo-tab[aria-selected="true"] .n { color: var(--violet); }
+  .demo-frame {
+    position: relative; margin-top: 14px; border: 1px solid var(--rule); border-radius: 14px; overflow: hidden;
+    background: var(--hover); transition: aspect-ratio 0.2s ease;
+  }
+  .demo-frame video { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .demo-frame video[hidden] { display: none; }
+  .demo-caption { margin: 12px 0 0; font-size: 14px; line-height: 1.55; color: var(--ink-70); max-width: 640px; }
+  .demo-caption b { font-weight: 500; color: var(--ink); }
+  .demo-tip {
+    position: fixed; left: 0; top: 0; z-index: 50; max-width: 280px; padding: 10px 12px 11px;
+    border-radius: 12px; background: var(--ink); color: var(--ground);
+    font: 400 13px/1.45 Inter, system-ui, sans-serif; pointer-events: none;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.18), 0 1px 2px rgb(0 0 0 / 0.12);
+    opacity: 0; transform: translate3d(-9999px, -9999px, 0);
+    transition: opacity 0.14s ease;
+  }
+  .demo-tip.on { opacity: 1; }
+  .demo-tip b { display: block; margin-bottom: 2px; font-weight: 600; }
+  @media (hover: none) { .demo-tip { display: none; } }
+  @media (hover: hover) { .demo-caption { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .demo-tab, .demo-tip, .demo-frame { transition: none; } }
+</style>
 </head>
 <body>
 <div class="page">
@@ -27,6 +63,21 @@
       <nav class="sitenav" aria-label="Site"><a class="nav-cta" href="start.html">get started</a><a href="docs.html">docs</a></nav>
     </header>
     <p class="lede">Trace an ML workload once on a real GPU. Cascade replays it on simulated hardware, across as many GPUs as you want.</p>
+
+    <section class="demo" aria-label="Cascade demos">
+      <div class="demo-tabs" role="tablist" aria-label="Choose a demo">
+        <button class="demo-tab" role="tab" type="button" id="dt-0" aria-controls="demo-frame" aria-selected="true" data-i="0"><span class="n">01</span>Fork per config</button>
+        <button class="demo-tab" role="tab" type="button" id="dt-1" aria-controls="demo-frame" aria-selected="false" tabindex="-1" data-i="1"><span class="n">02</span>Scrub the timeline</button>
+        <button class="demo-tab" role="tab" type="button" id="dt-2" aria-controls="demo-frame" aria-selected="false" tabindex="-1" data-i="2"><span class="n">03</span>Read the results</button>
+      </div>
+      <div class="demo-frame" id="demo-frame" role="tabpanel" aria-labelledby="dt-0" style="aspect-ratio: 1440 / 900">
+        <video src="media/demo/1-launch-live.mp4" poster="media/demo/1-launch-live.jpg" muted loop playsinline autoplay preload="auto" aria-label="Launching four simulators and watching them run live"></video>
+        <video src="media/demo/2-timeline.mp4" poster="media/demo/2-timeline.jpg" muted loop playsinline preload="none" hidden aria-label="Scrubbing the kernel timeline across configs"></video>
+        <video src="media/demo/3-results.mp4" poster="media/demo/3-results.jpg" muted loop playsinline preload="none" hidden aria-label="Scrolling through per-kernel results, step timing and outputs"></video>
+      </div>
+      <p class="demo-caption" aria-live="polite"></p>
+      <div class="demo-tip" aria-hidden="true"></div>
+    </section>
 
     <div class="grid">
     <section aria-labelledby="how">
@@ -127,6 +178,72 @@
   } else {
     marks.forEach(reveal);
   }
+</script>
+<script>
+  (() => {
+    const DEMOS = [
+      { title: "Fork per config, live", body: "One OPT-125m trace on two H100 and two H200 configs. Each tile is its own forked sandbox, filling as its kernels finish, and the timeline grows kernel by kernel.", ratio: "1440 / 900" },
+      { title: "Scrub every config's kernels", body: "Play or drag through simulated time. Hover a kernel and it lights up on every track; align by kernel to line configs up against real hardware.", ratio: "1240 / 496" },
+      { title: "Read the answer", body: "Per-kernel simulated time, real vs simulated error, predicted prefill, decode and time-to-first-token, and every simulator's output files.", ratio: "1440 / 900" },
+    ];
+    const tabs = [...document.querySelectorAll(".demo-tab")];
+    const frame = document.getElementById("demo-frame");
+    const videos = [...frame.querySelectorAll("video")];
+    const caption = document.querySelector(".demo-caption");
+    const tip = document.querySelector(".demo-tip");
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let current = 0;
+
+    const render = (i) => {
+      current = i;
+      tabs.forEach((t, k) => {
+        t.setAttribute("aria-selected", String(k === i));
+        t.tabIndex = k === i ? 0 : -1;
+      });
+      frame.setAttribute("aria-labelledby", tabs[i].id);
+      frame.style.aspectRatio = DEMOS[i].ratio;
+      videos.forEach((v, k) => {
+        v.hidden = k !== i;
+        if (k === i) {
+          if (v.preload === "none") v.preload = "auto";
+          v.currentTime = 0;
+          if (still) v.pause(); else v.play().catch(() => {});
+        } else v.pause();
+      });
+      caption.innerHTML = `<b>${DEMOS[i].title}.</b> ${DEMOS[i].body}`;
+      tip.innerHTML = `<b>${DEMOS[i].title}</b>${DEMOS[i].body}`;
+    };
+
+    tabs.forEach((t, i) => {
+      t.addEventListener("click", () => render(i));
+      t.addEventListener("keydown", (e) => {
+        const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+        if (!step) return;
+        e.preventDefault();
+        const next = (current + step + tabs.length) % tabs.length;
+        render(next);
+        tabs[next].focus();
+      });
+    });
+
+    let raf = 0, x = 0, y = 0;
+    const place = () => {
+      raf = 0;
+      const pad = 16, w = tip.offsetWidth, h = tip.offsetHeight;
+      const left = Math.min(x + pad, innerWidth - w - 8);
+      const top = y + pad + h > innerHeight - 8 ? y - h - pad : y + pad;
+      tip.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+    };
+    frame.addEventListener("pointermove", (e) => {
+      if (e.pointerType !== "mouse") return;
+      x = e.clientX; y = e.clientY;
+      tip.classList.add("on");
+      if (!raf) raf = requestAnimationFrame(place);
+    });
+    frame.addEventListener("pointerleave", () => tip.classList.remove("on"));
+    if (still) videos[0].pause();
+    render(0);
+  })();
 </script>
 </body>
 </html>
