@@ -46,12 +46,14 @@ Decision:
 - `SailLauncher` passes it to each sim via the `exec` env.
 - Sail's app allowlist is not used: it would block the browser and the profiler.
 
-## Trace upload (OPEN — confirm with Alessio)
+## Simulation run shape
 
-Provisional, so the app can be built and tested now:
+- A run is one trace plus a list of `{gpu_config, count}` entries, for example `[{H100: 4}, {A100: 2}, {RTX3070: 8}]`.
+- `gpu_config` names one of Accel-Sim's tested configs. `count` can differ per config.
+- Each entry fans out to `count` sims, all forked from the run's one checkpoint.
 
-- `POST /api/traces` takes one multipart `.tar.gz` of the tracer's run directory (`traces/`, `kernelslist.g`, `metadata.json`, logs).
-- Main extracts it to `/data/traces/{trace_id}/`, reads `metadata.json`, and returns `{trace_id}`.
-- Keep the ingest code isolated (one route + one ingest function) so the format can change without touching the rest.
+## Trace upload
 
-To confirm with Alessio: archive format, whether `metadata.json` stays the source of original-hardware info, and expected trace sizes (resumable upload if large).
+- ~~Provisional: `POST /api/traces` multipart `.tar.gz`.~~ Superseded 2026-11-07: Alessio's profiler uploads through an S3-compatible endpoint, and the app saves the object to local disk.
+- So the main app must expose an S3-compatible endpoint. The implementation is still being decided (see below).
+- Still to confirm with Alessio: bucket and key layout, what the object is (single archive vs. many files), and how the app knows an upload is complete.
