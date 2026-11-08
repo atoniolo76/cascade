@@ -89,12 +89,20 @@ image = (
     )
     # Separate layer so adding it doesn't rebuild vLLM / the tracer.
     .uv_pip_install("boto3>=1.36")
+    # Nsight Systems CLI for the real-hardware timing pass (profile_nsys). Own layer, same reason.
+    .apt_install("cuda-nsight-systems-12-9")
+    .run_commands(
+        "command -v nsys || ln -sf \"$(ls -d /opt/nvidia/nsight-systems/*/bin/nsys | tail -1)\" /usr/local/bin/nsys",
+        "nsys --version",
+    )
     .add_local_file(Path(__file__).parent / "vllm_trace.py", TRACE_SCRIPT)
 )
 
 app = modal.App("accelsim-vllm-trace", image=image)
 
 hf_cache_vol = modal.Volume.from_name("huggingface-cache", create_if_missing=True)
+traces_vol = modal.Volume.from_name("accelsim-traces", create_if_missing=True)
+TRACES_MOUNT = "/traces"
 
 
 # --------------------------------------------------------------------------------------
@@ -406,6 +414,238 @@ def _upload_run_files(
           f"{meta['bytes_uploaded'] / 2**30:.2f} GiB) to {dest.uri()}", flush=True)
     if failed:
         print("[s3] FAILED uploads:\n  " + "\n  ".join(failed), flush=True)
+
+
+# --------------------------------------------------------------------------------------
+# Real-hardware kernel timing (Nsight Systems), matched to the tracer's kernel ids
+# --------------------------------------------------------------------------------------
+NSYS_TIMEOUT_S = 60 * 60
+
+
+@app.function(
+    gpu="H100!",
+    timeout=NSYS_TIMEOUT_S,
+    cpu=8,
+    memory=64 * 1024,
+    volumes={"/root/.cache/huggingface": hf_cache_vol, TRACES_MOUNT: traces_vol},
+)
+def profile_nsys(trace_run: str) -> dict:
+    """Re-run a traced workload *without* the tracer, under nsys, to get real kernel timings.
+
+    The Accel-Sim tracer records no timestamps, only launch order (kernel-N = N-th kernel launch
+    in the process). This pass runs the identical vLLM workload (same args, read from the trace
+    run's metadata.json; greedy + ignore_eos so the kernel sequence is deterministic), records
+    every kernel with nsys, and aligns the nsys kernels to the tracer's launch sequence
+    (stats_ctx_*: all launches, traced or not) by (mangled name, grid, block).
+
+    Writes to the volume under /<trace_run>/nsys/:
+      profile.nsys-rep, profile.sqlite   raw nsys output (open the .nsys-rep in the Nsight GUI)
+      kernels.csv                        one row per kernel launch, in launch order, with
+                                         trace_kernel_id + real start/end/duration
+      summary.json                       alignment result, GPU, versions
+      nsys.log                           profiler + vLLM output
+    """
+    run_dir = Path(TRACES_MOUNT) / trace_run
+    meta = json.loads((run_dir / "metadata.json").read_text())
+    stats_files = sorted((run_dir / "traces").glob("stats_ctx_*"))
+    if len(stats_files) != 1:
+        raise RuntimeError(f"expected 1 stats_ctx_* in {run_dir}/traces, found {stats_files}")
+
+    work = Path("/tmp/nsys") / trace_run
+    work.mkdir(parents=True, exist_ok=True)
+    workload = [
+        sys.executable, TRACE_SCRIPT,
+        "--model", meta["model"],
+        "--layers", ",".join(meta["layers"]),
+        "--prompts", json.dumps(meta["prompts"]),
+        "--max-tokens", str(meta["max_tokens"]),
+        "--max-model-len", str(meta["max_model_len"]),
+    ]
+    env = {
+        **os.environ,
+        # Same process layout as the traced run (run.sh sets these); no CUDA_INJECTION64_PATH,
+        # so the NVBit hooks are no-ops and nsys owns CUDA injection.
+        "VLLM_ENABLE_V1_MULTIPROCESSING": "0",
+        "VLLM_ALLOW_INSECURE_SERIALIZATION": "1",
+        "PYTHONPATH": f"{ACCELSIM_DIR}/util/tracer_nvbit/others:"
+                      f"{ACCELSIM_DIR}/util/tracer_nvbit/tracer_tool:{os.environ.get('PYTHONPATH', '')}",
+    }
+    env.pop("CUDA_INJECTION64_PATH", None)
+    cmd = [
+        "nsys", "profile",
+        "--trace=cuda,nvtx",
+        # No CPU sampling / context-switch tracing: needs perf, unavailable in gVisor, not needed.
+        "--sample=none", "--cpuctxsw=none",
+        "--force-overwrite=true", "--export=sqlite",
+        "-o", str(work / "profile"),
+        *workload,
+    ]
+    subprocess.run(["nvidia-smi"], check=False)
+    _run_logged("nsys", cmd, env, work, time.monotonic() + NSYS_TIMEOUT_S - 10 * 60)
+
+    kernels = _nsys_kernels(work / "profile.sqlite")
+    traced = _tracer_launches(stats_files[0])
+    rows, alignment = _align(kernels, traced)
+
+    import csv
+    cols = ["launch_seq", "trace_kernel_id", "traced", "launch_dims_match", "start_ns", "end_ns", "duration_ns",
+            "gap_from_prev_end_ns", "abs_start_ns", "stream_id", "grid", "block",
+            "registers_per_thread", "shared_mem_bytes", "short_name", "mangled_name"]
+    with open(work / "kernels.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=cols)
+        w.writeheader()
+        w.writerows(rows)
+
+    traced_rows = [r for r in rows if r["traced"]]
+    summary = {
+        "trace_run": trace_run,
+        "workload": {k: meta[k] for k in ("model", "layers", "prompts", "max_tokens", "max_model_len")},
+        "gpu": subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"],
+            capture_output=True, text=True).stdout.strip(),
+        "nsys_version": subprocess.run(["nsys", "--version"], capture_output=True, text=True).stdout.strip(),
+        "nsys_kernels": len(kernels),
+        "tracer_launches": len(traced),
+        "streams": sorted({k["stream_id"] for k in kernels}),
+        "alignment": alignment,
+        "traced_kernels_matched": sum(1 for r in traced_rows if r["duration_ns"] != ""),
+        "traced_kernels_total": sum(1 for t in traced if t["traced"]),
+        "traced_kernel_durations_ns": {
+            r["trace_kernel_id"]: r["duration_ns"] for r in traced_rows if r["duration_ns"] != ""
+        },
+    }
+    (work / "summary.json").write_text(json.dumps(summary, indent=2))
+
+    dest = run_dir / "nsys"
+    dest.mkdir(exist_ok=True)
+    for p in work.iterdir():
+        if p.is_file():
+            (dest / p.name).write_bytes(p.read_bytes())
+    traces_vol.commit()
+    print(json.dumps({k: v for k, v in summary.items() if k != "traced_kernel_durations_ns"}, indent=2))
+    return summary
+
+
+def _nsys_kernels(sqlite_path: Path) -> list[dict]:
+    """All GPU kernels from an nsys sqlite export, in host launch order."""
+    import sqlite3
+
+    con = sqlite3.connect(sqlite_path)
+    kcols = {r[1] for r in con.execute("PRAGMA table_info(CUPTI_ACTIVITY_KIND_KERNEL)")}
+    has_rt = con.execute(
+        "SELECT 1 FROM sqlite_master WHERE name='CUPTI_ACTIVITY_KIND_RUNTIME'").fetchone()
+    name_col = "mangledName" if "mangledName" in kcols else "demangledName"
+    # Launch order = time of the host-side launch API call (what the tracer numbers by);
+    # fall back to GPU start time if the API call wasn't captured.
+    launch_ts = "COALESCE(r.start, k.start)" if has_rt else "k.start"
+    rt_join = ("LEFT JOIN CUPTI_ACTIVITY_KIND_RUNTIME r ON r.correlationId = k.correlationId "
+               "AND r.globalTid / 16777216 = k.globalPid / 16777216") if has_rt else ""
+    q = f"""
+      SELECT k.start, k.end, k.streamId, k.gridX, k.gridY, k.gridZ, k.blockX, k.blockY, k.blockZ,
+             k.registersPerThread, k.staticSharedMemory + k.dynamicSharedMemory,
+             sm.value, ss.value
+      FROM CUPTI_ACTIVITY_KIND_KERNEL k
+      JOIN StringIds sm ON sm.id = k.{name_col}
+      JOIN StringIds ss ON ss.id = k.shortName
+      {rt_join}
+      ORDER BY {launch_ts}, k.start
+    """
+    out = []
+    for (start, end, stream, gx, gy, gz, bx, by, bz, regs, smem, mangled, short) in con.execute(q):
+        out.append({
+            "start": start, "end": end, "stream_id": stream,
+            "grid": f"{gx}x{gy}x{gz}", "block": f"{bx}x{by}x{bz}",
+            "regs": regs, "smem": smem, "mangled": mangled, "short": short,
+        })
+    return out
+
+
+def _tracer_launches(stats_path: Path) -> list[dict]:
+    """Every kernel launch the tracer saw (traced or not), in launch order."""
+    out = []
+    for line in stats_path.read_text().splitlines()[1:]:
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) < 12:
+            continue
+        m = re.match(r"kernel-(\d+)-", parts[0])
+        out.append({
+            "id": int(m.group(1)),
+            "mangled": parts[1],
+            "grid": f"{parts[2]}x{parts[3]}x{parts[4]}",
+            "block": f"{parts[6]}x{parts[7]}x{parts[8]}",
+            "traced": int(parts[10]) > 0,
+        })
+    return out
+
+
+def _align(kernels: list[dict], traced: list[dict]) -> tuple[list[dict], dict]:
+    """Match nsys kernels to tracer launch ids by mangled-name sequence.
+
+    Matching is by name only: launch dims can legitimately differ between the traced and the
+    profiled run (e.g. vLLM sizes the KV cache from free GPU memory, and NVBit takes some, so
+    the KV-cache fill kernels get different grids). Differences are flagged per row instead.
+    """
+    import difflib
+
+    a, b = [k["mangled"] for k in kernels], [t["mangled"] for t in traced]
+    sm = difflib.SequenceMatcher(a=a, b=b, autojunk=False)
+    nsys_to_trace = {}
+    for blk in sm.get_matching_blocks():
+        for i in range(blk.size):
+            nsys_to_trace[blk.a + i] = blk.b + i
+    exact = a == b
+    t0 = kernels[0]["start"] if kernels else 0
+
+    rows, prev_end = [], None
+    for i, k in enumerate(kernels):
+        t = traced[nsys_to_trace[i]] if i in nsys_to_trace else None
+        rows.append({
+            "launch_seq": i + 1,
+            "trace_kernel_id": t["id"] if t else "",
+            "traced": bool(t and t["traced"]),
+            "launch_dims_match": "" if not t else (t["grid"], t["block"]) == (k["grid"], k["block"]),
+            "start_ns": k["start"] - t0, "end_ns": k["end"] - t0,
+            "duration_ns": k["end"] - k["start"],
+            "gap_from_prev_end_ns": "" if prev_end is None else k["start"] - prev_end,
+            "abs_start_ns": k["start"], "stream_id": k["stream_id"],
+            "grid": k["grid"], "block": k["block"],
+            "registers_per_thread": k["regs"], "shared_mem_bytes": k["smem"],
+            "short_name": k["short"], "mangled_name": k["mangled"],
+        })
+        prev_end = k["end"]
+    # Traced kernels that found no nsys partner are listed so nothing is silently dropped.
+    matched_ids = {r["trace_kernel_id"] for r in rows if r["trace_kernel_id"] != ""}
+    for t in traced:
+        if t["traced"] and t["id"] not in matched_ids:
+            rows.append({c: "" for c in ("launch_seq", "start_ns", "end_ns", "duration_ns",
+                                         "gap_from_prev_end_ns", "abs_start_ns", "stream_id",
+                                         "registers_per_thread", "shared_mem_bytes", "short_name")}
+                        | {"trace_kernel_id": t["id"], "traced": True, "launch_dims_match": "",
+                           "grid": t["grid"],
+                           "block": t["block"], "mangled_name": t["mangled"]})
+    alignment = {
+        "exact_sequence_match": exact,
+        "matched": len(nsys_to_trace),
+        "nsys_unmatched": len(kernels) - len(nsys_to_trace),
+        "tracer_unmatched": len(traced) - len(nsys_to_trace),
+        "launch_dims_mismatched": sum(1 for r in rows if r["launch_dims_match"] is False),
+        "traced_launch_dims_mismatched": sum(
+            1 for r in rows if r["traced"] and r["launch_dims_match"] is False),
+    }
+    return rows, alignment
+
+
+@app.local_entrypoint()
+def nsys_main(trace_run: str = "20261108-004021__facebook_opt-125m__model.decoder.layers.10.self_attn"):
+    """modal run accelsim_trace.py::nsys_main --trace-run <run dir on the accelsim-traces volume>"""
+    s = profile_nsys.remote(trace_run)
+    print(f"\nSaved to volume accelsim-traces:/{trace_run}/nsys/  "
+          f"(modal volume get accelsim-traces {trace_run}/nsys ./nsys)")
+    durs = s["traced_kernel_durations_ns"]
+    if durs:
+        print("Real durations of the traced kernels (ns):")
+        for kid, d in sorted(durs.items(), key=lambda kv: int(kv[0])):
+            print(f"  kernel-{kid}: {d}")
 
 
 @app.local_entrypoint()
