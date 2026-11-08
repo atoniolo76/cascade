@@ -8,3 +8,5 @@ lives in `cascade.sim`; GPU measurement and tracing live on the `profiler` branc
 - [Accel-Sim execution](docs/accelsim.md): CPU API and Modal setup.
 - [Corrected timeline simulation](docs/corrected-timeline-simulation.md): replay
   and comparison behavior.
+- [OPT-125m sample analysis](docs/sample-analysis-opt125m.md): measured pipeline
+  costs, kernel mix, H100/H200 results, accuracy caveats and optimization plan.
