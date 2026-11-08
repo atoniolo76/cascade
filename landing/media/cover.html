@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cascade cover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400&family=Inter:wght@400&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1500px; height: 1000px; overflow: hidden; }
+  body { zoom: var(--scale, 2); background: #f7f5f9; }
+
+  .canvas {
+    position: relative; width: 1500px; height: 1000px; overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 85% 120%, #9b7cf0 0%, rgba(155,124,240,0) 55%),
+      radial-gradient(90% 70% at 40% 125%, #c9a6f5 0%, rgba(201,166,245,0) 60%),
+      linear-gradient(180deg, #f8f6fa 0%, #f3eff8 45%, #e6dbf6 100%);
+  }
+
+  .glow { position: absolute; inset: 0; filter: blur(16px) saturate(1.15); }
+  .glow i {
+    position: absolute; display: block; border-radius: 48px;
+    transform: rotate(-4deg);
+  }
+  .soft { position: absolute; inset: 0; filter: blur(110px); opacity: 0.75; }
+  .soft i { position: absolute; display: block; border-radius: 120px; }
+
+  .weave {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 1.4px 1.1px at 2px 2px, rgba(255,255,255,0.55) 99%, transparent 100%),
+      radial-gradient(ellipse 1.4px 1.1px at 5px 5px, rgba(255,255,255,0.55) 99%, transparent 100%);
+    background-size: 6px 6px;
+    mix-blend-mode: soft-light;
+    opacity: 0.9;
+  }
+  .grain { position: absolute; inset: 0; opacity: 0.22; mix-blend-mode: multiply; pointer-events: none; }
+
+  .mark { position: absolute; left: 72px; top: 64px; width: 64px; height: auto; }
+
+  h1 {
+    position: absolute; left: 66px; top: 196px; width: 900px;
+    font: 400 118px/0.98 "EB Garamond", Georgia, serif;
+    letter-spacing: -0.015em; color: #121014;
+  }
+
+  p {
+    position: absolute; left: 72px; bottom: 60px; width: 860px;
+    font: 400 18px/1.5 Inter, system-ui, sans-serif; color: #1b1720;
+  }
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="soft">
+      <i style="left: 640px; top: 420px; width: 900px; height: 520px; background: #b79af6;"></i>
+      <i style="left: 120px; top: 700px; width: 760px; height: 420px; background: #e2c6f7;"></i>
+    </div>
+    <div class="glow">
+      <i style="left: 700px; top: 250px; width: 420px; height: 96px; background: #e3d8f8;"></i>
+      <i style="left: 860px; top: 372px; width: 400px; height: 104px; background: #cdb8f6;"></i>
+      <i style="left: 1000px; top: 500px; width: 370px; height: 112px; background: #ab8cf2;"></i>
+      <i style="left: 1110px; top: 634px; width: 400px; height: 120px; background: #8461ea;"></i>
+      <i style="left: 1250px; top: 776px; width: 420px; height: 128px; background: #6d4ae0;"></i>
+      <i style="left: 1360px; top: 926px; width: 420px; height: 136px; background: #a35ce8;"></i>
+    </div>
+    <div class="weave"></div>
+    <svg class="grain" width="1500" height="1000" aria-hidden="true">
+      <filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 0.45  0 0 0 0 0.42  0 0 0 0 0.5  0 0 0 0.55 0"/></filter>
+      <rect width="100%" height="100%" filter="url(#n)"/>
+    </svg>
+
+    <svg class="mark" viewBox="0 0 48 39.5" aria-hidden="true">
+      <rect x="0" y="0" width="16" height="6.5" rx="1.6" fill="#141118"/>
+      <rect x="9" y="8.25" width="14" height="6.5" rx="1.6" fill="#141118"/>
+      <rect x="17" y="16.5" width="12" height="6.5" rx="1.6" fill="#141118"/>
+      <rect x="23" y="24.75" width="16" height="6.5" rx="1.6" fill="#6D4AE0"/>
+      <rect x="33" y="33" width="15" height="6.5" rx="1.6" fill="#A35CE8"/>
+    </svg>
+
+    <h1>Your model ran on one GPU. Cascade simulates the rest.</h1>
+
+    <p>Cascade traces a live ML workload on one real GPU, then forks sandboxes that replay it in Accel-Sim across many GPU configs at once, with live progress and kernel-by-kernel results.</p>
+  </div>
+</body>
+</html>
