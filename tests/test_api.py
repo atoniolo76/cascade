@@ -237,3 +237,17 @@ def test_restart_launches_sims_left_pending(tmp_path):
         )
         assert sorted(launcher.launched) == sorted(s["id"] for s in sims)
         assert launcher.prepared == [run_id]
+
+
+def test_serves_built_ui_with_spa_fallback(tmp_path, monkeypatch):
+    static = tmp_path / "static"
+    (static / "assets").mkdir(parents=True)
+    (static / "index.html").write_text("<div id=root></div>")
+    (static / "assets" / "app.js").write_text("console.log(1)")
+    monkeypatch.setattr("cascade.api.STATIC_DIR", static)
+    with TestClient(create_app(make_settings(tmp_path), RecordingLauncher())) as client:
+        assert client.get("/").text == "<div id=root></div>"
+        assert client.get("/runs/run-123").text == "<div id=root></div>"
+        assert client.get("/assets/app.js").text == "console.log(1)"
+        assert client.get("/../../etc/passwd").text == "<div id=root></div>"
+        assert client.get("/api/unknown", headers=AUTH).status_code == 404

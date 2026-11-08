@@ -13,13 +13,11 @@ from cascade.settings import Settings
 
 log = logging.getLogger("cascade")
 
-RCLONE_ADDR = ":9000"
-
 
 class RcloneSupervisor:
     """Keeps `rclone serve s3` running over $DATA/s3; restarts it if it exits."""
 
-    def __init__(self, settings: Settings, addr: str = RCLONE_ADDR):
+    def __init__(self, settings: Settings, addr: str):
         self.settings = settings
         self.addr = addr
         self._stop = threading.Event()
@@ -51,7 +49,8 @@ class RcloneSupervisor:
         backoff = 1.0
         while not self._stop.is_set():
             log.info("starting %s", " ".join(cmd))
-            self._proc = subprocess.Popen(cmd)
+            # Own session, so Ctrl-C reaches only main, which then stops rclone itself.
+            self._proc = subprocess.Popen(cmd, start_new_session=True)
             code = self._proc.wait()
             if self._stop.is_set():
                 return
@@ -72,11 +71,18 @@ class RcloneSupervisor:
 def serve(args: argparse.Namespace) -> None:
     settings = Settings.from_env()
     settings.data_dir.mkdir(parents=True, exist_ok=True)
-    rclone = RcloneSupervisor(settings) if settings.run_s3 else None
+    rclone = RcloneSupervisor(settings, f":{args.s3_port}") if settings.run_s3 else None
     if rclone:
         rclone.start()
     try:
-        uvicorn.run(create_app(settings), host=args.host, port=args.port, log_level="info")
+        # Open SSE streams never finish on their own, so bound the graceful shutdown.
+        uvicorn.run(
+            create_app(settings),
+            host=args.host,
+            port=args.port,
+            log_level="info",
+            timeout_graceful_shutdown=5,
+        )
     finally:
         if rclone:
             rclone.stop()
@@ -89,6 +95,7 @@ def main() -> None:
     s = sub.add_parser("serve", help="run main: API, UI, trace ingest, and rclone S3")
     s.add_argument("--host", default="0.0.0.0")
     s.add_argument("--port", type=int, default=8000)
+    s.add_argument("--s3-port", type=int, default=9000, help="port for rclone serve s3")
     s.set_defaults(func=serve)
     args = p.parse_args()
     args.func(args)
