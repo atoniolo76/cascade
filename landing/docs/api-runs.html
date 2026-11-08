@@ -24,13 +24,12 @@
   <button class="search-btn" type="button" aria-label="Search docs"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search docs</span><kbd>/</kbd></button>
   <nav class="top-links" aria-label="Site">
     <a href="../index.html">Home</a>
-    <a href="../writeup.html">Writeup</a>
     <a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a>
   </nav>
   <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg></button>
 </header>
 <div class="layout">
-  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="agents.html">Use with AI agents</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html" aria-current="page">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div><div class="nav-group site-links"><h2>Cascade</h2><ul><li><a href="../index.html">Home</a></li><li><a href="../writeup.html">Writeup</a></li><li><a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a></li></ul></div></aside>
+  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="agents.html">Use with AI agents</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="sample-analysis-opt125m.html">OPT-125m sample analysis</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html" aria-current="page">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div><div class="nav-group site-links"><h2>Cascade</h2><ul><li><a href="../index.html">Home</a></li><li><a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a></li></ul></div></aside>
   <main id="content" class="content">
     <p class="eyebrow">API reference</p>
     <h1>Runs</h1>
@@ -89,7 +88,7 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
 <div class="table-wrap"><table class="table fields"><thead><tr><th>field</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>trace_id</code></td><td><code class="type">str</code></td><td>A trace in state <code>ready</code>.</td></tr><tr><td><code>entries</code></td><td><code class="type">list[<a href="types.html#runentry">RunEntry</a>]</code></td><td>One entry per config. Each fans out to <code>count</code> sims. <span class="constraint">at least 1 item</span></td></tr></tbody></table></div>
 <p>Each <a href="types.html#runentry">RunEntry</a> has these fields.</p><div class="table-wrap"><table class="table fields"><thead><tr><th>field</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>gpu_config</code></td><td><code class="type">str</code></td><td>A <code>GpuConfig.name</code> whose <code>arch</code> matches the trace's <code>trace_gpu_arch</code>.</td></tr><tr><td><code>count</code></td><td><code class="type">int</code></td><td>How many sims run this config. <span class="constraint">at least 1, at most 64</span></td></tr></tbody></table></div>
 <h3 id="returns-2">Returns<a class="anchor" href="#returns-2" aria-label="Link to this section">#</a></h3><p><code>201</code> with a <a href="types.html#rundetail"><code>RunDetail</code></a>.</p>
-<h3 id="errors-2">Errors<a class="anchor" href="#errors-2" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td><code>trace_id</code> names no trace.</td></tr><tr><td><a href="errors.html#e409"><code>409</code></a></td><td>The trace is not <code>ready</code>.</td></tr><tr><td><a href="errors.html#e422"><code>422</code></a></td><td>An entry names an unknown <code>gpu_config</code>, or a config whose <code>arch</code> differs from the trace's <code>trace_gpu_arch</code>.</td></tr><tr><td><a href="errors.html#e422"><code>422</code></a></td><td>The body fails validation: <code>entries</code> is empty, or a <code>count</code> is outside 1 to 64.</td></tr></tbody></table></div>
+<h3 id="errors-2">Errors<a class="anchor" href="#errors-2" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td><code>trace_id</code> names no trace.</td></tr><tr><td><a href="errors.html#e409"><code>409</code></a></td><td>The trace is not <code>ready</code>, or is a sample, which has no instruction traces.</td></tr><tr><td><a href="errors.html#e422"><code>422</code></a></td><td>An entry names an unknown <code>gpu_config</code>, or a config whose <code>arch</code> differs from the trace's <code>trace_gpu_arch</code>.</td></tr><tr><td><a href="errors.html#e422"><code>422</code></a></td><td>The body fails validation: <code>entries</code> is empty, or a <code>count</code> is outside 1 to 64.</td></tr></tbody></table></div>
 <h3 id="example-2">Example<a class="anchor" href="#example-2" aria-label="Link to this section">#</a></h3>
 <div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -X POST <span class="tk-s">"$CASCADE_URL/api/runs"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span> \
@@ -108,9 +107,9 @@ resp.raise_for_status()
 });
 console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
 <div class="code"><div class="code-bar"><span>Response · 201 Created · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
-  <span class="tk-k">"id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+  <span class="tk-k">"id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
   <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
-  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
+  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
   <span class="tk-k">"state"</span>: <span class="tk-s">"active"</span>,
   <span class="tk-k">"entries"</span>: [
     {
@@ -121,38 +120,40 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
   <span class="tk-k">"sim_counts"</span>: {
     <span class="tk-k">"pending"</span>: <span class="tk-n">2</span>
   },
+  <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>,
   <span class="tk-k">"trace"</span>: {
     <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
     <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.379301Z"</span>,
-    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.381567Z"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.587743Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.592073Z"</span>,
     <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"layers"</span>: [],
     <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
     <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
-    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
-    <span class="tk-k">"bytes"</span>: <span class="tk-n">31899901</span>,
+    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">20</span>,
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">16890250</span>,
     <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
-    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>
+    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>,
+    <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>
   },
   <span class="tk-k">"sims"</span>: [
     {
-      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
-      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
+      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
       <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
       <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
       <span class="tk-k">"state"</span>: <span class="tk-s">"pending"</span>,
       <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"launcher_ref"</span>: <span class="tk-l">null</span>,
-      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
+      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
       <span class="tk-k">"started_at"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"finished_at"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"exit_code"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"kernels_done"</span>: <span class="tk-n">0</span>,
-      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
       <span class="tk-k">"current_kernel"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"latest"</span>: {
         <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-l">null</span>,
@@ -163,20 +164,20 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
       <span class="tk-k">"log_tail"</span>: []
     },
     {
-      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-09e225316002"</span>,
-      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-e8f63b6b3bed"</span>,
+      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
       <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
       <span class="tk-k">"replica"</span>: <span class="tk-n">1</span>,
       <span class="tk-k">"state"</span>: <span class="tk-s">"pending"</span>,
       <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"launcher_ref"</span>: <span class="tk-l">null</span>,
-      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
+      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
       <span class="tk-k">"started_at"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"finished_at"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"exit_code"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"kernels_done"</span>: <span class="tk-n">0</span>,
-      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
       <span class="tk-k">"current_kernel"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"latest"</span>: {
         <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-l">null</span>,
@@ -233,9 +234,9 @@ resp.raise_for_status()
 console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
 <div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>[
   {
-    <span class="tk-k">"id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+    <span class="tk-k">"id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
     <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
     <span class="tk-k">"entries"</span>: [
       {
@@ -245,7 +246,24 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     ],
     <span class="tk-k">"sim_counts"</span>: {
       <span class="tk-k">"succeeded"</span>: <span class="tk-n">2</span>
-    }
+    },
+    <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>
+  },
+  {
+    <span class="tk-k">"id"</span>: <span class="tk-s">"run-sample-opt125m-h100-e2e"</span>,
+    <span class="tk-k">"trace_id"</span>: <span class="tk-s">"sample__facebook_opt-125m__h100-e2e"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:50:10Z"</span>,
+    <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
+    <span class="tk-k">"entries"</span>: [
+      {
+        <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM90_H100"</span>,
+        <span class="tk-k">"count"</span>: <span class="tk-n">1</span>
+      }
+    ],
+    <span class="tk-k">"sim_counts"</span>: {
+      <span class="tk-k">"succeeded"</span>: <span class="tk-n">1</span>
+    },
+    <span class="tk-k">"sample"</span>: <span class="tk-l">true</span>
   }
 ]</code></pre></div>
 </section>
@@ -256,22 +274,22 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
 <h3 id="returns-4">Returns<a class="anchor" href="#returns-4" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#rundetail"><code>RunDetail</code></a>.</p>
 <h3 id="errors-4">Errors<a class="anchor" href="#errors-4" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
 <h3 id="example-4">Example<a class="anchor" href="#example-4" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-a5c5ba6e0ac7"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-210d75c008c4"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7"</span>, headers=headers)
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4"</span>, headers=headers)
 resp.raise_for_status()
-<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7`</span>, {
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-210d75c008c4`</span>, {
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
 <div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
-  <span class="tk-k">"id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+  <span class="tk-k">"id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
   <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
-  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
+  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
   <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
   <span class="tk-k">"entries"</span>: [
     {
@@ -282,38 +300,40 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
   <span class="tk-k">"sim_counts"</span>: {
     <span class="tk-k">"succeeded"</span>: <span class="tk-n">2</span>
   },
+  <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>,
   <span class="tk-k">"trace"</span>: {
     <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
     <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.379301Z"</span>,
-    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.381567Z"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.587743Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.592073Z"</span>,
     <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"layers"</span>: [],
     <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
     <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
-    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
-    <span class="tk-k">"bytes"</span>: <span class="tk-n">31899901</span>,
+    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">20</span>,
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">16890250</span>,
     <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
-    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>
+    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>,
+    <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>
   },
   <span class="tk-k">"sims"</span>: [
     {
-      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
-      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
+      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
       <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
       <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
       <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
       <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-      <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"41125"</span>,
-      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
-      <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.816803Z"</span>,
-      <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.699025Z"</span>,
-      <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.699025Z"</span>,
+      <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"64418"</span>,
+      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
+      <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.224424Z"</span>,
+      <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.130355Z"</span>,
+      <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.130355Z"</span>,
       <span class="tk-k">"exit_code"</span>: <span class="tk-n">0</span>,
       <span class="tk-k">"kernels_done"</span>: <span class="tk-n">6</span>,
-      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
       <span class="tk-k">"current_kernel"</span>: <span class="tk-s">"_Z10dot_kernelIdEvPKT_S2_PS0_i"</span>,
       <span class="tk-k">"latest"</span>: {
         <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
@@ -329,20 +349,20 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
       ]
     },
     {
-      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-09e225316002"</span>,
-      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-e8f63b6b3bed"</span>,
+      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
       <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
       <span class="tk-k">"replica"</span>: <span class="tk-n">1</span>,
       <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
       <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-      <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"41126"</span>,
-      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
-      <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.817058Z"</span>,
-      <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.715117Z"</span>,
-      <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.715117Z"</span>,
+      <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"64419"</span>,
+      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
+      <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.224173Z"</span>,
+      <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.164567Z"</span>,
+      <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.164567Z"</span>,
       <span class="tk-k">"exit_code"</span>: <span class="tk-n">0</span>,
       <span class="tk-k">"kernels_done"</span>: <span class="tk-n">6</span>,
-      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
       <span class="tk-k">"current_kernel"</span>: <span class="tk-s">"_Z10dot_kernelIdEvPKT_S2_PS0_i"</span>,
       <span class="tk-k">"latest"</span>: {
         <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
@@ -365,28 +385,28 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
 </section>
 <section class="endpoint"><h2 id="cancel-run">Cancel a run<a class="anchor" href="#cancel-run" aria-label="Link to this section">#</a></h2>
 <div class="route"><span class="method post">POST</span><span class="path">/api/runs/<span class="pp">{run_id}</span>/cancel</span><span class="auth">bearer token</span></div>
-<p>Moves every sim that has not finished to <code>cancelled</code> and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets <code>cancel: true</code>. Calling it again changes nothing, so it is safe to retry.</p>
+<p>Moves every sim that has not finished to <code>cancelled</code> and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets <code>cancel: true</code>. Calling it again changes nothing, so it is safe to retry. On a sample run it changes nothing either, since its sim already <code>succeeded</code>.</p>
 <h3 id="path-parameters-2">Path parameters<a class="anchor" href="#path-parameters-2" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>run_id</code></td><td><code class="type">str</code></td><td>The run's <code>id</code>, such as <code>run-9f56e171af08</code>.</td></tr></tbody></table></div>
 <h3 id="returns-5">Returns<a class="anchor" href="#returns-5" aria-label="Link to this section">#</a></h3><p><code>200</code> with the <a href="types.html#rundetail"><code>RunDetail</code></a> after cancelling.</p>
 <h3 id="errors-5">Errors<a class="anchor" href="#errors-5" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
 <h3 id="example-5">Example<a class="anchor" href="#example-5" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -X POST <span class="tk-s">"$CASCADE_URL/api/runs/run-5c68b1040436/cancel"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -X POST <span class="tk-s">"$CASCADE_URL/api/runs/run-b42541e17665/cancel"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.post(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-5c68b1040436/cancel"</span>, headers=headers)
+resp = httpx.post(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-b42541e17665/cancel"</span>, headers=headers)
 resp.raise_for_status()
-<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-5c68b1040436/cancel`</span>, {
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-b42541e17665/cancel`</span>, {
   method: <span class="tk-s">"POST"</span>,
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
 <div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
-  <span class="tk-k">"id"</span>: <span class="tk-s">"run-5c68b1040436"</span>,
+  <span class="tk-k">"id"</span>: <span class="tk-s">"run-b42541e17665"</span>,
   <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
-  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:50.220386Z"</span>,
+  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.669870Z"</span>,
   <span class="tk-k">"state"</span>: <span class="tk-s">"cancelled"</span>,
   <span class="tk-k">"entries"</span>: [
     {
@@ -397,38 +417,40 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
   <span class="tk-k">"sim_counts"</span>: {
     <span class="tk-k">"cancelled"</span>: <span class="tk-n">1</span>
   },
+  <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>,
   <span class="tk-k">"trace"</span>: {
     <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
     <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.379301Z"</span>,
-    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.381567Z"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.587743Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.592073Z"</span>,
     <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"layers"</span>: [],
     <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
     <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
-    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
-    <span class="tk-k">"bytes"</span>: <span class="tk-n">31899901</span>,
+    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">20</span>,
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">16890250</span>,
     <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
-    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>
+    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>,
+    <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>
   },
   <span class="tk-k">"sims"</span>: [
     {
-      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-48c07a8a5767"</span>,
-      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-5c68b1040436"</span>,
+      <span class="tk-k">"id"</span>: <span class="tk-s">"sim-57c51b464fc9"</span>,
+      <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-b42541e17665"</span>,
       <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
       <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
       <span class="tk-k">"state"</span>: <span class="tk-s">"cancelled"</span>,
       <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-      <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"41228"</span>,
-      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:50.220386Z"</span>,
+      <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"64556"</span>,
+      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.669870Z"</span>,
       <span class="tk-k">"started_at"</span>: <span class="tk-l">null</span>,
-      <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T06:56:50.223595Z"</span>,
+      <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.673285Z"</span>,
       <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"exit_code"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"kernels_done"</span>: <span class="tk-n">0</span>,
-      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+      <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
       <span class="tk-k">"current_kernel"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"latest"</span>: {
         <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-l">null</span>,
@@ -448,15 +470,15 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
 <h3 id="returns-6">Returns<a class="anchor" href="#returns-6" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#comparison"><code>Comparison</code></a>.</p>
 <h3 id="errors-6">Errors<a class="anchor" href="#errors-6" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
 <h3 id="example-6">Example<a class="anchor" href="#example-6" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/comparison"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-210d75c008c4/comparison"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/comparison"</span>, headers=headers)
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/comparison"</span>, headers=headers)
 resp.raise_for_status()
-<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/comparison`</span>, {
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-210d75c008c4/comparison`</span>, {
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
@@ -501,21 +523,21 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
 <h3 id="returns-7">Returns<a class="anchor" href="#returns-7" aria-label="Link to this section">#</a></h3><p><code>200</code> with a list of <a href="types.html#kernelstat"><code>KernelStat</code></a>.</p>
 <h3 id="errors-7">Errors<a class="anchor" href="#errors-7" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
 <h3 id="example-7">Example<a class="anchor" href="#example-7" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/kernels"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-210d75c008c4/kernels"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/kernels"</span>, headers=headers)
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/kernels"</span>, headers=headers)
 resp.raise_for_status()
-<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/kernels`</span>, {
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-210d75c008c4/kernels`</span>, {
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
 <div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>[
   {
-    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
     <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
     <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
     <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1</span>,
@@ -526,7 +548,7 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     <span class="tk-k">"stats"</span>: {}
   },
   {
-    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
     <span class="tk-k">"kernel_index"</span>: <span class="tk-n">1</span>,
     <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
     <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2</span>,
@@ -537,7 +559,7 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     <span class="tk-k">"stats"</span>: {}
   },
   {
-    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
     <span class="tk-k">"kernel_index"</span>: <span class="tk-n">2</span>,
     <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z10mul_kernelIdEvPT_PKS0_"</span>,
     <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">3</span>,
@@ -557,21 +579,21 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
 <h3 id="returns-8">Returns<a class="anchor" href="#returns-8" aria-label="Link to this section">#</a></h3><p><code>200</code> with a list of <a href="types.html#simsteptimeline"><code>SimStepTimeline</code></a>.</p>
 <h3 id="errors-8">Errors<a class="anchor" href="#errors-8" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
 <h3 id="example-8">Example<a class="anchor" href="#example-8" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/step-timelines"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-210d75c008c4/step-timelines"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/step-timelines"</span>, headers=headers)
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/step-timelines"</span>, headers=headers)
 resp.raise_for_status()
-<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/step-timelines`</span>, {
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-210d75c008c4/step-timelines`</span>, {
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
 <div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>[
   {
-    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
     <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
     <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
     <span class="tk-k">"simulated"</span>: {
@@ -715,7 +737,7 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
               <span class="tk-c">/* 2 more items trimmed */</span>
             ]
           },
-          <span class="tk-k">"request_assumption"</span>: <span class="tk-s">"one request per repeat; arrival + pre/steps/inter-step gaps/post"</span>,
+          <span class="tk-k">"request_assumption"</span>: <span class="tk-s">"one request per repeat; queued (or arrival) + pre/steps/inter-step gaps/post"</span>,
           <span class="tk-k">"gap_model"</span>: <span class="tk-s">"measured"</span>,
           <span class="tk-k">"gap_fit"</span>: {}
         },
@@ -833,7 +855,7 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     }
   },
   {
-    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-09e225316002"</span>,
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-e8f63b6b3bed"</span>,
     <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
     <span class="tk-k">"replica"</span>: <span class="tk-n">1</span>,
     <span class="tk-k">"simulated"</span>: {
@@ -977,7 +999,7 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
               <span class="tk-c">/* 2 more items trimmed */</span>
             ]
           },
-          <span class="tk-k">"request_assumption"</span>: <span class="tk-s">"one request per repeat; arrival + pre/steps/inter-step gaps/post"</span>,
+          <span class="tk-k">"request_assumption"</span>: <span class="tk-s">"one request per repeat; queued (or arrival) + pre/steps/inter-step gaps/post"</span>,
           <span class="tk-k">"gap_model"</span>: <span class="tk-s">"measured"</span>,
           <span class="tk-k">"gap_fit"</span>: {}
         },
@@ -1103,23 +1125,23 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
 <h3 id="returns-9">Returns<a class="anchor" href="#returns-9" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#runresults"><code>RunResults</code></a>.</p>
 <h3 id="errors-9">Errors<a class="anchor" href="#errors-9" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
 <h3 id="example-9">Example<a class="anchor" href="#example-9" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/results"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/runs/run-210d75c008c4/results"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/results"</span>, headers=headers)
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/results"</span>, headers=headers)
 resp.raise_for_status()
-open(<span class="tk-s">"run-a5c5ba6e0ac7-results.json"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/results`</span>, {
+open(<span class="tk-s">"run-210d75c008c4-results.json"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-210d75c008c4/results`</span>, {
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 <span class="tk-k">const</span> data = <span class="tk-k">await</span> resp.json();</code></pre></div></div></div>
 <div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"run"</span>: {
-    <span class="tk-k">"id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+    <span class="tk-k">"id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
     <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
     <span class="tk-k">"entries"</span>: [
       {
@@ -1129,89 +1151,60 @@ open(<span class="tk-s">"run-a5c5ba6e0ac7-results.json"</span>, <span class="tk-
     ],
     <span class="tk-k">"sim_counts"</span>: {
       <span class="tk-k">"succeeded"</span>: <span class="tk-n">2</span>
-    }
+    },
+    <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>
   },
   <span class="tk-k">"trace"</span>: {
     <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
     <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.379301Z"</span>,
-    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.381567Z"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.587743Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.592073Z"</span>,
     <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"layers"</span>: [],
     <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
     <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
-    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
-    <span class="tk-k">"bytes"</span>: <span class="tk-n">31899901</span>,
+    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">20</span>,
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">16890250</span>,
     <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
     <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>,
+    <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>,
     <span class="tk-k">"metadata"</span>: {
       <span class="tk-k">"status"</span>: <span class="tk-s">"ok"</span>,
       <span class="tk-k">"files"</span>: [
         {
-          <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/corrected_timeline.json"</span>,
-          <span class="tk-k">"bytes"</span>: <span class="tk-n">238744</span>
+          <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/configs/config_hopper_islip.icnt"</span>,
+          <span class="tk-k">"bytes"</span>: <span class="tk-n">1352</span>
         },
         {
-          <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/kernel_mapping.json"</span>,
-          <span class="tk-k">"bytes"</span>: <span class="tk-n">699</span>
+          <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/configs/gpgpusim.config"</span>,
+          <span class="tk-k">"bytes"</span>: <span class="tk-n">6028</span>
         }
-        <span class="tk-c">/* 8 more items trimmed */</span>
+        <span class="tk-c">/* 25 more items trimmed */</span>
       ],
       <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
       <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>
     },
-    <span class="tk-k">"kernels"</span>: [
-      {
-        <span class="tk-k">"kernel_id"</span>: <span class="tk-n">3</span>,
-        <span class="tk-k">"name"</span>: <span class="tk-s">"_Z6euclidPcffPfiii"</span>,
-        <span class="tk-k">"grid"</span>: [
-          <span class="tk-n">938</span>,
-          <span class="tk-n">1</span>,
-          <span class="tk-n">1</span>
-        ],
-        <span class="tk-k">"block"</span>: [
-          <span class="tk-n">16</span>,
-          <span class="tk-n">1</span>,
-          <span class="tk-n">1</span>
-        ],
-        <span class="tk-k">"instructions"</span>: <span class="tk-n">161428</span>
-      },
-      {
-        <span class="tk-k">"kernel_id"</span>: <span class="tk-n">4</span>,
-        <span class="tk-k">"name"</span>: <span class="tk-s">"_Z6euclidPcffPfiii"</span>,
-        <span class="tk-k">"grid"</span>: [
-          <span class="tk-n">938</span>,
-          <span class="tk-n">1</span>,
-          <span class="tk-n">1</span>
-        ],
-        <span class="tk-k">"block"</span>: [
-          <span class="tk-n">16</span>,
-          <span class="tk-n">1</span>,
-          <span class="tk-n">1</span>
-        ],
-        <span class="tk-k">"instructions"</span>: <span class="tk-n">161308</span>
-      }
-    ]
+    <span class="tk-k">"kernels"</span>: []
   },
   <span class="tk-k">"sims"</span>: [
     {
       <span class="tk-k">"sim"</span>: {
-        <span class="tk-k">"id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
-        <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+        <span class="tk-k">"id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
+        <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
         <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
         <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
         <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
         <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-        <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"41125"</span>,
-        <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
-        <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.816803Z"</span>,
-        <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.699025Z"</span>,
-        <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.699025Z"</span>,
+        <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"64418"</span>,
+        <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
+        <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.224424Z"</span>,
+        <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.130355Z"</span>,
+        <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.130355Z"</span>,
         <span class="tk-k">"exit_code"</span>: <span class="tk-n">0</span>,
         <span class="tk-k">"kernels_done"</span>: <span class="tk-n">6</span>,
-        <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+        <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
         <span class="tk-k">"current_kernel"</span>: <span class="tk-s">"_Z10dot_kernelIdEvPKT_S2_PS0_i"</span>,
         <span class="tk-k">"latest"</span>: {
           <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
@@ -1234,7 +1227,7 @@ open(<span class="tk-s">"run-a5c5ba6e0ac7-results.json"</span>, <span class="tk-
       },
       <span class="tk-k">"kernels"</span>: [
         {
-          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
           <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
           <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
           <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1</span>,
@@ -1251,7 +1244,7 @@ open(<span class="tk-s">"run-a5c5ba6e0ac7-results.json"</span>, <span class="tk-
           }
         },
         {
-          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
           <span class="tk-k">"kernel_index"</span>: <span class="tk-n">1</span>,
           <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
           <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2</span>,
@@ -1278,20 +1271,20 @@ open(<span class="tk-s">"run-a5c5ba6e0ac7-results.json"</span>, <span class="tk-
     },
     {
       <span class="tk-k">"sim"</span>: {
-        <span class="tk-k">"id"</span>: <span class="tk-s">"sim-09e225316002"</span>,
-        <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+        <span class="tk-k">"id"</span>: <span class="tk-s">"sim-e8f63b6b3bed"</span>,
+        <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
         <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
         <span class="tk-k">"replica"</span>: <span class="tk-n">1</span>,
         <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
         <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-        <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"41126"</span>,
-        <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
-        <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.817058Z"</span>,
-        <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.715117Z"</span>,
-        <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.715117Z"</span>,
+        <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"64419"</span>,
+        <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
+        <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.224173Z"</span>,
+        <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.164567Z"</span>,
+        <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.164567Z"</span>,
         <span class="tk-k">"exit_code"</span>: <span class="tk-n">0</span>,
         <span class="tk-k">"kernels_done"</span>: <span class="tk-n">6</span>,
-        <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+        <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
         <span class="tk-k">"current_kernel"</span>: <span class="tk-s">"_Z10dot_kernelIdEvPKT_S2_PS0_i"</span>,
         <span class="tk-k">"latest"</span>: {
           <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
@@ -1314,7 +1307,7 @@ open(<span class="tk-s">"run-a5c5ba6e0ac7-results.json"</span>, <span class="tk-
       },
       <span class="tk-k">"kernels"</span>: [
         {
-          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-09e225316002"</span>,
+          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-e8f63b6b3bed"</span>,
           <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
           <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
           <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1</span>,
@@ -1331,7 +1324,7 @@ open(<span class="tk-s">"run-a5c5ba6e0ac7-results.json"</span>, <span class="tk-
           }
         },
         {
-          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-09e225316002"</span>,
+          <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-e8f63b6b3bed"</span>,
           <span class="tk-k">"kernel_index"</span>: <span class="tk-n">1</span>,
           <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
           <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2</span>,
@@ -1391,34 +1384,34 @@ open(<span class="tk-s">"run-a5c5ba6e0ac7-results.json"</span>, <span class="tk-
 <h3 id="returns-10">Returns<a class="anchor" href="#returns-10" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#simresults"><code>SimResults</code></a>.</p>
 <h3 id="errors-10">Errors<a class="anchor" href="#errors-10" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No sim has this id.</td></tr></tbody></table></div>
 <h3 id="example-10">Example<a class="anchor" href="#example-10" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/sims/sim-4bc665cf326e/results"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/sims/sim-1047ddbdf5b1/results"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/sims/sim-4bc665cf326e/results"</span>, headers=headers)
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/sims/sim-1047ddbdf5b1/results"</span>, headers=headers)
 resp.raise_for_status()
-open(<span class="tk-s">"sim-4bc665cf326e-results.json"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/sims/sim-4bc665cf326e/results`</span>, {
+open(<span class="tk-s">"sim-1047ddbdf5b1-results.json"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/sims/sim-1047ddbdf5b1/results`</span>, {
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 <span class="tk-k">const</span> data = <span class="tk-k">await</span> resp.json();</code></pre></div></div></div>
 <div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"sim"</span>: {
-    <span class="tk-k">"id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
-    <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+    <span class="tk-k">"id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
+    <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
     <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
     <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
     <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-    <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"41125"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
-    <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.816803Z"</span>,
-    <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.699025Z"</span>,
-    <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.699025Z"</span>,
+    <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"64418"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
+    <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.224424Z"</span>,
+    <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.130355Z"</span>,
+    <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.130355Z"</span>,
     <span class="tk-k">"exit_code"</span>: <span class="tk-n">0</span>,
     <span class="tk-k">"kernels_done"</span>: <span class="tk-n">6</span>,
-    <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+    <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
     <span class="tk-k">"current_kernel"</span>: <span class="tk-s">"_Z10dot_kernelIdEvPKT_S2_PS0_i"</span>,
     <span class="tk-k">"latest"</span>: {
       <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
@@ -1441,7 +1434,7 @@ open(<span class="tk-s">"sim-4bc665cf326e-results.json"</span>, <span class="tk-
   },
   <span class="tk-k">"kernels"</span>: [
     {
-      <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+      <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
       <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
       <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
       <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1</span>,
@@ -1458,7 +1451,7 @@ open(<span class="tk-s">"sim-4bc665cf326e-results.json"</span>, <span class="tk-
       }
     },
     {
-      <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+      <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
       <span class="tk-k">"kernel_index"</span>: <span class="tk-n">1</span>,
       <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
       <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2</span>,
@@ -1491,15 +1484,15 @@ open(<span class="tk-s">"sim-4bc665cf326e-results.json"</span>, <span class="tk-
 <h3 id="returns-11">Returns<a class="anchor" href="#returns-11" aria-label="Link to this section">#</a></h3><p><code>200</code> with the log as plain text.</p>
 <h3 id="errors-11">Errors<a class="anchor" href="#errors-11" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No sim has this id.</td></tr></tbody></table></div>
 <h3 id="example-11">Example<a class="anchor" href="#example-11" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/sims/sim-4bc665cf326e/log"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/sims/sim-1047ddbdf5b1/log"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/sims/sim-4bc665cf326e/log"</span>, headers=headers)
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/sims/sim-1047ddbdf5b1/log"</span>, headers=headers)
 resp.raise_for_status()
-open(<span class="tk-s">"sim-4bc665cf326e.log"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/sims/sim-4bc665cf326e/log`</span>, {
+open(<span class="tk-s">"sim-1047ddbdf5b1.log"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/sims/sim-1047ddbdf5b1/log`</span>, {
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 <span class="tk-k">const</span> text = <span class="tk-k">await</span> resp.text();</code></pre></div></div></div>
@@ -1524,15 +1517,15 @@ The apps require 4.2 because new versions of CUDA tools have dropped parsing sup
 <h3 id="returns-12">Returns<a class="anchor" href="#returns-12" aria-label="Link to this section">#</a></h3><p><code>200</code> with a list of <a href="types.html#runfile"><code>RunFile</code></a>.</p>
 <h3 id="errors-12">Errors<a class="anchor" href="#errors-12" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
 <h3 id="example-12">Example<a class="anchor" href="#example-12" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/files"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-210d75c008c4/files"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/files"</span>, headers=headers)
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/files"</span>, headers=headers)
 resp.raise_for_status()
-<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/files`</span>, {
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-210d75c008c4/files`</span>, {
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
@@ -1541,8 +1534,8 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     <span class="tk-k">"name"</span>: <span class="tk-s">"accelsim.log.gz"</span>,
     <span class="tk-k">"size"</span>: <span class="tk-n">37105</span>,
     <span class="tk-k">"content_type"</span>: <span class="tk-s">"application/gzip"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.695907Z"</span>,
-    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.128163Z"</span>,
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
     <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
     <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>
   },
@@ -1550,8 +1543,8 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     <span class="tk-k">"name"</span>: <span class="tk-s">"exit-status.txt"</span>,
     <span class="tk-k">"size"</span>: <span class="tk-n">2</span>,
     <span class="tk-k">"content_type"</span>: <span class="tk-s">"text/plain"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.683590Z"</span>,
-    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.120587Z"</span>,
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
     <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
     <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>
   },
@@ -1559,8 +1552,8 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     <span class="tk-k">"name"</span>: <span class="tk-s">"gpgpu_inst_stats.txt"</span>,
     <span class="tk-k">"size"</span>: <span class="tk-n">133</span>,
     <span class="tk-k">"content_type"</span>: <span class="tk-s">"text/plain"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.685148Z"</span>,
-    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.121677Z"</span>,
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
     <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
     <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>
   },
@@ -1568,8 +1561,8 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     <span class="tk-k">"name"</span>: <span class="tk-s">"kernel-stats.csv"</span>,
     <span class="tk-k">"size"</span>: <span class="tk-n">3829</span>,
     <span class="tk-k">"content_type"</span>: <span class="tk-s">"text/csv"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.686511Z"</span>,
-    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.122701Z"</span>,
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
     <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
     <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>
   }
@@ -1583,15 +1576,15 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
 <h3 id="returns-13">Returns<a class="anchor" href="#returns-13" aria-label="Link to this section">#</a></h3><p><code>200</code> with a Chrome trace JSON object: <code>traceEvents</code>, <code>displayTimeUnit</code> and <code>otherData</code>.</p>
 <h3 id="errors-13">Errors<a class="anchor" href="#errors-13" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
 <h3 id="example-13">Example<a class="anchor" href="#example-13" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/perfetto"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/runs/run-210d75c008c4/perfetto"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/perfetto"</span>, headers=headers)
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/perfetto"</span>, headers=headers)
 resp.raise_for_status()
-open(<span class="tk-s">"run-a5c5ba6e0ac7-perfetto.json"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/perfetto`</span>, {
+open(<span class="tk-s">"run-210d75c008c4-perfetto.json"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-210d75c008c4/perfetto`</span>, {
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 <span class="tk-k">const</span> data = <span class="tk-k">await</span> resp.json();</code></pre></div></div></div>
@@ -1618,7 +1611,7 @@ open(<span class="tk-s">"run-a5c5ba6e0ac7-perfetto.json"</span>, <span class="tk
       <span class="tk-k">"pid"</span>: <span class="tk-n">1</span>,
       <span class="tk-k">"name"</span>: <span class="tk-s">"thread_name"</span>,
       <span class="tk-k">"args"</span>: {
-        <span class="tk-k">"name"</span>: <span class="tk-s">"replica 0 · sim-4bc665cf326e"</span>
+        <span class="tk-k">"name"</span>: <span class="tk-s">"replica 0 · sim-1047ddbdf5b1"</span>
       },
       <span class="tk-k">"tid"</span>: <span class="tk-n">1</span>
     },
@@ -1675,7 +1668,7 @@ open(<span class="tk-s">"run-a5c5ba6e0ac7-perfetto.json"</span>, <span class="tk
   ],
   <span class="tk-k">"displayTimeUnit"</span>: <span class="tk-s">"ns"</span>,
   <span class="tk-k">"otherData"</span>: {
-    <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+    <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
     <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
     <span class="tk-k">"time_axis"</span>: <span class="tk-s">"simulated time, microseconds; each sim's kernels laid end to end"</span>,
     <span class="tk-k">"slice_duration"</span>: <span class="tk-s">"sim_time_ns = gpu_sim_cycle / core clock (MHz) * 1000"</span>,
@@ -1690,15 +1683,15 @@ open(<span class="tk-s">"run-a5c5ba6e0ac7-perfetto.json"</span>, <span class="tk
 <h3 id="returns-14">Returns<a class="anchor" href="#returns-14" aria-label="Link to this section">#</a></h3><p><code>200</code> with a list of <a href="types.html#simfile"><code>SimFile</code></a>.</p>
 <h3 id="errors-14">Errors<a class="anchor" href="#errors-14" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No sim has this id.</td></tr></tbody></table></div>
 <h3 id="example-14">Example<a class="anchor" href="#example-14" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/sims/sim-4bc665cf326e/files"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/sims/sim-1047ddbdf5b1/files"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/sims/sim-4bc665cf326e/files"</span>, headers=headers)
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/sims/sim-1047ddbdf5b1/files"</span>, headers=headers)
 resp.raise_for_status()
-<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/sims/sim-4bc665cf326e/files`</span>, {
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/sims/sim-1047ddbdf5b1/files`</span>, {
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
@@ -1707,37 +1700,37 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     <span class="tk-k">"name"</span>: <span class="tk-s">"accelsim.log.gz"</span>,
     <span class="tk-k">"size"</span>: <span class="tk-n">37105</span>,
     <span class="tk-k">"content_type"</span>: <span class="tk-s">"application/gzip"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.695907Z"</span>
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.128163Z"</span>
   },
   {
     <span class="tk-k">"name"</span>: <span class="tk-s">"exit-status.txt"</span>,
     <span class="tk-k">"size"</span>: <span class="tk-n">2</span>,
     <span class="tk-k">"content_type"</span>: <span class="tk-s">"text/plain"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.683590Z"</span>
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.120587Z"</span>
   },
   {
     <span class="tk-k">"name"</span>: <span class="tk-s">"gpgpu_inst_stats.txt"</span>,
     <span class="tk-k">"size"</span>: <span class="tk-n">133</span>,
     <span class="tk-k">"content_type"</span>: <span class="tk-s">"text/plain"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.685148Z"</span>
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.121677Z"</span>
   },
   {
     <span class="tk-k">"name"</span>: <span class="tk-s">"kernel-stats.csv"</span>,
     <span class="tk-k">"size"</span>: <span class="tk-n">3829</span>,
     <span class="tk-k">"content_type"</span>: <span class="tk-s">"text/csv"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.686511Z"</span>
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.122701Z"</span>
   },
   {
     <span class="tk-k">"name"</span>: <span class="tk-s">"opt125m_H100_perfetto.json.gz"</span>,
     <span class="tk-k">"size"</span>: <span class="tk-n">104763</span>,
     <span class="tk-k">"content_type"</span>: <span class="tk-s">"application/gzip"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.688351Z"</span>
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.123623Z"</span>
   },
   {
     <span class="tk-k">"name"</span>: <span class="tk-s">"perf_counter.csv.gz"</span>,
     <span class="tk-k">"size"</span>: <span class="tk-n">474373</span>,
     <span class="tk-k">"content_type"</span>: <span class="tk-s">"application/gzip"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.691380Z"</span>
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.124946Z"</span>
   }
 ]</code></pre></div>
 </section>
@@ -1748,15 +1741,15 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
 <h3 id="returns-15">Returns<a class="anchor" href="#returns-15" aria-label="Link to this section">#</a></h3><p><code>200</code> with the file's bytes.</p>
 <h3 id="errors-15">Errors<a class="anchor" href="#errors-15" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No sim has this id, or the sim has no file with this name.</td></tr></tbody></table></div>
 <h3 id="example-15">Example<a class="anchor" href="#example-15" aria-label="Link to this section">#</a></h3>
-<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/sims/sim-4bc665cf326e/files/kernel-stats.csv"</span> \
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/sims/sim-1047ddbdf5b1/files/kernel-stats.csv"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/sims/sim-4bc665cf326e/files/kernel-stats.csv"</span>, headers=headers)
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/sims/sim-1047ddbdf5b1/files/kernel-stats.csv"</span>, headers=headers)
 resp.raise_for_status()
-open(<span class="tk-s">"kernel-stats.csv"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/sims/sim-4bc665cf326e/files/kernel-stats.csv`</span>, {
+open(<span class="tk-s">"kernel-stats.csv"</span>, <span class="tk-s">"wb"</span>).write(resp.content)</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/sims/sim-1047ddbdf5b1/files/kernel-stats.csv`</span>, {
   headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
 });
 <span class="tk-k">const</span> text = <span class="tk-k">await</span> resp.text();</code></pre></div></div></div>
@@ -1774,7 +1767,7 @@ open(<span class="tk-s">"kernel-stats.csv"</span>, <span class="tk-s">"wb"</span
 11,nvjet_sm90_hsh_64x8_64x16_4x1_v_bz_bias_TNT,8621,4766492,552.8931678459576
 <span class="tk-c">/* 9 more lines trimmed */</span></code></pre></div>
 <div class="code"><div class="code-bar"><span>404 response, no such file · 404 Not Found · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
-  <span class="tk-k">"detail"</span>: <span class="tk-s">"sim sim-4bc665cf326e has no file 'nope.txt'"</span>
+  <span class="tk-k">"detail"</span>: <span class="tk-s">"sim sim-1047ddbdf5b1 has no file 'nope.txt'"</span>
 }</code></pre></div>
 </section>
 

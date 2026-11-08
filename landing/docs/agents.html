@@ -24,13 +24,12 @@
   <button class="search-btn" type="button" aria-label="Search docs"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search docs</span><kbd>/</kbd></button>
   <nav class="top-links" aria-label="Site">
     <a href="../index.html">Home</a>
-    <a href="../writeup.html">Writeup</a>
     <a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a>
   </nav>
   <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg></button>
 </header>
 <div class="layout">
-  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="agents.html" aria-current="page">Use with AI agents</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div><div class="nav-group site-links"><h2>Cascade</h2><ul><li><a href="../index.html">Home</a></li><li><a href="../writeup.html">Writeup</a></li><li><a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a></li></ul></div></aside>
+  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="agents.html" aria-current="page">Use with AI agents</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="sample-analysis-opt125m.html">OPT-125m sample analysis</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div><div class="nav-group site-links"><h2>Cascade</h2><ul><li><a href="../index.html">Home</a></li><li><a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a></li></ul></div></aside>
   <main id="content" class="content">
     <p class="eyebrow">Getting started</p>
     <h1>Use with AI agents</h1>
@@ -240,7 +239,7 @@ Create a run. Creates a run and starts launching its sims in the background. Eac
 - Body: `RunCreate`.
 - Returns: `201` with a `RunDetail`.
 - `404`: `trace_id` names no trace.
-- `409`: The trace is not `ready`.
+- `409`: The trace is not `ready`, or is a sample, which has no instruction traces.
 - `422`: An entry names an unknown `gpu_config`, or a config whose `arch` differs from the trace's `trace_gpu_arch`.
 - `422`: The body fails validation: `entries` is empty, or a `count` is outside 1 to 64.
 
@@ -260,7 +259,7 @@ Get a run. Returns the run, its trace, and every sim with its state, progress, l
 
 ### POST /api/runs/{run_id}/cancel
 
-Cancel a run. Moves every sim that has not finished to `cancelled` and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets `cancel: true`. Calling it again changes nothing, so it is safe to retry.
+Cancel a run. Moves every sim that has not finished to `cancelled` and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets `cancel: true`. Calling it again changes nothing, so it is safe to retry. On a sample run it changes nothing either, since its sim already `succeeded`.
 
 - Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
 - Returns: `200` with the `RunDetail` after cancelling.
@@ -426,6 +425,7 @@ One kernel launch from the trace's stats_ctx_* file (original hardware).
 - `bytes` (`int`): Bytes on disk under the trace dir.
 - `has_real_timing` (`bool`): True when the trace has real per-kernel timings (`real_timing.json`). The profiler does not write them yet.
 - `has_step_timeline` (`bool`): corrected_timeline.json + kernel_mapping.json are in the trace dir.
+- `sample` (`bool`): True for the sample trace that `cascade serve` seeds from `samples/` (see Introduction), unless `CASCADE_SAMPLES` is false. It is `ready` but has no instruction traces, so it can't start a run.
 
 ### TraceDetail
 
@@ -452,6 +452,7 @@ Every field of `TraceSummary`, plus these.
 - `state` (`RunState`): Derived from the sims. See `RunState`.
 - `entries` (`list[RunEntry]`): The entries the run was created with.
 - `sim_counts` (`dict[SimState, int]`): How many sims are in each state. States with no sims are left out.
+- `sample` (`bool`): True for the sample run seeded with the sample trace. Its results were recorded when the run was made, not in this workspace, and cancelling it changes nothing.
 
 ### RunDetail
 

@@ -206,10 +206,46 @@ def _url(box, port: int) -> str | None:
     return url.rstrip("/") if url else None
 
 
+_MANIFEST_TYPES = ", ".join(
+    [
+        "application/vnd.oci.image.index.v1+json",
+        "application/vnd.docker.distribution.manifest.list.v2+json",
+        "application/vnd.oci.image.manifest.v1+json",
+        "application/vnd.docker.distribution.manifest.v2+json",
+    ]
+)
+
+
+def resolve_digest(ref: str, urlopen: Callable = urllib.request.urlopen) -> str:
+    """Pin a public ghcr.io tag to the digest it names right now.
+
+    Sail pins a tag to one image per organization the first time it is used, so an org that
+    once pulled `:latest` keeps that old build. A digest ref always means today's image. Any
+    other ref, or a registry that can't be reached, is returned unchanged.
+    """
+    m = re.fullmatch(r"ghcr\.io/([a-z0-9._/-]+):([\w.-]+)", ref)
+    if m is None:
+        return ref
+    repo, tag = m.groups()
+    try:
+        with urlopen(f"https://ghcr.io/token?scope=repository:{repo}:pull", timeout=10) as r:
+            token = json.loads(r.read())["token"]
+        head = urllib.request.Request(
+            f"https://ghcr.io/v2/{repo}/manifests/{tag}",
+            method="HEAD",
+            headers={"Authorization": f"Bearer {token}", "Accept": _MANIFEST_TYPES},
+        )
+        with urlopen(head, timeout=10) as r:
+            digest = r.headers["Docker-Content-Digest"]
+    except (OSError, KeyError, ValueError):
+        return ref
+    return f"ghcr.io/{repo}@{digest}" if digest else ref
+
+
 def _definition(sail, image: ImageSource):
     match image:
         case FromRegistry(ref):
-            return sail.Image.from_registry(ref)
+            return sail.Image.from_registry(resolve_digest(ref))
         case FromSource(root, base_image):
             return sail.Image.from_dockerfile(
                 root / "Dockerfile", context_dir=root, build_args={"BASE_IMAGE": base_image}
@@ -300,6 +336,7 @@ def advance(
                     "CASCADE_TOKEN": fresh,
                     "CASCADE_WORKSPACE": workspace,
                     "CASCADE_PUBLIC_URL": app_url,
+                    **({"CASCADE_S3_PUBLIC_URL": s3_url} if s3_url else {}),
                     "CASCADE_DATA_DIR": "/data",
                     "CASCADE_ACCELSIM_DIR": simulator.accelsim_dir,
                     "CASCADE_SIM_CMD": simulator.sim_cmd,

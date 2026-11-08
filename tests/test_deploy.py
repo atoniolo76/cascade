@@ -5,6 +5,7 @@ parameter fails here. Nothing talks to the Sail service.
 """
 
 import inspect
+import json
 import os
 import shlex
 from dataclasses import dataclass, field
@@ -208,7 +209,11 @@ def fake(monkeypatch):
         return {"ok": True} if box.probes > 1 else None
 
     monkeypatch.setattr(deploy, "probe_health", health)
+    monkeypatch.setattr(deploy, "resolve_digest", lambda ref: PINNED.get(ref, ref))
     return fake
+
+
+PINNED = {deploy.DEFAULT_IMAGE: "ghcr.io/atoniolo76/cascade@sha256:" + "ab" * 32}
 
 
 def run_to_healthy(fake, workspace="acme", **kw):
@@ -237,11 +242,12 @@ def test_first_deploy_creates_one_app_and_sailbox_then_starts_cascade(fake):
     [(_, create)] = fake.creates()
     assert create["name"] == "cascade-main" and create["ingress_ports"] == [8000, 9000]
     assert create["auto_sleep"] == sail.AutoSleep.never()
-    assert [c[1] for c in fake.calls if c[0] == "build"] == [deploy.DEFAULT_IMAGE]
+    assert [c[1] for c in fake.calls if c[0] == "build"] == [PINNED[deploy.DEFAULT_IMAGE]]
     env = fake.boxes[0].files[deploy.ENV_FILE]
     assert "export CASCADE_WORKSPACE=acme\n" in env
     assert f"export SAIL_API_KEY={KEY}\n" in env
     assert "export CASCADE_PUBLIC_URL=https://sb-0-8000.sail.box\n" in env
+    assert "export CASCADE_S3_PUBLIC_URL=https://sb-0-9000.sail.box\n" in env
     [serve] = [c for c in fake.calls if c[0] == "exec"]
     assert serve[2] == {"background": True}, "a second start while warming up would race it"
     assert KEY not in serve[1] and "env" not in serve[2]
@@ -279,7 +285,7 @@ def test_build_timeout_returns_and_the_next_call_creates(fake):
     assert deploy.advance(KEY, "acme", sail_module=fake).phase is Phase.creating_sandbox
     info = deploy.advance(KEY, "acme", sail_module=fake, budget_s=7)
     assert info.phase is Phase.creating_sandbox and info.sailbox_id is None
-    assert ("build", deploy.DEFAULT_IMAGE, 7) in fake.calls
+    assert ("build", PINNED[deploy.DEFAULT_IMAGE], 7) in fake.calls
     fake.build_times_out = False
     assert deploy.advance(KEY, "acme", sail_module=fake).phase is Phase.starting
     assert len(fake.creates()) == 1
@@ -382,3 +388,56 @@ def test_deploy_workspace_loops_until_healthy(fake, monkeypatch):
         KEY, "acme", sail_module=fake, timeout_s=2, on_phase=lambda i: phases.append(i.phase)
     )
     assert info.phase is Phase.healthy and phases[-1] is Phase.healthy
+
+
+class _Response:
+    def __init__(self, body=b"", headers=None):
+        self.body, self.headers = body, headers or {}
+
+    def read(self):
+        return self.body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _registry(digest="sha256:" + "cd" * 32, fail=False):
+    seen = []
+
+    def urlopen(req, timeout=None):
+        url = req if isinstance(req, str) else req.full_url
+        seen.append(url)
+        if fail:
+            raise OSError("registry unreachable")
+        if "/token" in url:
+            return _Response(json.dumps({"token": "anon"}).encode())
+        return _Response(headers={"Docker-Content-Digest": digest})
+
+    return urlopen, seen
+
+
+def test_a_ghcr_tag_resolves_to_its_current_digest():
+    urlopen, seen = _registry()
+    ref = deploy.resolve_digest("ghcr.io/atoniolo76/cascade:latest", urlopen=urlopen)
+    assert ref == "ghcr.io/atoniolo76/cascade@sha256:" + "cd" * 32
+    assert seen[-1] == "https://ghcr.io/v2/atoniolo76/cascade/manifests/latest"
+
+
+def test_digests_and_other_registries_are_left_alone():
+    urlopen, seen = _registry()
+    pinned = "ghcr.io/atoniolo76/cascade@sha256:" + "ef" * 32
+    assert deploy.resolve_digest(pinned, urlopen=urlopen) == pinned
+    assert (
+        deploy.resolve_digest("docker.io/library/ubuntu:22.04", urlopen=urlopen)
+        == "docker.io/library/ubuntu:22.04"
+    )
+    assert seen == []
+
+
+def test_an_unreachable_registry_falls_back_to_the_tag():
+    urlopen, _ = _registry(fail=True)
+    ref = "ghcr.io/atoniolo76/cascade:latest"
+    assert deploy.resolve_digest(ref, urlopen=urlopen) == ref

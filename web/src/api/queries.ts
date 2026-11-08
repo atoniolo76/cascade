@@ -22,6 +22,7 @@ export interface Health {
   ok: boolean;
   auth: boolean;
   workspace: string | null;
+  s3_endpoint: string | null;
 }
 
 export const keys = {
@@ -97,6 +98,13 @@ export function useStepTimelines(runId: string, { live }: { live: boolean }) {
     queryFn: () => apiJson<SimStepTimeline[]>(`/api/runs/${enc(runId)}/step-timelines`),
     refetchInterval: live ? 5000 : false,
   });
+}
+
+export function useSampleStepTimelines(runIds: readonly string[]) {
+  return useQueries({ queries: runIds.map((id) => ({
+    queryKey: keys.stepTimelines(id),
+    queryFn: () => apiJson<SimStepTimeline[]>(`/api/runs/${enc(id)}/step-timelines`),
+  })) });
 }
 
 /** A sim uploads its files just before its final heartbeat, so the poll ends with one last fetch once it settles. */

@@ -24,13 +24,12 @@
   <button class="search-btn" type="button" aria-label="Search docs"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search docs</span><kbd>/</kbd></button>
   <nav class="top-links" aria-label="Site">
     <a href="../index.html">Home</a>
-    <a href="../writeup.html">Writeup</a>
     <a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a>
   </nav>
   <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg></button>
 </header>
 <div class="layout">
-  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="agents.html">Use with AI agents</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html" aria-current="page">Traces</a></li><li><a href="api-runs.html">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div><div class="nav-group site-links"><h2>Cascade</h2><ul><li><a href="../index.html">Home</a></li><li><a href="../writeup.html">Writeup</a></li><li><a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a></li></ul></div></aside>
+  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="agents.html">Use with AI agents</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="sample-analysis-opt125m.html">OPT-125m sample analysis</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html" aria-current="page">Traces</a></li><li><a href="api-runs.html">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div><div class="nav-group site-links"><h2>Cascade</h2><ul><li><a href="../index.html">Home</a></li><li><a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a></li></ul></div></aside>
   <main id="content" class="content">
     <p class="eyebrow">API reference</p>
     <h1>Traces</h1>
@@ -59,33 +58,57 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     <span class="tk-k">"id"</span>: <span class="tk-s">"demo-failed"</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"failed"</span>,
     <span class="tk-k">"error"</span>: <span class="tk-s">"profiler reported status 'failed' in metadata.json"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.380681Z"</span>,
-    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.381335Z"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.590922Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.592166Z"</span>,
     <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"layers"</span>: [],
     <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
     <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"kernel_count"</span>: <span class="tk-n">0</span>,
-    <span class="tk-k">"bytes"</span>: <span class="tk-n">31660291</span>,
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">16650759</span>,
     <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
-    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">false</span>
+    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">false</span>,
+    <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>
   },
   {
     <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
     <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.379301Z"</span>,
-    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.381567Z"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.587743Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.592073Z"</span>,
     <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"layers"</span>: [],
     <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
     <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
-    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
-    <span class="tk-k">"bytes"</span>: <span class="tk-n">31899901</span>,
+    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">20</span>,
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">16890250</span>,
     <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
-    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>
+    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>,
+    <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>
+  },
+  {
+    <span class="tk-k">"id"</span>: <span class="tk-s">"sample__facebook_opt-125m__h100-e2e"</span>,
+    <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
+    <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:19:57.515017Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T06:19:57.515017Z"</span>,
+    <span class="tk-k">"model"</span>: <span class="tk-s">"facebook/opt-125m"</span>,
+    <span class="tk-k">"layers"</span>: [
+      <span class="tk-s">"step 0 (prefill)"</span>,
+      <span class="tk-s">"step 2 (decode)"</span>,
+      <span class="tk-s">"step 10 (decode)"</span>,
+      <span class="tk-s">"step 26 (decode)"</span>
+    ],
+    <span class="tk-k">"source_gpu"</span>: <span class="tk-s">"NVIDIA H100 80GB HBM3"</span>,
+    <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_90"</span>,
+    <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM90_H100"</span>,
+    <span class="tk-k">"kernel_count"</span>: <span class="tk-n">712</span>,
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">13065268</span>,
+    <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">true</span>,
+    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>,
+    <span class="tk-k">"sample"</span>: <span class="tk-l">true</span>
   }
 ]</code></pre></div>
 </section>
@@ -112,69 +135,39 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
   <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
   <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
   <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.379301Z"</span>,
-  <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.381567Z"</span>,
+  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.587743Z"</span>,
+  <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.592073Z"</span>,
   <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
   <span class="tk-k">"layers"</span>: [],
   <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
   <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
   <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
-  <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
-  <span class="tk-k">"bytes"</span>: <span class="tk-n">31899901</span>,
+  <span class="tk-k">"kernel_count"</span>: <span class="tk-n">20</span>,
+  <span class="tk-k">"bytes"</span>: <span class="tk-n">16890250</span>,
   <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
   <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>,
+  <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>,
   <span class="tk-k">"metadata"</span>: {
     <span class="tk-k">"status"</span>: <span class="tk-s">"ok"</span>,
     <span class="tk-k">"files"</span>: [
       {
-        <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/corrected_timeline.json"</span>,
-        <span class="tk-k">"bytes"</span>: <span class="tk-n">238744</span>
+        <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/configs/config_hopper_islip.icnt"</span>,
+        <span class="tk-k">"bytes"</span>: <span class="tk-n">1352</span>
       },
       {
-        <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/kernel_mapping.json"</span>,
-        <span class="tk-k">"bytes"</span>: <span class="tk-n">699</span>
+        <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/configs/gpgpusim.config"</span>,
+        <span class="tk-k">"bytes"</span>: <span class="tk-n">6028</span>
       },
       {
-        <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/trace.log"</span>,
-        <span class="tk-k">"bytes"</span>: <span class="tk-n">55</span>
+        <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/configs/trace.config"</span>,
+        <span class="tk-k">"bytes"</span>: <span class="tk-n">1085</span>
       }
-      <span class="tk-c">/* 7 more items trimmed */</span>
+      <span class="tk-c">/* 24 more items trimmed */</span>
     ],
     <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
     <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>
   },
-  <span class="tk-k">"kernels"</span>: [
-    {
-      <span class="tk-k">"kernel_id"</span>: <span class="tk-n">3</span>,
-      <span class="tk-k">"name"</span>: <span class="tk-s">"_Z6euclidPcffPfiii"</span>,
-      <span class="tk-k">"grid"</span>: [
-        <span class="tk-n">938</span>,
-        <span class="tk-n">1</span>,
-        <span class="tk-n">1</span>
-      ],
-      <span class="tk-k">"block"</span>: [
-        <span class="tk-n">16</span>,
-        <span class="tk-n">1</span>,
-        <span class="tk-n">1</span>
-      ],
-      <span class="tk-k">"instructions"</span>: <span class="tk-n">161428</span>
-    },
-    {
-      <span class="tk-k">"kernel_id"</span>: <span class="tk-n">4</span>,
-      <span class="tk-k">"name"</span>: <span class="tk-s">"_Z6euclidPcffPfiii"</span>,
-      <span class="tk-k">"grid"</span>: [
-        <span class="tk-n">938</span>,
-        <span class="tk-n">1</span>,
-        <span class="tk-n">1</span>
-      ],
-      <span class="tk-k">"block"</span>: [
-        <span class="tk-n">16</span>,
-        <span class="tk-n">1</span>,
-        <span class="tk-n">1</span>
-      ],
-      <span class="tk-k">"instructions"</span>: <span class="tk-n">161308</span>
-    }
-  ]
+  <span class="tk-k">"kernels"</span>: []
 }</code></pre></div>
 <div class="code"><div class="code-bar"><span>404 response · 404 Not Found · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"detail"</span>: <span class="tk-s">"trace nope not found"</span>

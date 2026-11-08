@@ -44,7 +44,7 @@ function realTimes(data: Comparison | undefined): ReadonlyMap<number, number> {
   return m;
 }
 
-export function SimTimePanel({ runId, sims, kernels, series }: { runId: string; sims: readonly SimSummary[]; kernels: KernelsBySim; series: readonly Series[] }) {
+export function SimTimePanel({ runId, sims, kernels, series, realConfig }: { runId: string; sims: readonly SimSummary[]; kernels: KernelsBySim; series: readonly Series[]; realConfig: string | null }) {
   const [view, setView] = useState<View>("chart");
   const [order, setOrder] = useState<Order>("launch");
   const [hidden, toggle] = useHiddenKeys();
@@ -128,7 +128,7 @@ export function SimTimePanel({ runId, sims, kernels, series }: { runId: string; 
                         glyph="bar"
                         value={b.value === null ? "—" : formatNs(b.value)}
                         label={b.key}
-                        aside={real.size > 0 ? <ErrorPill error={relativeError(b.value, real.get(row.index) ?? null)} /> : undefined}
+                        aside={real.size > 0 && b.key === realConfig ? <ErrorPill error={relativeError(b.value, real.get(row.index) ?? null)} /> : undefined}
                       />
                     ))}
                     {real.has(row.index) && <TooltipLine color={REAL.color} glyph="tick" value={formatNs(real.get(row.index) ?? 0)} label={REAL.label} mono={false} />}

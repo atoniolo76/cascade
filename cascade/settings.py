@@ -41,6 +41,8 @@ class Settings:
     run_s3: bool
     workspace: str | None
     openai_wait_s: float = 3600.0
+    s3_public_url: str | None = None
+    samples: bool = True  # seed samples/ into the workspace at startup
 
     @classmethod
     def from_env(
@@ -71,6 +73,8 @@ class Settings:
             run_s3=_bool(env.get("CASCADE_RUN_S3", "true")),
             workspace=env.get("CASCADE_WORKSPACE") or None,
             openai_wait_s=wait_s,
+            s3_public_url=(env.get("CASCADE_S3_PUBLIC_URL") or "").rstrip("/") or None,
+            samples=_bool(env.get("CASCADE_SAMPLES", "true")),
         )
 
     @property

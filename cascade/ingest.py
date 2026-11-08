@@ -188,9 +188,10 @@ class Ingestor:
             return
         states = self.store.trace_states()
         flags = self.store.step_timeline_flags()
+        samples = self.store.sample_trace_ids()
         for run_dir in sorted(p for p in root.iterdir() if p.is_dir()):
             trace_id = run_dir.name
-            if trace_id.startswith("."):
+            if trace_id.startswith(".") or trace_id in samples:
                 continue
             state = states.get(trace_id)
             if state == TraceState.processing:

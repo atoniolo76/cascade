@@ -11,6 +11,7 @@ on:
       - "pyproject.toml"
       - "uv.lock"
       - "scripts/**"
+      - "samples/**"
       - "results/20261108-021007-opt125m-h100-accelsim/**"
       - ".github/workflows/image.yml"
   workflow_dispatch:

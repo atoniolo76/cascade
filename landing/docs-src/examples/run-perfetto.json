@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/runs/run-a5c5ba6e0ac7/perfetto",
+    "path": "/api/runs/run-210d75c008c4/perfetto",
     "body": null
   },
   "status": 200,
@@ -29,7 +29,7 @@
         "pid": 1,
         "name": "thread_name",
         "args": {
-          "name": "replica 0 · sim-4bc665cf326e"
+          "name": "replica 0 · sim-1047ddbdf5b1"
         },
         "tid": 1
       },
@@ -88,12 +88,12 @@
     ],
     "displayTimeUnit": "ns",
     "otherData": {
-      "run_id": "run-a5c5ba6e0ac7",
+      "run_id": "run-210d75c008c4",
       "trace_id": "demo",
       "time_axis": "simulated time, microseconds; each sim's kernels laid end to end",
       "slice_duration": "sim_time_ns = gpu_sim_cycle / core clock (MHz) * 1000",
       "kernel_scope": "sequential kernels, each including the configured launch latency; excludes host time and memcpy"
     }
   },
-  "filename": "run-a5c5ba6e0ac7-perfetto.json"
+  "filename": "run-210d75c008c4-perfetto.json"
 }

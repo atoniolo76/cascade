@@ -79,7 +79,7 @@ function buildKernels(count, seed, kinds = KERNEL_KINDS) {
 }
 const publicKernel = ({ _kind, _ipc, _bias, ...k }) => k;
 
-function makeTrace({ id, state, error = null, createdAgo, model, layers, sourceGpu, arch = "sm_90", suggested = "SM90_H100", kernelCount, bytes, realTiming, stepTimeline = false, seed, kinds }) {
+function makeTrace({ id, state, error = null, createdAgo, model, layers, sourceGpu, arch = "sm_90", suggested = "SM90_H100", kernelCount, bytes, realTiming, stepTimeline = false, sample = false, seed, kinds }) {
   const created = BOOT - createdAgo;
   const kernels = buildKernels(kernelCount, seed, kinds);
   const real = realTiming
@@ -100,10 +100,14 @@ function makeTrace({ id, state, error = null, createdAgo, model, layers, sourceG
     source_gpu: sourceGpu,
     trace_gpu_arch: arch,
     suggested_sim_config: suggested,
+    real_gpu_config: null,
+    sample_sim_configs: [],
+    sample_set: null,
     kernel_count: state === "uploading" ? 0 : kernelCount,
     bytes,
     has_real_timing: Boolean(realTiming),
     has_step_timeline: stepTimeline,
+    sample,
     _kernels: kernels,
     _real: real,
     _meta: {
@@ -235,7 +239,22 @@ const DECODE_TRACE = makeTrace({
   seed: 8,
   kinds: DECODE_KINDS,
 });
-for (const t of [SMALL_TRACE, DECODE_TRACE]) {
+// Like the bundled sample cascade serve seeds (samples/opt125m-h100-e2e): ready, with a finished run, but no traces to replay.
+const SAMPLE_TRACE = makeTrace({
+  id: "sample__facebook_opt-125m__h100-e2e",
+  state: "ready",
+  createdAgo: 18 * HOUR,
+  model: "facebook/opt-125m",
+  layers: ["step 0 (prefill)", "step 2 (decode)", "step 10 (decode)", "step 26 (decode)"],
+  sourceGpu: "NVIDIA H100 80GB HBM3",
+  kernelCount: 93,
+  bytes: 8_078_788,
+  realTiming: true,
+  stepTimeline: true,
+  sample: true,
+  seed: 11,
+});
+for (const t of [SMALL_TRACE, DECODE_TRACE, SAMPLE_TRACE]) {
   t._metadata = t._meta;
   traces.push(t);
 }
@@ -360,8 +379,8 @@ function finish(sim, state, now, extra = {}) {
   Object.assign(sim, { state, finished_at: iso(now), current_kernel: null, ...extra });
 }
 
-function createRun({ trace_id, entries, createdAt, live, settle, pace = 1, launchSpread = 1600, trouble = {} }) {
-  const run = { id: `run-${hex(6)}`, trace_id, created_at: iso(createdAt), entries };
+function createRun({ trace_id, entries, createdAt, live, settle, pace = 1, launchSpread = 1600, trouble = {}, sample = false }) {
+  const run = { id: sample ? "run-sample-opt125m-h100-e2e" : `run-${hex(6)}`, trace_id, created_at: iso(createdAt), entries, sample };
   runs.unshift(run);
   for (const { gpu_config, count } of entries) {
     for (let r = 1; r <= count; r++) {
@@ -519,6 +538,16 @@ const filesRun = createRun({
 });
 attachStepTimelines(filesRun);
 attachFiles(filesRun);
+const sampleRun = createRun({
+  trace_id: SAMPLE_TRACE.id,
+  entries: [{ gpu_config: "SM90_H100", count: 1 }],
+  createdAt: BOOT - 17 * HOUR,
+  live: false,
+  settle: settleSucceeded,
+  sample: true,
+});
+attachStepTimelines(sampleRun);
+attachFiles(sampleRun);
 createRun({
   trace_id: traces[2].id,
   entries: [{ gpu_config: "SM90_H100", count: 2 }, { gpu_config: "SM90_H200", count: 2 }],
@@ -725,7 +754,7 @@ async function readJson(req) {
 }
 
 const routes = [
-  ["GET", /^\/api\/health$/, (_m, _req, res) => send(res, 200, { ok: true }), { open: true }],
+  ["GET", /^\/api\/health$/, (_m, _req, res) => send(res, 200, { ok: true, workspace: process.env.CASCADE_WORKSPACE ?? "acme-inference-lab" }), { open: true }],
   ["GET", /^\/api\/gpu-configs$/, (_m, _req, res) => send(res, 200, CONFIGS)],
   ["GET", /^\/api\/traces$/, (_m, _req, res) => send(res, 200, traces.map(traceSummary))],
   ["GET", /^\/api\/traces\/([^/]+)$/, ([id], _req, res) => {
@@ -738,6 +767,7 @@ const routes = [
     const trace = traceById(body?.trace_id);
     if (!trace) return send(res, 404, { detail: "trace not found" });
     if (trace.state !== "ready") return send(res, 409, { detail: `trace is ${trace.state}, not ready` });
+    if (trace.sample) return send(res, 409, { detail: `trace ${trace.id} is a sample without its instruction traces; it can't run` });
     for (const e of body.entries ?? []) {
       const cfg = CONFIGS.find((c) => c.name === e.gpu_config);
       if (!cfg) return send(res, 422, { detail: `unknown gpu_config ${e.gpu_config}` });

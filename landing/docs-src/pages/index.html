@@ -28,6 +28,8 @@ description: Cascade traces an ML workload once on a real GPU and simulates it o
 <li><strong>Simulators.</strong> Each simulator is a fork of the app's sandbox, so it starts with the trace already on disk. It runs Accel-Sim against one GPU config and reports progress back to the app.</li>
 </ul>
 
+<div class="note"><p>Every workspace includes a sample run. Profiling a workload takes about 30 minutes, so each app opens with a finished one marked Sample: Alessio's facebook/opt-125m trace from an H100 and its Accel-Sim run on `SM90_H100`, with real step timing to compare against. Its results are real, recorded before your workspace existed, and you can't rerun it because its 415 MB of instruction traces aren't bundled. See [samples/opt125m-h100-e2e](https://github.com/atoniolo76/cascade/tree/amani/samples/opt125m-h100-e2e). Set `CASCADE_SAMPLES=false` to start without it.</p></div>
+
 <h2>Where to go next</h2>
 <div class="cards">
 <a class="card" href="../start.html"><strong>Get started</strong><span>Create your own Cascade app on Sail from the browser with a workspace name and a Sail API key. No clone.</span></a>

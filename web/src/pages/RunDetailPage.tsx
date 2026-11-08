@@ -14,7 +14,7 @@ import { SimTimePanel } from "../components/run/SimTimePanel";
 import { StepTimingPanel } from "../components/run/StepTimingPanel";
 import { RunTimeline } from "../components/timeline/RunTimeline";
 import { ConfigChips } from "../components/RunsTable";
-import { TraceChip } from "../components/TraceState";
+import { SampleBadge, TraceChip } from "../components/TraceState";
 import { Button, Card, CopyButton, EmptyState, ErrorNote, Panel, RelTime, Skeleton } from "../components/ui";
 import { ICON, buttonClass } from "../components/styles";
 import { cx } from "../components/cx";
@@ -24,8 +24,10 @@ import { OVER_HINT, aggregateProgress, configSeries, estimateRemaining, orderedS
 import { RUN_STATE, SIM_STATE, TONE_VARS, deriveRunState, type Tone } from "../domain/status";
 import { useNow } from "../hooks/useNow";
 import { useRunStream, type Connection } from "../hooks/useRunStream";
+import { isTyping } from "../lib/keys";
 import { toast } from "../lib/toast";
 import { paths } from "../paths";
+import { SAMPLE_README_URL, sampleRunLine } from "../domain/samples";
 
 const CONNECTION: Record<Connection, { label: string; tone: Tone; live: boolean }> = {
   connecting: { label: "Connecting", tone: "pending", live: false },
@@ -89,10 +91,6 @@ function useSimTransitionToasts(runId: string, run: RunDetail | undefined) {
     }
     seen.current = { runId, states: new Map(run.sims.map((s) => [s.id, s.state])) };
   }, [runId, run]);
-}
-
-function isTyping(target: EventTarget | null) {
-  return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 }
 
 function RunView({ live, connection, onRun }: { live: Live; connection: Connection; onRun: (run: RunDetail) => void }) {
@@ -171,10 +169,11 @@ function RunView({ live, connection, onRun }: { live: Live; connection: Connecti
           status={
             <span className="flex items-center gap-3">
               <Status tone={RUN_STATE[runState].tone} live={RUN_STATE[runState].live} label={RUN_STATE[runState].label} />
+              {run.sample && <SampleBadge />}
               {(runState === "active" || connection !== "live") && <ConnectionBadge connection={connection} />}
             </span>
           }
-          actions={<RunActions run={run} active={runState === "active"} onRun={onRun} />}
+          actions={<RunActions run={run} cancellable={runState === "active" && !run.sample} onRun={onRun} />}
           neighbors={{ prev: neighbor(at - 1), next: neighbor(at + 1), noun: "run" }}
         >
           <div className="w-fit max-w-full rounded-[16px] bg-card px-4 py-2.5 text-[15px] leading-8 text-fg-2 ring-1 ring-border">
@@ -188,21 +187,29 @@ function RunView({ live, connection, onRun }: { live: Live; connection: Connecti
               · started <RelTime iso={run.created_at} />
             </span>
           </div>
+          {run.sample && (
+            <p className="text-[13px] text-muted">
+              {sampleRunLine(run)}{" "}
+              <a href={SAMPLE_README_URL} target="_blank" rel="noreferrer" className="font-medium text-link hover:underline">
+                About this sample
+              </a>
+            </p>
+          )}
         </PageHeader>
 
         <div className="flex flex-col gap-8">
           <RunSummaryCard run={run} runState={runState} />
+
+          <StepTimingPanel runId={run.id} trace={run.trace} live={runState === "active"} series={series} />
 
           <SimGrid sims={sims} series={series} selectedId={selected?.id ?? null} onSelect={select} />
 
           <RunTimeline run={run} kernels={live.kernels} series={series} live={runState === "active"} />
 
           <div className="grid gap-8 2xl:grid-cols-2">
-            <SimTimePanel runId={run.id} sims={run.sims} kernels={live.kernels} series={series} />
-            <ComparisonPanel runId={run.id} live={runState === "active"} series={series} />
+            <SimTimePanel runId={run.id} sims={run.sims} kernels={live.kernels} series={series} realConfig={run.trace.real_gpu_config} />
+            {run.trace.real_gpu_config && <ComparisonPanel runId={run.id} live={runState === "active"} series={series.filter((s) => s.key === run.trace.real_gpu_config)} />}
           </div>
-
-          <StepTimingPanel runId={run.id} live={runState === "active"} series={series} />
 
           <OutputsPanel runId={run.id} live={runState === "active"} hasKernels={Object.keys(live.kernels).length > 0} series={series} />
         </div>
@@ -233,7 +240,7 @@ function ConnectionBadge({ connection }: { connection: Connection }) {
   );
 }
 
-function RunActions({ run, active, onRun }: { run: RunDetail; active: boolean; onRun: (run: RunDetail) => void }) {
+function RunActions({ run, cancellable, onRun }: { run: RunDetail; cancellable: boolean; onRun: (run: RunDetail) => void }) {
   const cancel = useCancelRun(run.id);
   const [confirming, setConfirming] = useState(false);
   const [downloadError, setDownloadError] = useState<unknown>(null);
@@ -261,7 +268,7 @@ function RunActions({ run, active, onRun }: { run: RunDetail; active: boolean; o
           <Download className="size-4" {...ICON} />
           Results
         </Button>
-        {active && (
+        {cancellable && (
           <Button
             variant="danger"
             className="min-w-[124px]"

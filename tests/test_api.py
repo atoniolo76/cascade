@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 
@@ -53,11 +54,45 @@ def setup(tmp_path):
 
 def test_auth(setup):
     client, _, _ = setup
-    assert client.get("/api/health").json() == {"ok": True, "auth": True, "workspace": None}
+    assert client.get("/api/health").json() == {
+        "ok": True,
+        "auth": True,
+        "workspace": None,
+        "s3_endpoint": None,
+    }
     assert client.get("/api/traces").status_code == 401
     assert client.get("/api/traces", headers={"Authorization": "Bearer nope"}).status_code == 401
     assert client.get("/api/runs/x/events?token=nope").status_code == 401
     assert client.get("/api/nope", headers=AUTH).status_code == 404
+
+
+def test_sample_metadata_reaches_trace_summaries_and_details(tmp_path):
+    settings = make_settings(tmp_path)
+    run = write_processed_trace(settings, "sample", arch="sm_90")
+    metadata = json.loads((run / "metadata.json").read_text())
+    fields = {
+        "real_gpu_config": "SM90_H100",
+        "sample_sim_configs": ["SM90_H100", "SM90_H200"],
+        "sample_set": "cascade-samples",
+    }
+    metadata.update(fields)
+    (run / "metadata.json").write_text(json.dumps(metadata))
+    with TestClient(create_app(settings, RecordingLauncher())) as client:
+        wait_for(
+            lambda: client.get("/api/traces/sample", headers=AUTH).json().get("state") == "ready"
+        )
+        summary = client.get("/api/traces", headers=AUTH).json()[0]
+        detail = client.get("/api/traces/sample", headers=AUTH).json()
+        for key, value in fields.items():
+            assert summary[key] == detail[key] == detail["metadata"][key] == value
+
+
+def test_sample_metadata_defaults_for_ordinary_traces(setup):
+    client, _, _ = setup
+    trace = client.get("/api/traces/trace-h100", headers=AUTH).json()
+    assert trace["real_gpu_config"] is None
+    assert trace["sample_sim_configs"] == []
+    assert trace["sample_set"] is None
 
 
 def test_health_names_the_workspace(tmp_path):
@@ -66,10 +101,21 @@ def test_health_names_the_workspace(tmp_path):
         assert client.get("/api/health").json()["workspace"] == "acme-lab"
 
 
+def test_health_reports_the_public_s3_endpoint(tmp_path):
+    settings = make_settings(tmp_path, CASCADE_S3_PUBLIC_URL="https://sb-1-9000.sail.box/")
+    with TestClient(create_app(settings, RecordingLauncher())) as client:
+        assert client.get("/api/health").json()["s3_endpoint"] == "https://sb-1-9000.sail.box"
+
+
 def test_no_auth_dev_mode_skips_tokens(tmp_path):
     settings = make_settings(tmp_path, CASCADE_TOKEN="", CASCADE_NO_AUTH="1")
     with TestClient(create_app(settings, RecordingLauncher())) as client:
-        assert client.get("/api/health").json() == {"ok": True, "auth": False, "workspace": None}
+        assert client.get("/api/health").json() == {
+            "ok": True,
+            "auth": False,
+            "workspace": None,
+            "s3_endpoint": None,
+        }
         assert client.get("/api/traces").status_code == 200
         assert (
             client.get("/api/traces", headers={"Authorization": "Bearer nope"}).status_code == 200

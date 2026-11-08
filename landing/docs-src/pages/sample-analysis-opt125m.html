@@ -1,0 +1,286 @@
+<!--
+title: OPT-125m sample: GPU profiling → instruction simulation → request replay
+nav: OPT-125m sample analysis
+description: Analysis of the existing H100 sample: pipeline costs, kernel and request replay errors, coverage, dedup verification and limitations.
+-->
+
+<h2>Full-request result</h2>
+<p><strong>254.45 ms real H100 → 262.14 ms simulated H100 (+3.02%)</strong>, mean of steady repeats 1–3 for the 32-token request. Mean TTFT is 8.63 ms real versus 9.00 ms simulated (+4.3%); mean ITL is 7.93 ms versus 8.17 ms (+3.06%). The H200 counterfactual is 262.16 ms (+3.03% against real H100), not a measured H200 accuracy result. The tables below give the per-repeat request numbers and a compact kernel-error breakdown.</p>
+<p>These headline values use the precision of the OPT-125m results draft; detailed tables below retain the committed artifacts' precision and distinguish the original verification run from the later Sail sweep. The ~3 µs (~6,000-cycle) per-kernel floor is the inferred main source of tiny-kernel over-prediction; calibrating it offers the largest GPU-accuracy payoff.</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Request metric (mean)</th><th>Real H100</th><th>Simulated H100</th><th>Signed error</th></tr></thead><tbody>
+<tr><td><strong>Full request (e2e)</strong></td><td><strong>254.45 ms</strong></td><td><strong>262.14 ms</strong></td><td><strong>+3.02%</strong></td></tr>
+<tr><td>Time to first token (TTFT)</td><td>8.63 ms</td><td>9.00 ms</td><td>+4.3%</td></tr>
+<tr><td>Inter-token latency (ITL)</td><td>7.93 ms</td><td>8.17 ms</td><td>+3.06%</td></tr>
+</tbody></table></div>
+
+<h3>Each steady repeat</h3>
+<div class="table-wrap"><table class="table"><thead><tr><th>Repeat</th><th>Real e2e ms</th><th>H100 sim ms</th><th>Error</th><th>Real / sim TTFT ms</th><th>Real / sim ITL mean ms</th></tr></thead><tbody>
+<tr><td>1</td><td>253.435</td><td>261.134</td><td>+7.699 ms (+3.04%)</td><td>8.636 / 8.987</td><td>7.897 / 8.141</td></tr>
+<tr><td>2</td><td>254.613</td><td>262.302</td><td>+7.689 ms (+3.02%)</td><td>8.383 / 8.710</td><td>7.943 / 8.187</td></tr>
+<tr><td>3</td><td>255.308</td><td>262.988</td><td>+7.680 ms (+3.01%)</td><td>8.865 / 9.302</td><td>7.950 / 8.191</td></tr>
+</tbody></table></div>
+
+<h3>Where the error comes from</h3>
+<p>The profiler measures unprofiled request/step timing and Nsight kernel timing separately. NVBit traces four steps (prefill and decode at contexts ≈ 8, 16, 32); Accel-Sim simulates 31 distinct kernels, then propagates durations to 17,088 steady kernel launches. Replay swaps in simulated kernel durations while retaining measured host residuals, gaps and unmatched GPU activity.</p>
+<div class="table-wrap"><table class="table"><thead><tr><th>Kernel group</th><th>Real mean µs</th><th>H100 sim µs</th><th>Signed error</th></tr></thead><tbody>
+<tr><td>QKV GEMM</td><td>4.69</td><td>4.94</td><td>+5.4%</td></tr>
+<tr><td>Attention</td><td>6.33</td><td>6.86</td><td>+8.5%</td></tr>
+<tr><td>Out-proj GEMM</td><td>4.08</td><td>4.46</td><td>+9.3%</td></tr>
+<tr><td>MLP up GEMM</td><td>4.88</td><td>5.47</td><td>+12.1%</td></tr>
+<tr><td>MLP down GEMM</td><td>5.01</td><td>5.19</td><td>+3.6%</td></tr>
+<tr><td>lm_head GEMM</td><td>30.62</td><td>26.26</td><td>−14.2%</td></tr>
+<tr><td>KV-cache write</td><td>2.05</td><td>4.08</td><td>+98.7%</td></tr>
+<tr><td>Split-K reduction</td><td>1.94</td><td>3.67</td><td>+89.2%</td></tr>
+<tr><td>Layer norm</td><td>3.40</td><td>5.10</td><td>+49.9%</td></tr>
+<tr><td>Small elementwise</td><td>1.39</td><td>3.23</td><td>+133.3%</td></tr>
+</tbody></table></div>
+<p>Kernel means compare the 712 aligned traced occurrences, not full-request-weighted decodes; group roles are inferred from kernel names. <strong>Interpretation:</strong> a ~3 µs (~6,000-cycle) per-kernel floor makes tiny kernels 1.5–2.3× too slow. With 178 kernels per step, small elementwise, layer norm, KV-write and split-K kernels account for about 200 µs of the ~240 µs step over-prediction (derived). Calibrating that floor is the main accuracy opportunity.</p>
+<div class="note"><strong>Small request error is not small GPU error.</strong> Decode GPU busy is 575.6 µs real versus 817.0 µs simulated (+41.9%, about +42%). In eager mode, about 93% of step wall time is the retained host residual (a derived residual, not independently measured CPU time). That dilutes GPU error to about +3% e2e; CUDA graphs could move request error toward ~42% unless the floor is calibrated.</div>
+
+<h3>Across architectures</h3>
+<div class="table-wrap"><table class="table"><thead><tr><th>Hardware / config</th><th>Full request mean</th><th>Comparison / status</th></tr></thead><tbody>
+<tr><td>Real H100</td><td>254.45 ms</td><td>Measured unprofiled reference</td></tr>
+<tr><td>SM90_H100 simulation</td><td>262.14 ms</td><td>+3.02% vs real H100</td></tr>
+<tr><td>SM90_H200 simulation</td><td>262.16 ms</td><td>+3.03% vs real H100; counterfactual, not measured H200 accuracy</td></tr>
+<tr><td>A100 / SM80_A100</td><td>Pending</td><td>Native A100 run in progress — numbers pending; needs its own SM80 traces</td></tr>
+<tr><td>B200 / Blackwell</td><td>—</td><td>No config exists in Accel-Sim</td></tr>
+</tbody></table></div>
+<p>H100 traces run on H100/H200 (sm_90); older architectures are rejected for mismatch. H200 differs here only in memory-controller count (40 → 48), yielding +0.02 ms per request. <strong>Inference:</strong> this small workload does not separate the configs; the simplified H200 model is not a validated physical H200.</p>
+<div class="warn">Coverage is 100%, not proof of accuracy: dedup verification found up to 39.7% cycle disagreement in one small-kernel group. Attention and KV-write cycles are reused across short contexts, so this is not a context-scaling result.</div>
+
+<h2>Scope and evidence</h2>
+
+<p>This analysis describes the **existing H100 `e2e-plan-v1` sample**, not a generic model benchmark. All measured values below are computed from:</p>
+
+<ul>
+<li>`/home/ubuntu/runs/phases/e2e-plan-v1/`: `run.json`, `workload.json`,   `corrected_timeline.json`, `trace_alignment.json`, phase logs/step logs,   `sim/kernels.csv`, `sim/summary.json`, `sim_durations.json`, `sim/compare.json`.</li>
+<li>Committed [hardware sweep](https://github.com/atoniolo76/cascade/blob/8cbcd04d46daa2c57089193c76f3c25584d485cc/results/hw-sweep/README.md): inventory,   per-kernel/step/request CSVs, H100/H200 summaries and comparisons.</li>
+</ul>
+
+<p>Absolute paths identify the collected evidence on the execution VM, not portable dependencies of Cascade. The hardware-sweep artifacts are committed; the large profiling run is retained in the run store. See the [run-directory contract](https://github.com/atoniolo76/cascade/blob/8cbcd04d46daa2c57089193c76f3c25584d485cc/docs/run-dir-contract.md) for file ownership and semantics. Numbers marked **derived** are arithmetic on these artifacts; **inferred** means interpretation, not an additional measurement.</p>
+
+<p>**A100 status (updated results draft): native A100 run in progress — numbers pending.** The draft reports profiler `f190c99` tracing to local disk. The earlier launch described in the committed analysis stopped before image build with `Token missing. Could not authenticate client.` No completed A100 baseline or SM80 comparison is reported here. Missing values are not zero and no H100 traces are substituted for A100 SASS.</p>
+
+<h2>Workload and environment</h2>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Item</th><th>Saved value</th></tr></thead><tbody>
+<tr><td>Model / architecture</td><td>`facebook/opt-125m` / `OPTForCausalLM`</td></tr>
+<tr><td>Prompt</td><td>`Hello, my name is` (six scheduled prefill tokens)</td></tr>
+<tr><td>Generation</td><td>32 output tokens, four repeats; repeat 0 is warm-up</td></tr>
+<tr><td>Execution</td><td>eager (`enforce_eager=true`), async scheduling off</td></tr>
+<tr><td>Model shape</td><td>12 layers, hidden 768, 12 attention/KV heads, head dimension 64</td></tr>
+<tr><td>Numeric format / parallelism</td><td>float16, tensor parallel size 1, no quantization</td></tr>
+<tr><td>vLLM / measured GPU</td><td>0.21.0 / NVIDIA H100 80GB HBM3</td></tr>
+<tr><td>Profiled median SM / memory clocks</td><td>1980 MHz / 2619 MHz</td></tr>
+<tr><td>Accel-Sim / GPGPU-Sim pins</td><td>`7ba54de` / `4195dd4`</td></tr>
+<tr><td>Simulation core clocks</td><td>H100 and H200: 1980 MHz, read from config</td></tr>
+</tbody></table></div>
+
+<p>There are **32 steps/request: one prefill and 31 decode**, not 33 steps. Repeat-local traced steps are 0, 2, 10, 26, at contexts 6, 8, 16, 32. The requested plan contains context 1, but this six-token prompt has no such decode context. All 128 timing steps exist; the three steady repeats have 96 profiled steps and 17,088 kernels (178 per step). Repeat 1 supplies the four instruction-traced steps: 712 aligned occurrences.</p>
+
+<h2>Pipeline cost</h2>
+
+<p>These are stage wall seconds from the **original** run, not the later Sail sweep. The trace stage includes both spinlock-detection passes and the NVBit trace process. Compilation/image build, scheduling and downloads are excluded.</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Stage</th><th>Wall seconds</th><th>Share of summed stages (derived)</th></tr></thead><tbody>
+<tr><td>Baseline process</td><td>123.582</td><td>4.67%</td></tr>
+<tr><td>Nsight-profiled process</td><td>30.140</td><td>1.14%</td></tr>
+<tr><td>NVBit + spinlock processes</td><td>1738.577</td><td>65.73%</td></tr>
+<tr><td>Trace post-processing</td><td>34.171</td><td>1.29%</td></tr>
+<tr><td>Accel-Sim orchestration</td><td>718.709</td><td>27.17%</td></tr>
+<tr><td>Total of the above</td><td>2645.179</td><td>100%</td></tr>
+</tbody></table></div>
+
+<p>NVBit step envelopes come from `traced/trace_steps.json` monotonic timestamps:</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Local step</th><th>Context</th><th>Instrumented step seconds</th></tr></thead><tbody>
+<tr><td>0</td><td>6</td><td>390.943</td></tr>
+<tr><td>2</td><td>8</td><td>375.588</td></tr>
+<tr><td>10</td><td>16</td><td>375.926</td></tr>
+<tr><td>26</td><td>32</td><td>372.553</td></tr>
+</tbody></table></div>
+
+<p>The sum is 1515.010 seconds (derived), not the full 1738.577-second stage. Spinlock pass 0 and pass 1 step-log spans, from first step start to last step end, are 50.968 and 44.285 seconds. These spans **exclude process/engine startup**; they are not complete pass wall timings. Trace-process step span is 1541.794 seconds, also excluding its startup/teardown.</p>
+
+<p>The logs explicitly report engine initialization (profile/KV-cache/warmup) of 85.80 seconds in baseline, 2.00 in profiled, 13.72 in spinlock pass 0, 13.68 in pass 1 and 13.78 in tracing. These overlap the stage totals and must not be added again. Baseline weight loading alone is only 0.41 seconds. **Inference:** engine initialization and cold/warm caches are significant; the difference between processes does not isolate any one cache's effect.</p>
+
+<h3>Local-disk optimization and artifact compatibility</h3>
+
+<p>The old trace logs show `TRACES_FOLDER`/working paths under `/__modal/volumes/.../phases/e2e-plan-v1/traced`; the approximately 375-second decode envelopes above are measured on that path. This alone does not prove the fraction attributable to volume I/O. The separate earlier local-disk comparison mentioned in the task is not in the source artifacts above, so no measured speedup factor is asserted here.</p>
+
+<p>Profiler commit `0b54e42` now runs both spinlock passes, tracing and post-processing under `/tmp/cascade-trace-*/traced`, then copies the result once into the run directory, measuring `stage_wall_s.trace_collect`. Failures also collect diagnostic files before scratch cleanup. This commit was tested and pushed **before** the A100 launch; `f190c99` adds `--gpu` and builds NVBit with `ARCH=all` rather than an H100-only binary.</p>
+
+<p>**No bundle was introduced.** The collected directory preserves the existing `traced/traces/kernel-*.trace.xz`, `kernelslist.g` and processed `.tracez` layout, plus `traced/trace_steps.json`, metrics, spinlock data and logs. The pipeline's post-processor provides the existing compressed trace format; collection is a directory copy, not tar/zstd. No extraction command or app ingestion change is needed. The separate legacy streaming S3 path is unchanged. The real A100 layout and performance still require a completed run; the earlier launch did not reach a GPU.</p>
+
+<h2>Real timeline anatomy</h2>
+
+<p>The following means cover three steady prefills and 93 steady decodes. `host_ns = baseline_wall_ns − gpu_busy_ns` is a **residual decomposition**: it is not independently instrumented exclusive CPU time. CUDA API time can overlap GPU work and is not an additional summand.</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Step kind</th><th>N</th><th>Baseline wall mean ms</th><th>Wall p50 ms</th><th>GPU busy mean ms</th><th>Residual host mean ms</th><th>CUDA API mean ms</th></tr></thead><tbody>
+<tr><td>Prefill</td><td>3</td><td>8.498641</td><td>8.458830</td><td>0.615279</td><td>7.883362</td><td>1.637063</td></tr>
+<tr><td>Decode</td><td>93</td><td>7.894492</td><td>7.848008</td><td>0.575611</td><td>7.318881</td><td>1.656008</td></tr>
+</tbody></table></div>
+
+<p>Decode gap-before mean/p50 is 0.036950/0.035911 ms. First-step gaps are null, not an extra request boundary delay. Request endpoint fields retain signed post-last-step intervals; they must not be replaced by zero.</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Steady repeat</th><th>Real TTFT ms</th><th>Real ITL mean ms</th><th>Real E2E ms</th><th>Sum walls ms</th><th>Sum gaps ms</th></tr></thead><tbody>
+<tr><td>1</td><td>8.636344</td><td>7.896743</td><td>253.435384</td><td>252.179409</td><td>1.158236</td></tr>
+<tr><td>2</td><td>8.382869</td><td>7.942919</td><td>254.613360</td><td>253.426680</td><td>1.109083</td></tr>
+<tr><td>3</td><td>8.864829</td><td>7.949773</td><td>255.307791</td><td>254.077620</td><td>1.169005</td></tr>
+</tbody></table></div>
+
+<p>Walls + gaps are not the whole envelope: the contract also preserves pre-first-step and signed post-last-step terms. ITL p50 is absent in the original request metrics, so none is invented.</p>
+
+<h3>Real kernel mix per step</h3>
+
+<p>Counts and summed kernel durations below are averaged over **all steady steps of each kind**, not just the four instruction samples. Names are classified with `results/hw-sweep/report.py::group`: KV/attention names, `nvjet` GEMM grid-Y values 9/3/12/6/66 for QKV/out/up/down/lm_head, and elementwise/layer-norm/reduction names. Role labels are **inferred**, not NVTX annotations. Kernel sums need not equal step GPU busy (unmatched residual activity and the busy-time aggregation are different quantities).</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Group</th><th>Kernels/step</th><th>Prefill summed GPU µs</th><th>Decode summed GPU µs</th></tr></thead><tbody>
+<tr><td>QKV GEMM</td><td>12</td><td>56.682</td><td>55.910</td></tr>
+<tr><td>Attention</td><td>12</td><td>95.584</td><td>69.689</td></tr>
+<tr><td>KV write</td><td>12</td><td>26.645</td><td>23.904</td></tr>
+<tr><td>Out-proj</td><td>12</td><td>49.258</td><td>49.028</td></tr>
+<tr><td>MLP up GEMM</td><td>12</td><td>58.900</td><td>58.622</td></tr>
+<tr><td>MLP down GEMM</td><td>12</td><td>60.288</td><td>59.908</td></tr>
+<tr><td>MLP down split-K reduction</td><td>12</td><td>24.096</td><td>23.163</td></tr>
+<tr><td>lm_head</td><td>1</td><td>30.773</td><td>30.474</td></tr>
+<tr><td>Small elementwise</td><td>63</td><td>88.585</td><td>86.520</td></tr>
+<tr><td>Layer norm</td><td>25</td><td>85.151</td><td>85.398</td></tr>
+<tr><td>Other setup/index/reduction</td><td>5</td><td>28.533</td><td>22.196</td></tr>
+<tr><td>Total count</td><td>178</td><td>—</td><td>—</td></tr>
+</tbody></table></div>
+
+<h2>Accel-Sim by kernel group</h2>
+
+<p>These tables use the **later Sail hardware sweep**, where both configs ran 31 representatives with verification disabled. Means are over the same 712 aligned occurrences (one prefill and three sampled decodes); they are not weighted by the full request's 31 decodes. Real values are matched by `(repeat, step, seq)`, not approximate name matching. `cycles / MHz = µs`. Error is signed `(mean simulated µs / mean real µs − 1) × 100`, not MAPE. The reference is Nsight-measured kernel time, not independently measured unprofiled per-kernel time; only step/request baselines are unprofiled.</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Group</th><th>Real mean µs</th><th>H100 mean cycles</th><th>H100 µs</th><th>H100 error %</th><th>H200 mean cycles</th><th>H200 µs</th><th>H200 vs H100-reference error %</th></tr></thead><tbody>
+<tr><td>QKV GEMM</td><td>4.689312</td><td>9786.000</td><td>4.942424</td><td>+5.398</td><td>9771.000</td><td>4.934848</td><td>+5.236</td></tr>
+<tr><td>Attention</td><td>6.326604</td><td>13589.750</td><td>6.863510</td><td>+8.486</td><td>13590.250</td><td>6.863763</td><td>+8.490</td></tr>
+<tr><td>KV write</td><td>2.052000</td><td>8073.750</td><td>4.077652</td><td>+98.716</td><td>8073.250</td><td>4.077399</td><td>+98.704</td></tr>
+<tr><td>Out-proj</td><td>4.079292</td><td>8832.000</td><td>4.460606</td><td>+9.348</td><td>8831.000</td><td>4.460101</td><td>+9.335</td></tr>
+<tr><td>MLP up GEMM</td><td>4.875271</td><td>10821.000</td><td>5.465152</td><td>+12.099</td><td>10684.000</td><td>5.395960</td><td>+10.680</td></tr>
+<tr><td>MLP down GEMM</td><td>5.007292</td><td>10273.000</td><td>5.188384</td><td>+3.617</td><td>10282.000</td><td>5.192929</td><td>+3.707</td></tr>
+<tr><td>Split-K reduction</td><td>1.940000</td><td>7269.000</td><td>3.671212</td><td>+89.238</td><td>7269.000</td><td>3.671212</td><td>+89.238</td></tr>
+<tr><td>lm_head</td><td>30.623500</td><td>52002.000</td><td>26.263636</td><td>−14.237</td><td>55296.000</td><td>27.927273</td><td>−8.804</td></tr>
+<tr><td>Small elementwise</td><td>1.385139</td><td>6397.849</td><td>3.231237</td><td>+133.279</td><td>6397.044</td><td>3.230830</td><td>+133.250</td></tr>
+<tr><td>Layer norm</td><td>3.404100</td><td>10103.750</td><td>5.102904</td><td>+49.905</td><td>10099.750</td><td>5.100884</td><td>+49.845</td></tr>
+<tr><td>Other setup/index/reduction</td><td>4.753550</td><td>13534.600</td><td>6.835657</td><td>+43.801</td><td>13486.800</td><td>6.811515</td><td>+43.293</td></tr>
+</tbody></table></div>
+
+<p>H200's error column is a **counterfactual against the real H100 reference**, not accuracy against measured H200 hardware. No real H200 baseline exists. The shipped H100/H200 configs both have 132 SMs, identical clocks and simple DRAM modeling; memory-controller count changes from 40 to 48. Near-identical request predictions do not imply physical H100/H200 equivalence.</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Native workload / modeled config</th><th>Real baseline</th><th>Sim wall s</th><th>Unique executions / traced occurrences</th><th>Failures / timeouts</th></tr></thead><tbody>
+<tr><td>H100 traces / H100, original verification run</td><td>H100</td><td>718.709</td><td>93 / 712</td><td>0 / 0</td></tr>
+<tr><td>H100 traces / H100, Sail sweep</td><td>H100</td><td>804.429</td><td>31 / 712</td><td>0 / 0</td></tr>
+<tr><td>H100 traces / H200, Sail sweep</td><td>H100 counterfactual only</td><td>777.060</td><td>31 / 712</td><td>0 / 0</td></tr>
+<tr><td>A100 traces / SM80_A100</td><td>Native run in progress — numbers pending</td><td>—</td><td>—</td><td>pending</td></tr>
+</tbody></table></div>
+
+<h2>Coverage, dedup verification and context scaling</h2>
+
+<p>Both original and Sail replay cover **17,088/17,088 steady kernels (100%)**; each captured request has 5696/5696. Measured GPU-time coverage is **98.13%**; the unmatched measured remainder is retained, not modeled by Accel-Sim. Warm-up has no comparable profiled kernels. Coverage is not an accuracy score.</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Run</th><th>Exact</th><th>Dedup</th><th>Identical propagation</th><th>Interpolation</th><th>Verification</th></tr></thead><tbody>
+<tr><td>Original H100</td><td>93</td><td>619</td><td>15206</td><td>1170</td><td>2 extra members/group</td></tr>
+<tr><td>Sail H100</td><td>31</td><td>681</td><td>16376</td><td>0</td><td>disabled</td></tr>
+<tr><td>Sail H200</td><td>31</td><td>681</td><td>16376</td><td>0</td><td>disabled</td></tr>
+</tbody></table></div>
+
+<p>The original has 31 header groups, 31 representatives plus 62 verification executions. The sum of individual simulation wall times is 2866.019 seconds, versus 718.709 orchestration seconds because kernels execute concurrently. Do not sum reused dedup-row wall fields as additional CPU executions.</p>
+
+<p>Dedup keys contain launch/header properties, **not full instruction/memory trace contents**. Original verification therefore matters:</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Group / representative UID</th><th>Maximum cycle difference</th><th>Maximum relative difference</th></tr></thead><tbody>
+<tr><td>Index-select setup, 6217</td><td>4426</td><td>39.734%</td></tr>
+<tr><td>Small elementwise, 6379</td><td>604</td><td>6.404%</td></tr>
+<tr><td>Prefill layer norm, 6221</td><td>621</td><td>6.145%</td></tr>
+<tr><td>QKV GEMM, 6222</td><td>360</td><td>3.679%</td></tr>
+<tr><td>Out-proj, 6226</td><td>201</td><td>2.276%</td></tr>
+<tr><td>Decode layer norm, 6577</td><td>213</td><td>2.108%</td></tr>
+<tr><td>MLP down GEMM, 6231</td><td>127</td><td>1.236%</td></tr>
+<tr><td>MLP up GEMM, 6229</td><td>132</td><td>1.220%</td></tr>
+</tbody></table></div>
+
+<p>The largest mismatch is UID 6573 versus representative 6217 (`indexSelectSmallIndex`), not attention or a large GEMM. It occurs between different prefill/decode input contexts sharing a header. This demonstrates that header identity is not cycle identity; it does not quantify error for every unverified group member. A zero reference did not produce nonzero verification cycles in this sample.</p>
+
+<p>First-layer original duration records show:</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Local step / context</th><th>KV cycles</th><th>KV provenance</th><th>Attention cycles</th><th>Attention provenance</th></tr></thead><tbody>
+<tr><td>0 / 6</td><td>8229</td><td>exact</td><td>14501</td><td>exact</td></tr>
+<tr><td>2 / 8</td><td>8022</td><td>exact</td><td>13286</td><td>exact</td></tr>
+<tr><td>10 / 16</td><td>8022</td><td>dedup:6579</td><td>13286</td><td>dedup:6580</td></tr>
+<tr><td>26 / 32</td><td>8022</td><td>dedup:6579</td><td>13286</td><td>dedup:6580</td></tr>
+</tbody></table></div>
+
+<p>Thus this pipeline's output is flat across sampled decode contexts **because it reuses representative cycles**. This is not an independent observation of physical/context-invariant attention. The original decode attention/KV verification comparisons have zero difference, but those two checked members do not establish arbitrary context scaling. In the verification-free Sail sweep, all sampled decode groups satisfy identical propagation, so enabling `propagate=interp` actually yields **zero interpolation labels**. Inference: independent context simulations and a stronger cache/dedup key are required before making scaling claims; the current results do not provide them.</p>
+
+<h2>Replay errors and eager-mode dilution</h2>
+
+<p>`cascade simulate` replaces modeled kernel durations while retaining host residuals, gaps, unmatched GPU activity and request envelopes. Both original and later runs use the same real H100 baseline. Positive signed errors below mean simulation is longer; the original step/GPU mean errors are all positive.</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Run</th><th>Mean abs step error µs / %</th><th>Mean abs GPU-busy error µs / %</th></tr></thead><tbody>
+<tr><td>Original H100</td><td>239.587 / 3.031</td><td>239.587 / 41.551</td></tr>
+<tr><td>Sail H100</td><td>240.307 / 3.040</td><td>240.307 / 41.676</td></tr>
+<tr><td>Sail H200 counterfactual</td><td>240.942 / 3.048</td><td>240.942 / 41.786</td></tr>
+</tbody></table></div>
+
+<p>Original H100 p50/p95 absolute step errors are 240.540/242.402 µs.</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Repeat</th><th>Original TTFT error ms</th><th>ITL mean error ms</th><th>E2E error ms</th><th>Sail H100 E2E error ms</th><th>Sail H200 E2E error ms</th></tr></thead><tbody>
+<tr><td>1</td><td>+0.350397</td><td>+0.243503</td><td>+7.675474</td><td>+7.698534</td><td>+7.718827</td></tr>
+<tr><td>2</td><td>+0.326948</td><td>+0.243288</td><td>+7.665878</td><td>+7.688938</td><td>+7.709231</td></tr>
+<tr><td>3</td><td>+0.436559</td><td>+0.239997</td><td>+7.657047</td><td>+7.680107</td><td>+7.700400</td></tr>
+</tbody></table></div>
+
+<p>Later sweep GPU busy decode/prefill mean is 816.980/822.679 µs for H100 and 817.620/823.136 µs for H200. Predicted E2E repeats 1/2/3 are 261.133918/262.302298/262.987898 ms and 261.154211/262.322591/263.008191 ms respectively.</p>
+
+<p>**Derived explanation:** only about 7.29% of the mean decode step is GPU busy (0.575611 / 7.894492); about 92.71% is the retained host residual. Adding roughly 240 µs to GPU busy can therefore be a roughly 42% GPU error but only 3% step/E2E error. Eager-mode request agreement is a weak validation of GPU model fidelity. It is not evidence that a graph-mode or compute-dominated workload would have the same small request error. Keeping host/gaps fixed also makes the counterfactual insensitive to hardware-dependent host changes.</p>
+
+<h2>Architecture compatibility</h2>
+
+<p>Trace binary version is 90; the stream contains Hopper-specific kernels, including `FlashAttnFwdSm90` and SM90 GEMMs. H100 and H200 are the valid registered native targets. Older configs are rejected by the Sail app's architecture gate; preliminary pre-Sail probes also failed (for example, A100 hit the specialized-unit scheduler assertion). These are **not valid A100 predictions**. A real A100 run must choose native kernels and collect its own SM80 traces and unprofiled baseline.</p>
+
+<p>The pinned and checked upstream-dev trees have no Blackwell/SM100/B200/B100/ GB200 configuration. H200 is the only shipped Hopper variant beyond H100. No H100-number-edited approximation was created. See the sweep inventory for all 12 tested and nine deprecated config files and their SM/clock evidence.</p>
+
+<h2>Bottlenecks and optimization order</h2>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Priority / proposal</th><th>Measured motivation</th><th>Status / qualification</th></tr></thead><tbody>
+<tr><td>1. Local-disk trace and post-process, collect once</td><td>NVBit 1738.577 s, 65.73% of stage sum; decode envelopes 372.553–375.926 s on volume</td><td>Implemented/pushed `0b54e42`; native A100 run in progress, measurement pending. Not a bundle or S3 protocol change.</td></tr>
+<tr><td>2. Trace one instance per distinct kernel, using NVBit kernel-range limits</td><td>712 traced occurrences collapse to 31 header groups</td><td>Proposal only. Need a prepass/range mapping and alignment preserving omitted identities; headers are not sufficient proof of semantic identity.</td></tr>
+<tr><td>3. Cache spinlock detection</td><td>Two step spans of 50.968/44.285 s plus initialization, every trace invocation</td><td>Proposal only. Cache must include tool/binary/model/input compatibility; do not disable required spinlock handling blindly.</td></tr>
+<tr><td>4. CTA sampling for large kernels</td><td>Original lm_head executions 459.661/454.428/397.684 s; next slowest 46.701 s</td><td>Proposal only. Needs estimator/error validation, especially persistent scheduling and memory contention.</td></tr>
+<tr><td>5. Persistent simulator cache keyed by trace hash + config</td><td>Repeated H100/H200 sweep recomputes 31 representatives/config</td><td>Proposal only. Include simulator/build/trace-parser versions, complete effective config and auxiliary config files; no header-only identity.</td></tr>
+<tr><td>6. Fewer verification copies after validation</td><td>93 versus 31 executions; verification lm_head copies include the 459.661/397.684 s jobs</td><td>Proposal/trade-off. Disabling verification hides observed 39.734% mismatch and changes propagation; not an accuracy-preserving optimization by default.</td></tr>
+<tr><td>7. Warm caches / amortize engine init</td><td>Baseline engine init 85.80 s versus 2.00 s profiled, weights only 0.41 s</td><td>Proposal. Difference suggests warming effects but is not a controlled measurement of cache speedup.</td></tr>
+</tbody></table></div>
+
+<p>The lm_head is only one of 178 kernels/step and about 30.5 µs of real decode GPU time, yet its trace-driven CPU simulation takes hundreds of seconds. **Inference:** these jobs are likely critical-path drivers of the original 719-second orchestration, but CSVs do not store execution overlap intervals, so an exact critical-path decomposition is not available. The later Sail sweep likewise spends 773.080 s (H100) / 745.353 s (H200) in its single lm_head representative, compared with total walls 804.429/777.060 s. These CPU wall measurements must never be confused with modeled GPU latency.</p>
+
+<h2>Reproduce and finish the A100 comparison</h2>
+
+<p>Profiler (already includes both pushed fixes):</p>
+
+```sh
+modal run accelsim_trace.py::e2e_main --gpu A100-80GB \
+  --run-name e2e-a100-plan-v1 --model facebook/opt-125m \
+  --prompt 'Hello, my name is' --max-tokens 32 --repeats 4 \
+  --trace-steps plan --trace-repeat 1
+modal volume get accelsim-traces phases/e2e-a100-plan-v1 \
+  /home/ubuntu/runs/phases/e2e-a100-plan-v1
+```
+
+<p>After a successful profile, deploy the same Sail app route as the hardware sweep, ingest the **A100** timeline/alignment/traces with architecture `sm_80`, and execute `SM80_A100` with `dedup=True`, `verify_dedup=2`, `propagate="interp"`. Upload artifacts before the terminal heartbeat. Always terminate main/child sailboxes and delete the run checkpoint in cleanup. No new Sail resources were created for the authentication-blocked attempt.</p>
+
+<p>Then, from the simulator checkout:</p>
+
+```sh
+RUN=/home/ubuntu/runs/phases/e2e-a100-plan-v1
+uv run cascade simulate "$RUN/corrected_timeline.json" \
+  --durations "$RUN/sim_durations.json" --output "$RUN/sim/simulated_timeline.json"
+uv run cascade compare "$RUN/corrected_timeline.json" \
+  "$RUN/sim/simulated_timeline.json" --output "$RUN/sim/compare.json"
+```
+
+<p>Update this document only after the native A100 results exist. In particular, do not compare SM80 simulation with the real H100 baseline and call it an A100 accuracy result.</p>

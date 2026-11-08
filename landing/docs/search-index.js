@@ -170,39 +170,104 @@ window.DOCS_INDEX = [
 "g": "Guides"
 },
 {
-"t": "Set up Modal",
-"u": "trace-a-workload.html#set-up-modal",
+"t": "Run and download",
+"u": "trace-a-workload.html#run-and-download",
 "g": "Trace a workload"
 },
 {
-"t": "Pick the layers",
-"u": "trace-a-workload.html#pick-the-layers",
+"t": "Legacy streaming into Cascade",
+"u": "trace-a-workload.html#legacy-streaming-into-cascade",
 "g": "Trace a workload"
 },
 {
-"t": "Trace and stream",
-"u": "trace-a-workload.html#trace-and-stream",
+"t": "Upload a legacy trace you already have",
+"u": "trace-a-workload.html#upload-a-legacy-trace-you-already-have",
 "g": "Trace a workload"
 },
 {
-"t": "What gets uploaded",
-"u": "trace-a-workload.html#what-gets-uploaded",
-"g": "Trace a workload"
+"t": "OPT-125m sample: GPU profiling → instruction simulation → request replay",
+"u": "sample-analysis-opt125m.html",
+"g": "Guides"
 },
 {
-"t": "Profiler flags",
-"u": "trace-a-workload.html#profiler-flags",
-"g": "Trace a workload"
+"t": "Full-request result",
+"u": "sample-analysis-opt125m.html#full-request-result",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
 },
 {
-"t": "Upload a trace you already have",
-"u": "trace-a-workload.html#upload-a-trace-you-already-have",
-"g": "Trace a workload"
+"t": "Each steady repeat",
+"u": "sample-analysis-opt125m.html#each-steady-repeat",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
 },
 {
-"t": "Profile, trace and simulate in your own Modal app",
-"u": "trace-a-workload.html#profile-trace-and-simulate-in-your-own-modal-app",
-"g": "Trace a workload"
+"t": "Where the error comes from",
+"u": "sample-analysis-opt125m.html#where-the-error-comes-from",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Across architectures",
+"u": "sample-analysis-opt125m.html#across-architectures",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Scope and evidence",
+"u": "sample-analysis-opt125m.html#scope-and-evidence",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Workload and environment",
+"u": "sample-analysis-opt125m.html#workload-and-environment",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Pipeline cost",
+"u": "sample-analysis-opt125m.html#pipeline-cost",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Local-disk optimization and artifact compatibility",
+"u": "sample-analysis-opt125m.html#local-disk-optimization-and-artifact-compatibility",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Real timeline anatomy",
+"u": "sample-analysis-opt125m.html#real-timeline-anatomy",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Real kernel mix per step",
+"u": "sample-analysis-opt125m.html#real-kernel-mix-per-step",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Accel-Sim by kernel group",
+"u": "sample-analysis-opt125m.html#accel-sim-by-kernel-group",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Coverage, dedup verification and context scaling",
+"u": "sample-analysis-opt125m.html#coverage-dedup-verification-and-context-scaling",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Replay errors and eager-mode dilution",
+"u": "sample-analysis-opt125m.html#replay-errors-and-eager-mode-dilution",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Architecture compatibility",
+"u": "sample-analysis-opt125m.html#architecture-compatibility",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Bottlenecks and optimization order",
+"u": "sample-analysis-opt125m.html#bottlenecks-and-optimization-order",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Reproduce and finish the A100 comparison",
+"u": "sample-analysis-opt125m.html#reproduce-and-finish-the-a100-comparison",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
 },
 {
 "t": "Traces",

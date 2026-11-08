@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from pathlib import Path
 from statistics import median
 
+from cascade.sim.accelsim import duration_records
 from cascade.sim.timeline import numeric, parse_durations
 from cascade.stats import LogParser
 
@@ -80,10 +82,47 @@ def map_records(records: list[dict], mapping: list[dict], clock_mhz: float) -> d
 
 
 def import_durations(stats_path: Path, mapping_path: Path, clock_mhz: float) -> dict:
-    mapping = json.loads(mapping_path.read_text())
-    if isinstance(mapping, dict) and isinstance(mapping.get("kernels"), list):
-        mapping = [
-            {"uid": entry["tracer_uid"], **{k: entry[k] for k in ("name", "repeat", "step", "seq")}}
-            for entry in mapping["kernels"]
-        ]
-    return map_records(read_stats(stats_path), mapping, clock_mhz)
+    return map_records(read_stats(stats_path), json.loads(mapping_path.read_text()), clock_mhz)
+
+
+def aligned_durations(
+    records: list[dict], timeline: dict, alignment: dict, kernelslist: Path, clock_mhz: float
+) -> dict:
+    """Translate whole-run launch positions to tracer UIDs before propagation."""
+    numeric(clock_mhz, "clock_mhz", positive=True)
+    uids = []
+    for line in kernelslist.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("Memcpy"):
+            continue
+        match = re.fullmatch(r"kernel-(\d+)(?:-ctx_0x[0-9a-fA-F]+)?\.trace(?:z|g|\.xz)?", line)
+        if match is None:
+            raise ValueError(f"unsupported kernelslist.g entry: {line!r}")
+        uids.append(int(match[1]))
+    lookup = {r["uid"]: r for r in records}
+    if (
+        not uids
+        or len(set(uids)) != len(uids)
+        or len(lookup) != len(records)
+        or set(lookup) != set(range(1, len(uids) + 1))
+    ):
+        raise ValueError("simulator launch UIDs must match kernelslist.g positions 1..N")
+    mapping = {k["tracer_uid"]: k for k in alignment["kernels"]}
+    if not mapping or len(mapping) != len(alignment["kernels"]) or not set(mapping) <= set(uids):
+        raise ValueError("alignment tracer UIDs must be unique and present in kernelslist.g")
+    results = []
+    for position, uid in enumerate(uids, 1):
+        record = lookup[position]
+        if uid not in mapping:
+            continue
+        if record["name"].strip() != mapping[uid]["name"].strip():
+            raise ValueError(
+                f"kernel UID/name mapping mismatch at launch {position}, tracer UID {uid}"
+            )
+        results.append(
+            {"uid": uid, "cycles": numeric(record["sim_cycles"], "sim_cycles"), "status": "ok"}
+        )
+    durations, _ = duration_records(timeline, alignment, results, clock_mhz, propagate="interp")
+    result = {"kernels": durations}
+    parse_durations(result)
+    return result

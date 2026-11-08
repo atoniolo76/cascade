@@ -145,15 +145,17 @@ def test_older_profiler_done_needs_stats_and_a_quiet_tree(env):
     assert store.get_trace("run-old").state == TraceState.ready
 
 
-def test_already_processed_upload_skips_postprocessing(tmp_path):
+@pytest.mark.parametrize("suffix", ["traceg", "tracez"])
+def test_already_processed_upload_skips_postprocessing(tmp_path, suffix):
     s = settings(tmp_path, CASCADE_POSTPROCESS_CMD="/nonexistent/post-traces-processing")
     store = Store(s.db_path)
     run_dir = s.trace_dir("rodinia")
     write(
-        run_dir / "traces" / "kernelslist.g", "MemcpyHtoD,0x1,8\nkernel-1.traceg\nkernel-2.traceg\n"
+        run_dir / "traces" / "kernelslist.g",
+        f"MemcpyHtoD,0x1,8\nkernel-1.{suffix}\nkernel-2.{suffix}\n",
     )
-    write(run_dir / "traces" / "kernel-1.traceg", "t")
-    write(run_dir / "traces" / "kernel-2.traceg", "t")
+    write(run_dir / "traces" / f"kernel-1.{suffix}", "t")
+    write(run_dir / "traces" / f"kernel-2.{suffix}", "t")
     write(
         run_dir / "real_timing.json",
         json.dumps(
@@ -242,7 +244,8 @@ def test_parse_stats_tolerates_truncated_and_merged_rows():
     ]
 
 
-def test_step_timeline_flag_follows_files_that_arrive_after_ready(env):
+@pytest.mark.parametrize("mapping", ["kernel_mapping.json", "trace_alignment.json"])
+def test_step_timeline_flag_follows_files_that_arrive_after_ready(env, mapping):
     s, store = env
     run_dir = s.trace_dir("late-steps")
     write(run_dir / "traces" / "kernelslist.g", "kernel-1.traceg\n")
@@ -257,11 +260,11 @@ def test_step_timeline_flag_follows_files_that_arrive_after_ready(env):
     poll(ing)
     assert store.get_trace("late-steps").has_step_timeline is False
 
-    write(run_dir / "kernel_mapping.json", "[]")
+    write(run_dir / mapping, "[]")
     poll(ing)
     assert store.get_trace("late-steps").has_step_timeline is True
     assert store.list_traces()[0].has_step_timeline is True
 
-    (run_dir / "kernel_mapping.json").unlink()
+    (run_dir / mapping).unlink()
     poll(ing)
     assert store.get_trace("late-steps").has_step_timeline is False

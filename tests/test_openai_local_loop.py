@@ -1,7 +1,7 @@
 import json
 import shutil
 
-from cascade.sim.importer import import_durations
+from cascade.sim.importer import aligned_durations, read_stats
 from tests.conftest import BABELSTREAM_LOG, FIXTURES
 from tests.helpers import CASCADE, running_app, wait_for, write_processed_trace
 
@@ -17,11 +17,15 @@ def test_local_replay_worker_accepts_alignment_and_serves_openai(tmp_path, monke
         mapping = json.loads((TIMELINE / "babelstream_kernel_mapping.json").read_text())
         alignment = {
             "kernels": [
-                {"tracer_uid": row["uid"], **{k: row[k] for k in ("name", "repeat", "step", "seq")}}
+                {
+                    "tracer_uid": row["uid"],
+                    "dims_match": True,
+                    **{k: row[k] for k in ("name", "repeat", "step", "seq")},
+                }
                 for row in mapping
             ],
             "provenance": {},
-            "steps": [],
+            "steps": [{"repeat": 0, "step": step} for step in (0, 1)],
             "unmatched": {},
         }
         (root / "trace_alignment.json").write_text(json.dumps(alignment))
@@ -49,4 +53,10 @@ def test_local_replay_worker_accepts_alignment_and_serves_openai(tmp_path, monke
         fresh = client.post("/v1/completions", json={**body, "fresh": True}).json()
         assert not fresh["cascade"]["cached"] and fresh["cascade"]["run_id"] != run_id
         assert len(client.get("/api/runs").json()) == 2
-        assert import_durations(BABELSTREAM_LOG, root / "trace_alignment.json", 1132)["kernels"]
+        assert aligned_durations(
+            read_stats(BABELSTREAM_LOG),
+            json.loads((root / "corrected_timeline.json").read_text()),
+            alignment,
+            root / "traces/kernelslist.g",
+            1132,
+        )["kernels"]

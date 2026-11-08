@@ -9,6 +9,7 @@ import uuid
 from collections import Counter
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -55,13 +56,15 @@ CREATE TABLE IF NOT EXISTS traces (
     bytes INTEGER NOT NULL DEFAULT 0,
     kernels TEXT NOT NULL DEFAULT '[]',
     real_timing TEXT,
-    has_step_timeline INTEGER NOT NULL DEFAULT 0
+    has_step_timeline INTEGER NOT NULL DEFAULT 0,
+    sample INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY,
     trace_id TEXT NOT NULL REFERENCES traces(id),
     created_at TEXT NOT NULL,
-    entries TEXT NOT NULL
+    entries TEXT NOT NULL,
+    sample INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS sims (
     id TEXT PRIMARY KEY,
@@ -118,7 +121,11 @@ CREATE TABLE IF NOT EXISTS sim_files (
 """
 
 # Columns added after a table first shipped; CREATE TABLE IF NOT EXISTS leaves old databases alone.
-ADDED_COLUMNS = (("traces", "has_step_timeline", "INTEGER NOT NULL DEFAULT 0"),)
+ADDED_COLUMNS = (
+    ("traces", "has_step_timeline", "INTEGER NOT NULL DEFAULT 0"),
+    ("traces", "sample", "INTEGER NOT NULL DEFAULT 0"),
+    ("runs", "sample", "INTEGER NOT NULL DEFAULT 0"),
+)
 
 
 class IllegalTransition(Exception):
@@ -143,6 +150,20 @@ def _dt(value: str | None) -> datetime | None:
 
 def new_id(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:12]}"
+
+
+@dataclass(frozen=True)
+class SampleRows:
+    """A finished trace and its one-sim run, as recorded elsewhere (cascade/samples.py)."""
+
+    trace: TraceDetail
+    real_timing: list[dict]
+    run_created_at: datetime
+    sim: SimSummary
+    log: list[str]
+    stats: list[KernelStat]
+    step_timeline: StepTimelineUpload
+    files: list[SimFile]
 
 
 class Store:
@@ -236,6 +257,9 @@ class Store:
     def trace_states(self) -> dict[str, TraceState]:
         return {r["id"]: TraceState(r["state"]) for r in self._all("SELECT id, state FROM traces")}
 
+    def sample_trace_ids(self) -> set[str]:
+        return {r["id"] for r in self._all("SELECT id FROM traces WHERE sample = 1")}
+
     def step_timeline_flags(self) -> dict[str, bool]:
         rows = self._all("SELECT id, has_step_timeline FROM traces")
         return {r["id"]: bool(r["has_step_timeline"]) for r in rows}
@@ -319,6 +343,7 @@ class Store:
             state=run_state(states),
             entries=[RunEntry(**e) for e in json.loads(row["entries"])],
             sim_counts=dict(Counter(states)),
+            sample=bool(row["sample"]),
         )
 
     def get_sim(self, sim_id: str) -> SimSummary | None:
@@ -451,11 +476,7 @@ class Store:
     def add_log_chunk(self, sim_id: str, seq: int, lines: list[str]) -> bool:
         """False when this seq was already stored (a retried chunk)."""
         with self._tx() as db:
-            cur = db.execute(
-                "INSERT OR IGNORE INTO log_chunks (sim_id, seq, lines) VALUES (?, ?, ?)",
-                (sim_id, seq, json.dumps(lines)),
-            )
-            if cur.rowcount != 1:
+            if not _insert_log_chunk(db, sim_id, seq, lines):
                 return False
             row = db.execute("SELECT log_tail FROM sims WHERE id = ?", (sim_id,)).fetchone()
             tail = (json.loads(row["log_tail"]) + lines)[-LOG_TAIL_LINES:]
@@ -480,27 +501,8 @@ class Store:
     ) -> tuple[SimSummary, list[KernelStat]]:
         """Stores parsed kernel stats (ignoring ones already stored) and the sim's live
         metrics. Returns the sim and the newly stored stats."""
-        added = []
         with self._tx() as db:
-            for s in stats:
-                cur = db.execute(
-                    "INSERT OR IGNORE INTO kernel_stats (sim_id, kernel_index, kernel_name,"
-                    " kernel_launch_uid, gpu_sim_cycle, gpu_sim_insn, gpu_ipc, sim_time_ns, stats)"
-                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        sim_id,
-                        s.kernel_index,
-                        s.kernel_name,
-                        s.kernel_launch_uid,
-                        s.gpu_sim_cycle,
-                        s.gpu_sim_insn,
-                        s.gpu_ipc,
-                        s.sim_time_ns,
-                        json.dumps(s.stats),
-                    ),
-                )
-                if cur.rowcount == 1:
-                    added.append(s)
+            added = [s for s in stats if _insert_stat(db, sim_id, s)]
             done = db.execute(
                 "SELECT COUNT(*) FROM kernel_stats WHERE sim_id = ?", (sim_id,)
             ).fetchone()[0]
@@ -514,15 +516,7 @@ class Store:
     def set_step_timeline(self, sim_id: str, upload: StepTimelineUpload) -> None:
         """Replaces any earlier upload for this sim."""
         with self._tx() as db:
-            db.execute(
-                "INSERT OR REPLACE INTO step_timelines (sim_id, simulated, compare)"
-                " VALUES (?, ?, ?)",
-                (
-                    sim_id,
-                    json.dumps(upload.simulated),
-                    None if upload.compare is None else json.dumps(upload.compare),
-                ),
-            )
+            _put_step_timeline(db, sim_id, upload)
 
     def step_timelines_for_run(self, run_id: str) -> list[SimStepTimeline]:
         rows = self._all(
@@ -546,11 +540,7 @@ class Store:
         """Records a stored output file, replacing an earlier one of the same name."""
         file = SimFile(name=name, size=size, content_type=content_type, created_at=now())
         with self._tx() as db:
-            db.execute(
-                "INSERT OR REPLACE INTO sim_files (sim_id, name, size, content_type, created_at)"
-                " VALUES (?, ?, ?, ?, ?)",
-                (sim_id, name, size, content_type, _ts(file.created_at)),
-            )
+            _put_file(db, sim_id, file)
         return file
 
     def sim_files(self, sim_id: str) -> list[SimFile]:
@@ -585,11 +575,122 @@ class Store:
             for r in rows
         ]
 
+    def add_sample(self, rows: SampleRows) -> bool:
+        """Stores a sample's trace, run, sim and results in one transaction. False, changing
+        nothing, when its trace is already here."""
+        trace, sim = rows.trace, rows.sim
+        with self._tx() as db:
+            cur = db.execute(
+                "INSERT OR IGNORE INTO traces (id, state, created_at, updated_at, metadata,"
+                " kernel_count, bytes, kernels, real_timing, has_step_timeline, sample)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+                (
+                    trace.id,
+                    trace.state,
+                    _ts(trace.created_at),
+                    _ts(trace.updated_at),
+                    json.dumps(trace.metadata),
+                    trace.kernel_count,
+                    trace.bytes,
+                    json.dumps([k.model_dump() for k in trace.kernels]),
+                    json.dumps(rows.real_timing),
+                    int(trace.has_step_timeline),
+                ),
+            )
+            if cur.rowcount != 1:
+                return False
+            entries = [RunEntry(gpu_config=sim.gpu_config, count=1).model_dump()]
+            db.execute(
+                "INSERT INTO runs (id, trace_id, created_at, entries, sample)"
+                " VALUES (?, ?, ?, ?, 1)",
+                (sim.run_id, trace.id, _ts(rows.run_created_at), json.dumps(entries)),
+            )
+            db.execute(
+                "INSERT INTO sims (id, run_id, gpu_config, replica, state, error, launcher_ref,"
+                " created_at, state_changed_at, started_at, finished_at, last_heartbeat_at,"
+                " exit_code, kernels_done, kernels_total, current_kernel, latest, log_tail)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    sim.id,
+                    sim.run_id,
+                    sim.gpu_config,
+                    sim.replica,
+                    sim.state,
+                    sim.error,
+                    sim.launcher_ref,
+                    _ts(sim.created_at),
+                    _ts(sim.finished_at or sim.created_at),
+                    _ts(sim.started_at),
+                    _ts(sim.finished_at),
+                    _ts(sim.last_heartbeat_at),
+                    sim.exit_code,
+                    sim.kernels_done,
+                    sim.kernels_total,
+                    sim.current_kernel,
+                    sim.latest.model_dump_json(),
+                    json.dumps(sim.log_tail),
+                ),
+            )
+            _insert_log_chunk(db, sim.id, 0, rows.log)
+            for stat in rows.stats:
+                _insert_stat(db, sim.id, stat)
+            _put_step_timeline(db, sim.id, rows.step_timeline)
+            for file in rows.files:
+                _put_file(db, sim.id, file)
+        return True
+
     def kernel_stats(self, sim_id: str) -> list[KernelStat]:
         rows = self._all(
             "SELECT * FROM kernel_stats WHERE sim_id = ? ORDER BY kernel_index", sim_id
         )
         return [_kernel_stat(r) for r in rows]
+
+
+def _insert_log_chunk(db: sqlite3.Connection, sim_id: str, seq: int, lines: list[str]) -> bool:
+    cur = db.execute(
+        "INSERT OR IGNORE INTO log_chunks (sim_id, seq, lines) VALUES (?, ?, ?)",
+        (sim_id, seq, json.dumps(lines)),
+    )
+    return cur.rowcount == 1
+
+
+def _insert_stat(db: sqlite3.Connection, sim_id: str, s: KernelStat) -> bool:
+    cur = db.execute(
+        "INSERT OR IGNORE INTO kernel_stats (sim_id, kernel_index, kernel_name,"
+        " kernel_launch_uid, gpu_sim_cycle, gpu_sim_insn, gpu_ipc, sim_time_ns, stats)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            sim_id,
+            s.kernel_index,
+            s.kernel_name,
+            s.kernel_launch_uid,
+            s.gpu_sim_cycle,
+            s.gpu_sim_insn,
+            s.gpu_ipc,
+            s.sim_time_ns,
+            json.dumps(s.stats),
+        ),
+    )
+    return cur.rowcount == 1
+
+
+def _put_step_timeline(db: sqlite3.Connection, sim_id: str, upload: StepTimelineUpload) -> None:
+    db.execute(
+        "INSERT OR REPLACE INTO step_timelines (sim_id, simulated, compare) VALUES (?, ?, ?)",
+        (
+            sim_id,
+            json.dumps(upload.simulated),
+            None if upload.compare is None else json.dumps(upload.compare),
+        ),
+    )
+
+
+def _put_file(db: sqlite3.Connection, sim_id: str, file: SimFile) -> None:
+    db.execute(
+        "INSERT OR REPLACE INTO sim_files (sim_id, name, size, content_type, created_at)"
+        " VALUES (?, ?, ?, ?, ?)",
+        (sim_id, file.name, file.size, file.content_type, _ts(file.created_at)),
+    )
 
 
 def _trace_summary(row: sqlite3.Row) -> TraceSummary:
@@ -606,10 +707,18 @@ def _trace_summary(row: sqlite3.Row) -> TraceSummary:
         source_gpu=meta.get("gpu"),
         trace_gpu_arch=meta.get("trace_gpu_arch") or "sm_90",
         suggested_sim_config=meta.get("suggested_sim_config"),
+        real_gpu_config=meta.get("real_gpu_config"),
+        sample_sim_configs=(
+            [c for c in meta["sample_sim_configs"] if isinstance(c, str)]
+            if isinstance(meta.get("sample_sim_configs"), list)
+            else []
+        ),
+        sample_set=meta.get("sample_set"),
         kernel_count=row["kernel_count"],
         bytes=row["bytes"],
         has_real_timing=row["real_timing"] is not None,
         has_step_timeline=bool(row["has_step_timeline"]),
+        sample=bool(row["sample"]),
     )
 
 

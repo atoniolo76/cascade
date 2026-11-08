@@ -15,9 +15,9 @@
   "status": 201,
   "content_type": "application/json",
   "body": {
-    "id": "run-a5c5ba6e0ac7",
+    "id": "run-210d75c008c4",
     "trace_id": "demo",
-    "created_at": "2026-11-08T06:56:46.579503Z",
+    "created_at": "2026-11-08T08:59:03.024065Z",
     "state": "active",
     "entries": [
       {
@@ -28,38 +28,40 @@
     "sim_counts": {
       "pending": 2
     },
+    "sample": false,
     "trace": {
       "id": "demo",
       "state": "ready",
       "error": null,
-      "created_at": "2026-11-08T06:56:46.379301Z",
-      "updated_at": "2026-11-08T06:56:46.381567Z",
+      "created_at": "2026-11-08T08:59:02.587743Z",
+      "updated_at": "2026-11-08T08:59:02.592073Z",
       "model": null,
       "layers": [],
       "source_gpu": null,
       "trace_gpu_arch": "sm_86",
       "suggested_sim_config": "SM86_RTX3070",
-      "kernel_count": 4,
-      "bytes": 31899901,
+      "kernel_count": 20,
+      "bytes": 16890250,
       "has_real_timing": false,
-      "has_step_timeline": true
+      "has_step_timeline": true,
+      "sample": false
     },
     "sims": [
       {
-        "id": "sim-4bc665cf326e",
-        "run_id": "run-a5c5ba6e0ac7",
+        "id": "sim-1047ddbdf5b1",
+        "run_id": "run-210d75c008c4",
         "gpu_config": "SM86_RTX3070",
         "replica": 0,
         "state": "pending",
         "error": null,
         "launcher_ref": null,
-        "created_at": "2026-11-08T06:56:46.579503Z",
+        "created_at": "2026-11-08T08:59:03.024065Z",
         "started_at": null,
         "finished_at": null,
         "last_heartbeat_at": null,
         "exit_code": null,
         "kernels_done": 0,
-        "kernels_total": 4,
+        "kernels_total": 20,
         "current_kernel": null,
         "latest": {
           "gpu_tot_sim_cycle": null,
@@ -70,20 +72,20 @@
         "log_tail": []
       },
       {
-        "id": "sim-09e225316002",
-        "run_id": "run-a5c5ba6e0ac7",
+        "id": "sim-e8f63b6b3bed",
+        "run_id": "run-210d75c008c4",
         "gpu_config": "SM86_RTX3070",
         "replica": 1,
         "state": "pending",
         "error": null,
         "launcher_ref": null,
-        "created_at": "2026-11-08T06:56:46.579503Z",
+        "created_at": "2026-11-08T08:59:03.024065Z",
         "started_at": null,
         "finished_at": null,
         "last_heartbeat_at": null,
         "exit_code": null,
         "kernels_done": 0,
-        "kernels_total": 4,
+        "kernels_total": 20,
         "current_kernel": null,
         "latest": {
           "gpu_tot_sim_cycle": null,
