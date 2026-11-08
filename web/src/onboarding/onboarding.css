@@ -1,0 +1,72 @@
+/* Onboarding motion. Colors and type come from the app's tokens in index.css, so dark mode follows the app. */
+.ob {
+  --ob-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ob-t: 240ms;
+}
+
+.ob-glow {
+  background:
+    radial-gradient(60% 70% at 15% 100%, light-dark(rgb(163 92 232 / 0.14), rgb(196 139 245 / 0.12)), transparent),
+    radial-gradient(55% 65% at 90% 0%, light-dark(rgb(109 74 224 / 0.16), rgb(155 130 255 / 0.16)), transparent),
+    var(--panel);
+}
+
+.ob-fade {
+  transition:
+    opacity var(--ob-t) var(--ob-ease),
+    color var(--ob-t) var(--ob-ease),
+    background-color var(--ob-t) var(--ob-ease),
+    box-shadow var(--ob-t) var(--ob-ease);
+}
+
+@keyframes ob-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.ob-row-in {
+  animation: ob-row-in var(--ob-t) var(--ob-ease) both;
+}
+
+@keyframes ob-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+.ob-pop {
+  animation: ob-pop var(--ob-t) var(--ob-ease) both;
+}
+
+@keyframes ob-slide {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--ob-dir, 1) * 24px));
+  }
+}
+.ob-slide {
+  animation: ob-slide 280ms var(--ob-ease) both;
+}
+
+@keyframes ob-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ob-spin {
+  animation: ob-spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob *,
+  .ob *::before,
+  .ob *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  .ob .ob-spin {
+    animation: none !important;
+  }
+}

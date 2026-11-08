@@ -26,6 +26,7 @@ tokenStore.subscribe(() => {
 });
 
 const router = createBrowserRouter([
+  { path: "onboarding", lazy: () => import("./onboarding/OnboardingPage").then((m) => ({ Component: m.OnboardingPage })) },
   {
     element: <AppShell />,
     hydrateFallbackElement: <div className="min-h-dvh bg-window" />,
