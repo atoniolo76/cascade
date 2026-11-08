@@ -45,7 +45,7 @@ class PhasesTest(unittest.TestCase):
                     (140,160,1,0,2,16777216,128,0);
                 CREATE TABLE META_DATA_CAPTURE(name TEXT, value TEXT, other INTEGER);
                 INSERT INTO META_DATA_CAPTURE VALUES
-                    ('ENVIRONMENT_VARIABLE:HF_TOKEN','secret',1),
+                    ('PROCESS_0:ENVIRONMENT_VARIABLE:HF_TOKEN','secret',1),
                     ('another','ENVIRONMENT_VARIABLE:OTHER',2),('version','ok',3);
             """)
 
@@ -135,6 +135,7 @@ class PhasesTest(unittest.TestCase):
             self.assertIn("--cuda-event-trace=false", cmd)
             self.assertIn("--cuda-graph-trace=node", cmd)
             self.assertIn("--capture-range=cudaProfilerApi", cmd)
+            self.assertIn("--capture-range-end=stop", cmd)
             self.assertIn("--cuda-event-trace=true", a._nsys_base_cmd())
             run.return_value.stdout = ""
             self.assertNotIn("--cuda-event-trace=false", a._nsys_base_cmd(cuda_events=False))
@@ -145,6 +146,91 @@ class PhasesTest(unittest.TestCase):
             sampler.start()
             sampler.stop()
         self.assertTrue((self.work / "clocks.csv").exists())
+
+    def test_corrected_timeline(self):
+        log, baseline = self.fake_log()
+        iterations, _ = a._parse_iterations(log, baseline)
+        # Different warmup length shifts global IDs; repeat-local positions still match.
+        profiled = [{"step": 10, "repeat": 0}, {"step": 20, "repeat": 1},
+                    {"step": 21, "repeat": 1}]
+        nvtx = a._nsys_nvtx(self.db)
+        # The fake sqlite's captured step 2 corresponds to profiled global step 20.
+        nvtx[0]["text"] = "vllm_step_20"
+        events = a._nsys_events(self.db, 0, {})
+        apis = a._nsys_api_calls(self.db, 0, {})
+        stats = a._phase_nsys_stats(nvtx, events, apis)
+        ranges = {20: {"start": 100, "end": 200}}
+        kernels = a._nsys_kernels(self.db)
+        kernels.append({**kernels[0], "start": 115, "end": 125, "grid": "2x3x4"})
+        metrics = {"requests": [{"repeat": 1, "metrics": {
+            "queued_ts": 1, "scheduled_ts": 2, "first_token_ts": 3, "last_token_ts": 5,
+            "num_generation_tokens": 3}}, {"repeat": 0, "metrics": {
+                "queued_ts": 1, "scheduled_ts": 1, "first_token_ts": 2, "last_token_ts": 2,
+                "num_generation_tokens": 1}}, {"repeat": 2, "metrics": None}]}
+        meta = {"run_name": "fake", "model": "opt", "prompt": "hello", "max_tokens": 3,
+                "repeats": 2, "exec_mode": "eager", "gpu_name": "H100",
+                "sm_clock_mhz_median": 1980, "mem_clock_mhz": 2619,
+                "vllm_version": "0.21.0", "layerwise_nvtx": False}
+        result = a._corrected_timeline(meta, baseline, profiled, iterations, metrics,
+                                       stats, ranges, kernels)
+        self.assertEqual(set(result), {"meta", "steps", "requests", "summary"})
+        self.assertEqual(set(result["meta"]), set(meta))
+        step_keys = {"step", "repeat", "warmup", "kind", "num_reqs", "num_scheduled_tokens",
+                     "baseline_wall_ns", "profiled_wall_ns", "gpu_busy_ns", "cuda_api_ns",
+                     "host_ns", "kernels"}
+        for s in result["steps"]:
+            self.assertEqual(set(s), step_keys)
+        for s in result["steps"][:2] + result["steps"][3:]:
+            for field in ("profiled_wall_ns", "gpu_busy_ns", "cuda_api_ns", "host_ns"):
+                self.assertIsNone(s[field])
+            self.assertEqual(s["kernels"], [])
+        captured = result["steps"][2]
+        self.assertEqual(captured["step"], 2)
+        self.assertEqual(captured["profiled_wall_ns"], 100)
+        self.assertEqual(captured["host_ns"], 60)
+        self.assertEqual(captured["cuda_api_ns"], 30)
+        self.assertEqual(captured["num_reqs"], 1)
+        self.assertEqual(captured["num_scheduled_tokens"], 7)
+        self.assertEqual([k["seq"] for k in captured["kernels"]], [0, 1])
+        self.assertEqual([k["start_offset_ns"] for k in captured["kernels"]], [15, 20])
+        self.assertEqual(captured["kernels"][0]["grid"], [2, 3, 4])
+        self.assertEqual(captured["kernels"][0]["block"], [32, 1, 1])
+        self.assertEqual(captured["kernels"][0]["duration_ns"], 10)
+        self.assertEqual(set(captured["kernels"][0]), {
+            "seq", "name", "grid", "block", "duration_ns", "start_offset_ns"})
+        req = result["requests"][0]
+        self.assertEqual(set(req), {"repeat", "warmup", "queued_ms", "ttft_ms", "itl_ms_mean",
+                                    "itl_ms_p50", "e2e_ms", "num_output_tokens"})
+        self.assertEqual((req["queued_ms"], req["ttft_ms"], req["itl_ms_mean"], req["e2e_ms"]),
+                         (1000, 2000, 1000, 4000))
+        self.assertIsNone(req["itl_ms_p50"])
+        self.assertTrue(result["requests"][1]["warmup"])
+        self.assertIsNone(result["requests"][1]["itl_ms_mean"])
+        self.assertIsNone(result["requests"][2]["ttft_ms"])
+        summary = result["summary"]["prefill"]
+        self.assertEqual(set(summary), {"n", "baseline_wall_ns", "gpu_busy_ns", "host_ns",
+                                        "profiler_overhead_pct"})
+        self.assertEqual(summary["baseline_wall_ns"], {"mean": 100, "p50": 100, "p95": 100})
+        self.assertEqual(summary["host_ns"], {"mean": 60, "p50": 60})
+        self.assertEqual(summary["gpu_busy_ns"], {"mean": 40, "p50": 40})
+        self.assertEqual(summary["profiler_overhead_pct"], 0)
+        self.assertIsNone(result["summary"]["decode"]["host_ns"]["mean"])
+        self.assertEqual(result["summary"]["decode"]["baseline_wall_ns"]["mean"], 100)
+        shorter = [{**r, "wall_end_ns": r["wall_start_ns"] + 80} for r in baseline]
+        changed = a._corrected_timeline(meta, shorter, profiled, iterations, metrics,
+                                        stats, ranges, kernels)
+        self.assertEqual(changed["summary"]["prefill"]["profiler_overhead_pct"], 25)
+        self.assertEqual(changed["steps"][2]["host_ns"], 40)
+        baseline[0].update(num_reqs=2, num_scheduled_tokens=9, kind="mixed")
+        fallback = a._corrected_timeline(meta, baseline, profiled, [], {}, {}, {}, [])
+        self.assertEqual(fallback["steps"][0]["kind"], "mixed")
+        self.assertEqual(fallback["steps"][0]["num_reqs"], 2)
+        self.assertEqual(fallback["steps"][0]["num_scheduled_tokens"], 9)
+        empty = a._corrected_timeline(meta, [], [], [], {}, {}, {}, [])
+        self.assertEqual(empty, {"meta": meta, "steps": [], "requests": [], "summary": {}})
+        with self.assertRaises(ValueError):
+            a._corrected_timeline(meta, baseline, profiled, iterations, {}, stats, ranges,
+                                  [{**kernels[0], "grid": "invalid"}])
 
     def test_workload_repeats_and_profiler_order(self):
         @dataclass

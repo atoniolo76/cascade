@@ -64,7 +64,9 @@ modal run accelsim_trace.py::phases_main --max-tokens 32 --repeats 4
 Phase A runs without a profiler or NVBit; Phase B runs sequentially on the same GPU under
 light nsys capture. Both use identical prompts, greedy sampling and synchronous scheduling.
 Repeat 0 is warmup; only repeats 1 onward are captured in B via cudaProfilerStart/Stop.
-Layerwise NVTX is enabled only in B and only in eager mode. Use `--phase baseline` or
+Layerwise NVTX is **off by default**: opt in with `--layerwise-nvtx` (B, eager mode only).
+On the H100 test it doubled step time (~110% overhead versus ~25% without it).
+Use `--phase baseline` or
 `--phase profiled` to run one side (unavailable reconciliation columns are null).
 NVBit runs are for instruction traces only, **never timing**.
 
@@ -74,6 +76,7 @@ Outputs live at `/phases/<run_name>/` on `accelsim-traces`:
 |---|---|
 | `baseline_iterations.jsonl`, `profiled_iterations.jsonl` | Parsed vLLM iteration counts/timing joined by global step index to repeat, warmup, wall timestamps/span and prefill/decode/mixed kind |
 | `reconcile.json`, `reconcile.csv` | Non-warmup prefill/decode distributions (n/mean/p50/p95), B−A mean/p50 overhead in ns and %, iteration/step mismatch flags in JSON |
+| `corrected_timeline.json` | Simulator input combining baseline wall time and request latency with matched profiled GPU/API intervals and kernel durations; only written when both phases run |
 | `baseline/baseline.log`, `profiled/profiled.log` | Full subprocess logs |
 | `<phase>/steps.json` | StepRecorder metadata for every repeat, including uncaptured warmup |
 | `<phase>/metrics.json` | Per-request RequestStateStats plus derived latencies and final cumulative `llm.get_metrics()` snapshot (histogram count/sum/buckets included) |
@@ -88,11 +91,55 @@ Derived request metrics use monotonic timestamps only: `queue_s = scheduled_ts -
 (null for fewer than two generated tokens). Arrival time is wall-clock and is never subtracted
 from monotonic timestamps. Metrics snapshots include warmup. Quantiles use linear interpolation.
 Reconciliation keeps vLLM elapsed time in ms, but converts its overhead delta to ns.
+**vLLM iteration `elapsed_ms` is not step time**: its timer starts after launch (roughly
+0.2 ms in the real run). StepRecorder's synchronized wall span is the step-time ground truth;
+elapsed_ms remains only a diagnostic and is never used in the corrected timeline.
 GPU busy is the clipped union of kernel/memcpy/memset intervals; CUDA API time is the clipped
 union of runtime calls on the NVTX step's thread. Other host time is NVTX span minus API time,
 not pure CPU compute (it includes waits). Steps outside capture are excluded from nsys columns.
 Iteration counts/indices are checked against StepRecorder; inspect mismatch flags before
 trusting joins. Mixed steps are exported but excluded from the prefill/decode comparison.
+
+### Corrected timeline schema
+
+```
+meta: run_name, model, prompt, max_tokens, repeats, exec_mode, gpu_name,
+      sm_clock_mhz_median, mem_clock_mhz, vllm_version, layerwise_nvtx
+steps[]: step, repeat, warmup, kind, num_reqs, num_scheduled_tokens,
+         baseline_wall_ns, profiled_wall_ns, gpu_busy_ns, cuda_api_ns, host_ns,
+         kernels: [{seq, name, grid, block, duration_ns, start_offset_ns}]
+requests[]: repeat, warmup, queued_ms, ttft_ms, itl_ms_mean, itl_ms_p50,
+            e2e_ms, num_output_tokens
+summary[kind]: n, baseline_wall_ns: {mean, p50, p95}, gpu_busy_ns: {mean, p50},
+               host_ns: {mean, p50}, profiler_overhead_pct
+```
+
+Steps come from the baseline records; match to B by `(repeat, step-in-repeat)`, where
+step-in-repeat is the ordinal of the step records within each repeat, not a fixed token count.
+`step` stays the baseline global index. Request/token counts sum baseline iteration context
+and generation counts, falling back to step metadata when the iteration is missing.
+`baseline_wall_ns` is the StepRecorder wall span. `profiled_wall_ns` is the matched nsys
+NVTX step span; GPU/API intervals are clipped and unioned within that range.
+`host_ns = baseline_wall_ns - gpu_busy_ns` estimates corrected non-GPU time, not pure CPU
+compute; it is not clamped if noisy measurements make it negative. Uncaptured/unmatched
+steps have null profiled/GPU/API/host values and no kernels (including repeat-0 warmup).
+Kernels are selected by GPU start inside the matched NVTX range, sorted by GPU start, with
+zero-based per-step `seq`; `name` is the mangled name and grid/block are `[x,y,z]` lists.
+`start_offset_ns` is relative to the **profiled step's NVTX range start**, not baseline time.
+
+Requests use baseline RequestStateStats: `queued_ms = (scheduled_ts - queued_ts) * 1000`,
+`ttft_ms = (first_token_ts - queued_ts) * 1000` (the metrics JSON's `queued_ttft_s`, not
+`ttft_s`), and `e2e_ms = (last_token_ts - queued_ts) * 1000`. Per-token timestamps are not
+recorded: `itl_ms_mean = (last_token_ts - first_token_ts) * 1000 / (num_generation_tokens - 1)`
+and `itl_ms_p50` is null. Mean ITL is also null for fewer than two tokens. Missing request
+metrics produce null latency/token fields. Repeat 0 marks warmup for requests and steps.
+
+Summary `n` counts all non-warmup baseline steps of that kind, as do baseline wall statistics;
+GPU/host statistics use only matched captured steps. Overhead compares profiled and baseline
+wall p50 over the same matched non-warmup steps: `(B_p50 - A_p50) / A_p50 * 100`.
+Empty statistics are null. Clock metadata uses medians of all profiled-phase ClockSampler
+samples (both SM and memory; null if sampling failed), and vLLM version comes from container
+package metadata. Single-phase runs print a skip note and do not write this artifact.
 
 All nsys entrypoints strip MODAL and secret-named environment variables (except the two HF
 token variables required by gated models), remove environment rows from sqlite and VACUUM.

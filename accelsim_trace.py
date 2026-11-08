@@ -41,6 +41,7 @@ import subprocess
 import sys
 import threading
 import time
+from importlib.metadata import version
 from pathlib import Path
 
 import modal
@@ -1376,13 +1377,87 @@ def _reconcile(phases: dict, nsys_stats: dict) -> list[dict]:
     return rows
 
 
+def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: list[dict],
+                        iterations: list[dict], metrics: dict, nsys_stats: dict,
+                        nsys_steps: dict, kernels: list[dict]) -> dict:
+    def indexed(records):
+        counts, out = {}, {}
+        for record in sorted(records, key=lambda r: r["step"]):
+            repeat = record["repeat"]
+            pos = counts.get(repeat, 0)
+            out[(repeat, pos)] = record
+            counts[repeat] = pos + 1
+        return out
+
+    baseline, profiled = indexed(baseline_steps), indexed(profiled_steps)
+    iteration_by_step = {r["step"]: r for r in iterations}
+    steps = []
+    for key, record in baseline.items():
+        it = iteration_by_step.get(record["step"], {})
+        partner = profiled.get(key, {})
+        pid = partner.get("step")
+        stats, span = nsys_stats.get(pid), nsys_steps.get(pid)
+        captured = stats is not None and span is not None
+        wall = record["wall_end_ns"] - record["wall_start_ns"]
+        busy = stats["gpu_busy_ns"] if captured else None
+        step_kernels = []
+        if captured:
+            selected = sorted((k for k in kernels if span["start"] <= k["start"] < span["end"]),
+                              key=lambda k: k["start"])
+            for seq, k in enumerate(selected):
+                step_kernels.append({"seq": seq, "name": k["mangled"],
+                                     "grid": [int(x) for x in k["grid"].split("x")],
+                                     "block": [int(x) for x in k["block"].split("x")],
+                                     "duration_ns": k["end"] - k["start"],
+                                     "start_offset_ns": k["start"] - span["start"]})
+        steps.append({"step": record["step"], "repeat": record["repeat"],
+                      "warmup": record["warmup"], "kind": it.get("kind", record.get("kind", "unknown")),
+                      "num_reqs": it["ctx_reqs"] + it["gen_reqs"] if it else record.get("num_reqs"),
+                      "num_scheduled_tokens": it["ctx_tokens"] + it["gen_tokens"] if it else
+                      record.get("num_scheduled_tokens"), "baseline_wall_ns": wall,
+                      "profiled_wall_ns": stats["nsys_span_ns"] if captured else None,
+                      "gpu_busy_ns": busy, "cuda_api_ns": stats["cuda_api_ns"] if captured else None,
+                      "host_ns": wall - busy if captured else None, "kernels": step_kernels})
+    requests = []
+    for record in metrics.get("requests", []):
+        m = record.get("metrics") or {}
+        def elapsed(end, start):
+            return (m[end] - m[start]) * 1000 if end in m and start in m else None
+        n = m.get("num_generation_tokens")
+        decode_ms = elapsed("last_token_ts", "first_token_ts")
+        requests.append({"repeat": record["repeat"], "warmup": record["repeat"] == 0,
+                         "queued_ms": elapsed("scheduled_ts", "queued_ts"),
+                         "ttft_ms": elapsed("first_token_ts", "queued_ts"),
+                         "itl_ms_mean": decode_ms / (n - 1) if n is not None and n > 1
+                         and decode_ms is not None else None,
+                         "itl_ms_p50": None, "e2e_ms": elapsed("last_token_ts", "queued_ts"),
+                         "num_output_tokens": n})
+    summary = {}
+    for kind in sorted({s["kind"] for s in steps}):
+        steady = [s for s in steps if s["kind"] == kind and not s["warmup"]]
+        matched = [s for s in steady if s["profiled_wall_ns"] is not None]
+        wall = _distribution([s["baseline_wall_ns"] for s in steady])
+        a = _distribution([s["baseline_wall_ns"] for s in matched])["p50"]
+        b = _distribution([s["profiled_wall_ns"] for s in matched])["p50"]
+        summary[kind] = {"n": len(steady),
+                         "baseline_wall_ns": {k: wall[k] for k in ("mean", "p50", "p95")},
+                         "profiler_overhead_pct": (b - a) / a * 100 if a else None}
+        for metric in ("gpu_busy_ns", "host_ns"):
+            dist = _distribution([s[metric] for s in matched])
+            summary[kind][metric] = {k: dist[k] for k in ("mean", "p50")}
+    return {"meta": {k: meta[k] for k in (
+        "run_name", "model", "prompt", "max_tokens", "repeats", "exec_mode", "gpu_name",
+        "sm_clock_mhz_median", "mem_clock_mhz", "vllm_version", "layerwise_nvtx")},
+        "steps": steps, "requests": requests, "summary": summary}
+
+
 @app.function(
     gpu="H100!", timeout=NSYS_TIMEOUT_S, cpu=8, memory=64 * 1024,
     volumes={"/root/.cache/huggingface": hf_cache_vol, TRACES_MOUNT: traces_vol},
 )
 def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is",
                    max_tokens: int = 32, repeats: int = 4, max_model_len: int = 2048,
-                   exec_mode: str = "eager", phase: str = "both", layerwise_nvtx: bool = True,
+                   exec_mode: str = "eager", phase: str = "both", layerwise_nvtx: bool = False,
                    run_name: str = "", keep_nsys_rep: bool = False) -> dict:
     if phase not in {"baseline", "profiled", "both"}:
         raise ValueError("phase must be baseline, profiled, or both")
@@ -1394,6 +1469,7 @@ def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my na
     dest = Path(TRACES_MOUNT) / "phases" / run_name
     dest.mkdir(parents=True, exist_ok=True)
     phases, diagnostics, nsys_stats = {}, {}, {}
+    step_logs, request_metrics = {}, {}
     deadline = time.monotonic() + NSYS_TIMEOUT_S - 600
     for name in (("baseline", "profiled") if phase == "both" else (phase,)):
         work = Path.home() / "phases-work" / run_name / name
@@ -1421,6 +1497,8 @@ def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my na
             _scrub_nsys(work, keep_nsys_rep if name == "profiled" else False)
             traces_vol.commit()
         step_log = json.loads((work / "steps.json").read_text())
+        step_logs[name] = step_log
+        request_metrics[name] = json.loads((work / "metrics.json").read_text())
         parsed, diag = _parse_iterations((work / f"{name}.log").read_text(), step_log)
         phases[name] = parsed
         diagnostics[name] = {**diag, "clocks": _clock_stats(sampler.rows, None, None),
@@ -1458,6 +1536,18 @@ def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my na
                "diagnostics": diagnostics, "table": table}
     (dest / "reconcile.json").write_text(json.dumps(summary, indent=2))
     _write_csv(dest / "reconcile.csv", table)
+    if "baseline" in step_logs and "profiled" in step_logs:
+        clocks = diagnostics["profiled"]["clocks"]
+        meta = {**summary, "gpu_name": _gpu_name().split(",")[0].strip(), "vllm_version": version("vllm"),
+                "sm_clock_mhz_median": clocks.get("sm_mhz", {}).get("median"),
+                "mem_clock_mhz": clocks.get("mem_mhz", {}).get("median")}
+        timeline = _corrected_timeline(meta, step_logs["baseline"], step_logs["profiled"],
+                                       phases["baseline"], request_metrics["baseline"],
+                                       nsys_stats, steps, kernels)
+        (dest / "corrected_timeline.json").write_text(json.dumps(timeline, indent=2))
+    else:
+        (dest / "corrected_timeline.json").unlink(missing_ok=True)
+        print("Skipping corrected_timeline.json: both baseline and profiled phases are required")
     traces_vol.commit()
     return summary
 
@@ -1465,7 +1555,7 @@ def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my na
 @app.local_entrypoint()
 def phases_main(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is",
                 max_tokens: int = 32, repeats: int = 4, max_model_len: int = 2048,
-                exec_mode: str = "eager", phase: str = "both", layerwise_nvtx: bool = True,
+                exec_mode: str = "eager", phase: str = "both", layerwise_nvtx: bool = False,
                 run_name: str = "", keep_nsys_rep: bool = False):
     s = profile_phases.remote(model=model, prompt=prompt, max_tokens=max_tokens, repeats=repeats,
                               max_model_len=max_model_len, exec_mode=exec_mode, phase=phase,
