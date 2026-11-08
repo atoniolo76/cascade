@@ -134,7 +134,9 @@ class Cascade:
             run = self.store.get_run(run_id)
             if run is None:
                 return None
-            kernels = [k.model_copy(update={"stats": {}}) for k in self.store.kernel_stats_for_run(run_id)]
+            kernels = [
+                k.model_copy(update={"stats": {}}) for k in self.store.kernel_stats_for_run(run_id)
+            ]
             snapshot = SnapshotEvent(run=run, kernels=kernels)
             return self.bus.subscribe(run_id, loop), snapshot
 
