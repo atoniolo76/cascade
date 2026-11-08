@@ -51,3 +51,12 @@ htmlcov/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local agent notes
+.audit/
+
+# Cascade app
+/data/
+web/node_modules/
+web/dist/
+cascade/static/
