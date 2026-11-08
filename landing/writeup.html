@@ -11,6 +11,55 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="site.css">
+<style>
+  .ap { margin-top: 32px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px 40px; }
+  @media (min-width: 760px) { .ap { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .ap h3 { margin: 0; font: 500 16px/1.4 Inter, sans-serif; color: var(--ink); }
+  .ap .sub { margin: 4px 0 20px; font-size: 14px; color: var(--ink-45); }
+  .ap .box {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 14px; border: 1px solid var(--rule); border-radius: 8px;
+    background: var(--ground); font-size: 14px; color: var(--ink);
+  }
+  .ap .box span:last-child { color: var(--ink-45); font-size: 13px; text-align: right; }
+  .ap .box.hot { border-color: var(--violet); background: var(--hl-violet); }
+  .ap .ap-arrow { display: grid; place-items: center; height: 30px; color: var(--ink-45); }
+  .ap .panel { border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--ground); }
+  .ap .panel.hot { border-color: color-mix(in srgb, var(--violet) 45%, var(--rule)); }
+  .ap .panel-head {
+    display: flex; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--rule);
+    font: 400 12.5px "Geist Mono", ui-monospace, monospace; color: var(--ink-70);
+  }
+  .ap .rows { padding: 10px 14px; display: grid; gap: 10px; }
+  .ap .row { display: grid; grid-template-columns: 112px minmax(0, 1fr) 64px; align-items: center; gap: 10px; }
+  .ap .cfg { font: 400 12px "Geist Mono", ui-monospace, monospace; color: var(--ink-80); white-space: nowrap; }
+  .ap .state { font-size: 12px; color: var(--ink-45); text-align: right; white-space: nowrap; }
+  .ap .state.run { color: var(--violet); }
+  .ap .state.done { color: var(--ink); }
+  .ap .meter { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; }
+  .ap .meter i { height: 9px; border-radius: 2.5px; background: var(--rule); transition: background-color 0.18s ease; }
+  .ap .meter i.on { background: var(--violet); }
+  .ap .meter.done i.on { background: var(--ink-70); }
+  .ap .log {
+    height: 92px; overflow: hidden; padding: 10px 14px; border-top: 1px solid var(--rule); background: var(--hover);
+    font: 400 11.5px/1.6 "Geist Mono", ui-monospace, monospace; color: var(--ink-70); white-space: pre;
+    display: flex; flex-direction: column; justify-content: flex-end;
+  }
+  .ap .log div { overflow: hidden; text-overflow: ellipsis; }
+  .ap .foot {
+    display: flex; justify-content: space-between; padding: 10px 14px; border-top: 1px solid var(--rule);
+    font-size: 13px; color: var(--ink-45);
+  }
+  .ap .foot b { font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+  @media (max-width: 520px) {
+    .ap .row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
+    .ap .row .meter { grid-column: 1 / -1; grid-row: 2; }
+    .ap .panel-head { font-size: 11.5px; gap: 12px; }
+    .ap .panel-head span { white-space: nowrap; }
+  }
+  .ap .fan { display: grid; place-items: center; height: 30px; color: var(--ink-45); }
+  .ap-caption { margin-top: 20px; font-size: 13px; color: var(--ink-45); }
+</style>
 </head>
 <body>
 <div class="page">
@@ -27,8 +76,124 @@
 
     <section aria-labelledby="writeup-h">
       <h2 id="writeup-h">writeup</h2>
-      <p class="empty">coming soon</p>
+      <figure class="ap" aria-label="Initial approach compared with Cascade's approach">
+        <div>
+          <h3>Initial approach</h3>
+          <p class="sub">Trace, download, simulate one config at a time</p>
+          <div class="box"><span>Trace on an H100</span><span>to a Modal Volume</span></div>
+          <div class="ap-arrow"><svg width="12" height="16" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M6 1v13M1.5 9.5 6 14l4.5-4.5"/></svg></div>
+          <div class="box"><span>Download to one machine</span><span>after tracing ends</span></div>
+          <div class="ap-arrow"><svg width="12" height="16" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M6 1v13M1.5 9.5 6 14l4.5-4.5"/></svg></div>
+          <div class="panel">
+            <div class="panel-head"><span>accel-sim.out</span><span>one at a time</span></div>
+            <div class="rows" data-side="seq"></div>
+            <div class="log" data-log></div>
+            <div class="foot"><span>Configs done</span><b data-count="seq">0 / 4</b></div>
+          </div>
+        </div>
+        <div>
+          <h3>Cascade</h3>
+          <p class="sub">Stream the trace, fork one sandbox per config</p>
+          <div class="box hot"><span>Profiler streams to Cascade</span><span>over S3, while tracing</span></div>
+          <div class="ap-arrow"><svg width="12" height="16" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M6 1v13M1.5 9.5 6 14l4.5-4.5"/></svg></div>
+          <div class="box"><span>Checkpoint the app's sandbox</span><span>trace already on disk</span></div>
+          <div class="fan"><svg width="160" height="24" viewBox="0 0 160 26" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M80 1v6M80 7C80 14 20 12 20 22M80 7C80 14 60 12 60 22M80 7C80 14 100 12 100 22M80 7C80 14 140 12 140 22"/><path d="M16.5 19 20 23l3.5-4M56.5 19 60 23l3.5-4M96.5 19 100 23l3.5-4M136.5 19 140 23l3.5-4"/></svg></div>
+          <div class="panel hot">
+            <div class="panel-head"><span>forked sailboxes</span><span>all at once, live</span></div>
+            <div class="rows" data-side="par"></div>
+            <div class="log" data-beats></div>
+            <div class="foot"><span>Configs done</span><b data-count="par">0 / 4</b></div>
+          </div>
+        </div>
+      </figure>
+      <p class="ap-caption">Both panels replay the same four simulations. Lines are from a recorded Accel-Sim run.</p>
+      <p class="empty">full writeup coming soon</p>
     </section>
+    <script>
+      (() => {
+        const CONFIGS = ["SM90_H100 #1", "SM90_H100 #2", "SM90_H200 #1", "SM90_H200 #2"];
+        const PACE = [1, 0.93, 0.86, 0.9];
+        const LOG = [
+          "launching kernel name: _Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_ uid: 1",
+          "kernel_name = _Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
+          "gpu_sim_cycle = 6174",
+          "gpu_ipc =       3.1513",
+          "gpgpu_simulation_rate = 9728 (inst/sec)",
+          "launching kernel name: _Z11copy_kernelIdEvPKT_PS0_ uid: 2",
+          "kernel_name = _Z11copy_kernelIdEvPKT_PS0_",
+          "gpu_sim_cycle = 5923",
+          "gpu_ipc =       1.9017",
+          "gpgpu_simulation_rate = 7680 (inst/sec)",
+        ];
+        const ONE = 2600, HOLD = 1800, CYCLE = ONE * CONFIGS.length + HOLD;
+        const BLOCKS = 16;
+
+        const build = (side) => {
+          const host = document.querySelector(`[data-side="${side}"]`);
+          return CONFIGS.map((name) => {
+            const row = document.createElement("div");
+            row.className = "row";
+            row.innerHTML = `<span class="cfg">${name}</span><span class="meter">${"<i></i>".repeat(BLOCKS)}</span><span class="state">queued</span>`;
+            host.append(row);
+            return { meter: row.querySelector(".meter"), blocks: [...row.querySelectorAll("i")], state: row.querySelector(".state") };
+          });
+        };
+        const seq = build("seq"), par = build("par");
+        const logEl = document.querySelector("[data-log]");
+        const beatEl = document.querySelector("[data-beats]");
+        const countSeq = document.querySelector('[data-count="seq"]');
+        const countPar = document.querySelector('[data-count="par"]');
+
+        const paint = (row, frac, label, cls) => {
+          const n = Math.round(Math.min(1, Math.max(0, frac)) * BLOCKS);
+          row.blocks.forEach((b, i) => b.classList.toggle("on", i < n));
+          row.meter.classList.toggle("done", frac >= 1);
+          row.state.textContent = label;
+          row.state.className = `state ${cls}`;
+        };
+        const lines = (el, list) => {
+          const html = list.slice(-4).map((l) => `<div>${l}</div>`).join("");
+          if (el.innerHTML !== html) el.innerHTML = html;
+        };
+
+        const frame = (t) => {
+          const now = t % CYCLE;
+          let seqDone = 0;
+          seq.forEach((row, i) => {
+            const f = (now - i * ONE) / ONE;
+            if (f >= 1) { paint(row, 1, "done", "done"); seqDone++; }
+            else if (f > 0) paint(row, f, "running", "run");
+            else paint(row, 0, "queued", "");
+          });
+          const step = Math.floor(((now % ONE) / ONE) * LOG.length);
+          lines(logEl, seqDone === CONFIGS.length ? ["4 configs simulated, one after another"] : LOG.slice(0, step + 1));
+
+          let parDone = 0;
+          const beats = [];
+          par.forEach((row, i) => {
+            const f = now / (ONE * 1.05 / PACE[i]);
+            if (f >= 1) { paint(row, 1, "done", "done"); parDone++; }
+            else { paint(row, f, "running", "run"); beats.push(`POST /api/sims/${i + 1}/logs  seq ${Math.floor(f * 40)}`); }
+          });
+          lines(beatEl, parDone === CONFIGS.length ? ["all 4 reported back to Cascade", "waiting on nothing"] : beats);
+          countSeq.textContent = `${seqDone} / ${CONFIGS.length}`;
+          countPar.textContent = `${parDone} / ${CONFIGS.length}`;
+        };
+
+        if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          frame(ONE * CONFIGS.length + 1);
+          return;
+        }
+        const fig = document.querySelector(".ap");
+        let running = false, start = 0, raf = 0;
+        const loop = (ts) => { frame(ts - start); raf = requestAnimationFrame(loop); };
+        new IntersectionObserver(([e]) => {
+          if (e.isIntersecting && !running) { running = true; start = performance.now(); raf = requestAnimationFrame(loop); }
+          else if (!e.isIntersecting && running) { running = false; cancelAnimationFrame(raf); }
+        }).observe(fig);
+        frame(0);
+      })();
+    </script>
   </main>
   <footer>
     <span>Cascade, 2026</span>
