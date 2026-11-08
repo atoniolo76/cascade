@@ -14,7 +14,7 @@ import { SimTimePanel } from "../components/run/SimTimePanel";
 import { StepTimingPanel } from "../components/run/StepTimingPanel";
 import { RunTimeline } from "../components/timeline/RunTimeline";
 import { ConfigChips } from "../components/RunsTable";
-import { TraceChip } from "../components/TraceState";
+import { SampleBadge, TraceChip } from "../components/TraceState";
 import { Button, Card, CopyButton, EmptyState, ErrorNote, Panel, RelTime, Skeleton } from "../components/ui";
 import { ICON, buttonClass } from "../components/styles";
 import { cx } from "../components/cx";
@@ -27,6 +27,7 @@ import { useRunStream, type Connection } from "../hooks/useRunStream";
 import { isTyping } from "../lib/keys";
 import { toast } from "../lib/toast";
 import { paths } from "../paths";
+import { SAMPLE_README_URL, sampleRunLine } from "../domain/samples";
 
 const CONNECTION: Record<Connection, { label: string; tone: Tone; live: boolean }> = {
   connecting: { label: "Connecting", tone: "pending", live: false },
@@ -168,10 +169,11 @@ function RunView({ live, connection, onRun }: { live: Live; connection: Connecti
           status={
             <span className="flex items-center gap-3">
               <Status tone={RUN_STATE[runState].tone} live={RUN_STATE[runState].live} label={RUN_STATE[runState].label} />
+              {run.sample && <SampleBadge />}
               {(runState === "active" || connection !== "live") && <ConnectionBadge connection={connection} />}
             </span>
           }
-          actions={<RunActions run={run} active={runState === "active"} onRun={onRun} />}
+          actions={<RunActions run={run} cancellable={runState === "active" && !run.sample} onRun={onRun} />}
           neighbors={{ prev: neighbor(at - 1), next: neighbor(at + 1), noun: "run" }}
         >
           <div className="w-fit max-w-full rounded-[16px] bg-card px-4 py-2.5 text-[15px] leading-8 text-fg-2 ring-1 ring-border">
@@ -185,6 +187,14 @@ function RunView({ live, connection, onRun }: { live: Live; connection: Connecti
               · started <RelTime iso={run.created_at} />
             </span>
           </div>
+          {run.sample && (
+            <p className="text-[13px] text-muted">
+              {sampleRunLine(run)}{" "}
+              <a href={SAMPLE_README_URL} target="_blank" rel="noreferrer" className="font-medium text-link hover:underline">
+                About this sample
+              </a>
+            </p>
+          )}
         </PageHeader>
 
         <div className="flex flex-col gap-8">
@@ -230,7 +240,7 @@ function ConnectionBadge({ connection }: { connection: Connection }) {
   );
 }
 
-function RunActions({ run, active, onRun }: { run: RunDetail; active: boolean; onRun: (run: RunDetail) => void }) {
+function RunActions({ run, cancellable, onRun }: { run: RunDetail; cancellable: boolean; onRun: (run: RunDetail) => void }) {
   const cancel = useCancelRun(run.id);
   const [confirming, setConfirming] = useState(false);
   const [downloadError, setDownloadError] = useState<unknown>(null);
@@ -258,7 +268,7 @@ function RunActions({ run, active, onRun }: { run: RunDetail; active: boolean; o
           <Download className="size-4" {...ICON} />
           Results
         </Button>
-        {active && (
+        {cancellable && (
           <Button
             variant="danger"
             className="min-w-[124px]"

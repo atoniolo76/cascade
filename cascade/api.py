@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import mimetypes
 import re
 import secrets
 import statistics
@@ -55,8 +54,10 @@ from cascade.models import (
     TraceDetail,
     TraceState,
     TraceSummary,
+    content_type,
 )
 from cascade.perfetto import run_trace
+from cascade.samples import seed_samples
 from cascade.settings import Settings
 from cascade.stats import LogParser
 from cascade.store import IllegalTransition, Store, now
@@ -68,13 +69,6 @@ SWEEP_S = 5.0
 SSE_KEEPALIVE_S = 15.0
 SSE_QUEUE_MAX = 2000
 LOST_GIVE_UP_FACTOR = 10
-CONTENT_TYPES = {
-    ".csv": "text/csv",
-    ".txt": "text/plain",
-    ".log": "text/plain",
-    ".json": "application/json",
-    ".gz": "application/gzip",
-}
 
 
 class Bus:
@@ -133,6 +127,8 @@ class Cascade:
         self._sweeper: threading.Thread | None = None
 
     def start(self) -> None:
+        if self.settings.samples:
+            seed_samples(self.settings, self.store)
         self.ingestor.start()
         self._sweeper = threading.Thread(target=self._sweep_loop, name="sweeper", daemon=True)
         self._sweeper.start()
@@ -353,11 +349,6 @@ def _attachment(model: BaseModel, filename: str) -> Response:
     )
 
 
-def content_type(name: str) -> str:
-    known = CONTENT_TYPES.get(Path(name).suffix.lower())
-    return known or mimetypes.guess_type(name, strict=False)[0] or "application/octet-stream"
-
-
 def create_app(settings: Settings | None = None, launcher: Launcher | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     cascade = Cascade(settings, launcher)
@@ -439,6 +430,10 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
             raise HTTPException(404, f"trace {body.trace_id} not found")
         if trace.state != TraceState.ready:
             raise HTTPException(409, f"trace {trace.id} is {trace.state}, not ready")
+        if trace.sample:
+            raise HTTPException(
+                409, f"trace {trace.id} is a sample without its instruction traces; it can't run"
+            )
         for entry in body.entries:
             cfg = cascade.configs.get(entry.gpu_config)
             if cfg is None:

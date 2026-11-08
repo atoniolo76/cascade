@@ -1,14 +1,14 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/runs/run-a5c5ba6e0ac7/step-timelines",
+    "path": "/api/runs/run-210d75c008c4/step-timelines",
     "body": null
   },
   "status": 200,
   "content_type": "application/json",
   "body": [
     {
-      "sim_id": "sim-4bc665cf326e",
+      "sim_id": "sim-1047ddbdf5b1",
       "gpu_config": "SM86_RTX3070",
       "replica": 0,
       "simulated": {
@@ -158,7 +158,7 @@
                 }
               ]
             },
-            "request_assumption": "one request per repeat; arrival + pre/steps/inter-step gaps/post",
+            "request_assumption": "one request per repeat; queued (or arrival) + pre/steps/inter-step gaps/post",
             "gap_model": "measured",
             "gap_fit": {}
           },
@@ -278,7 +278,7 @@
       }
     },
     {
-      "sim_id": "sim-09e225316002",
+      "sim_id": "sim-e8f63b6b3bed",
       "gpu_config": "SM86_RTX3070",
       "replica": 1,
       "simulated": {
@@ -428,7 +428,7 @@
                 }
               ]
             },
-            "request_assumption": "one request per repeat; arrival + pre/steps/inter-step gaps/post",
+            "request_assumption": "one request per repeat; queued (or arrival) + pre/steps/inter-step gaps/post",
             "gap_model": "measured",
             "gap_fit": {}
           },

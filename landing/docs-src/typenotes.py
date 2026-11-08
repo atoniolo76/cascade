@@ -78,6 +78,8 @@ FIELD_NOTES: dict[str, str] = {
     "TraceSummary.layers": "`metadata.json` `layers`. Empty if missing or not a list.",
     "TraceSummary.suggested_sim_config": "`metadata.json` `suggested_sim_config`. The UI preselects it on the New run screen.",
     "TraceSummary.has_real_timing": "True when the trace has real per-kernel timings (`real_timing.json`). The profiler does not write them yet.",
+    "TraceSummary.sample": "True for the sample trace that `cascade serve` seeds from `samples/` (see [Introduction](index.html)), unless `CASCADE_SAMPLES` is false. It is `ready` but has no instruction traces, so it can't start a run.",
+    "RunSummary.sample": "True for the sample run seeded with the sample trace. Its results were recorded when the run was made, not in this workspace, and cancelling it changes nothing.",
     "TraceDetail.metadata": "The trace's `metadata.json`, parsed. `null` until it arrives.",
     "TraceDetail.kernels": "Kernel launches from the trace's `stats_ctx_*` files, by `kernel_id`. Filled in when the trace becomes `ready`.",
     "RunEntry.gpu_config": "A `GpuConfig.name` whose `arch` matches the trace's `trace_gpu_arch`.",
@@ -208,6 +210,10 @@ SETTINGS_NOTES: dict[str, tuple[str | None, str]] = {
     "CASCADE_S3_PUBLIC_URL": (
         None,
         "The S3 endpoint the profiler uploads to. `/api/health` returns it as `s3_endpoint` and the UI fills it into the send-a-trace command. `cascade deploy` sets it; a local `cascade serve` derives it from `CASCADE_PUBLIC_URL`'s host and `--s3-port`.",
+    ),
+    "CASCADE_SAMPLES": (
+        None,
+        "Whether `cascade serve` seeds the bundled sample trace and run (`samples/`) into the workspace on startup. Set `false` to start empty. A sample already seeded stays.",
     ),
     "CASCADE_RUN_S3": (
         None,

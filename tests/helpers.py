@@ -28,6 +28,7 @@ def make_settings(tmp_path: Path, **env: str) -> Settings:
             "CASCADE_ACCELSIM_DIR": str(ACCELSIM_DIR),
             "CASCADE_POSTPROCESS_CMD": "/nonexistent/post-traces-processing",
             "CASCADE_RUN_S3": "false",
+            "CASCADE_SAMPLES": "false",
             **env,
         }
     )

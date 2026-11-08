@@ -5,6 +5,7 @@ import { Play, Rocket } from "lucide-react";
 import { useCreateRun, useGpuConfigs } from "../api/queries";
 import type { TraceSummary } from "../api/types";
 import { suggestedConfig } from "../domain/configs";
+import { runBlocker } from "../domain/samples";
 import { gpuLogo } from "../domain/logos";
 import { LogoTile } from "./BrandLogo";
 import { toast } from "../lib/toast";
@@ -19,12 +20,15 @@ export function QuickLaunch({ trace, size = "md", variant = "primary" }: { trace
   const [openAt, setOpenAt] = useState<DOMRect | null>(null);
   const anchor = useRef<HTMLButtonElement>(null);
   useGpuConfigs();
-  if (trace.state !== "ready") {
+  const blocked = runBlocker(trace);
+  if (blocked !== null) {
     return (
-      <Button size={size} variant={variant} disabled title={`Trace is ${trace.state}; runs need a ready trace`}>
-        <Play className="size-3.5" {...ICON} />
-        Run
-      </Button>
+      <span title={blocked} className="inline-flex">
+        <Button size={size} variant={variant} disabled aria-label={`Run: ${blocked}`}>
+          <Play className="size-3.5" {...ICON} />
+          Run
+        </Button>
+      </span>
     );
   }
   return (

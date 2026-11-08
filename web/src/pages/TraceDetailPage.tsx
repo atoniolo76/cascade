@@ -6,13 +6,14 @@ import type { KernelLaunch, TraceDetail } from "../api/types";
 import { PageHeader } from "../components/AppShell";
 import { QuickLaunch } from "../components/QuickLaunch";
 import { RunsTable } from "../components/RunsTable";
-import { ModelTile, TraceState } from "../components/TraceState";
+import { ModelTile, SampleBadge, TraceState } from "../components/TraceState";
 import { LogoGlyph, LogoTile } from "../components/BrandLogo";
 import { gpuLogo } from "../domain/logos";
 import { Card, CopyButton, EmptyState, ErrorNote, Mono, Panel, PanelHeader, RelTime, Skeleton, Stat, Th, Button } from "../components/ui";
 import { ICON, THEAD, buttonClass } from "../components/styles";
 import { formatBytes, formatDims, formatInt } from "../domain/format";
 import { paths } from "../paths";
+import { runBlocker } from "../domain/samples";
 
 const PAGE = 100;
 /** Shown in the summary card above, or summarized separately. */
@@ -40,11 +41,20 @@ export function TraceDetailPage() {
               </span>
             ),
           }]}
-        status={trace.data ? <TraceState trace={trace.data} detail={false} /> : <Skeleton className="h-5 w-20" />}
+        status={
+          trace.data ? (
+            <span className="flex items-center gap-3">
+              <TraceState trace={trace.data} detail={false} />
+              {trace.data.sample && <SampleBadge />}
+            </span>
+          ) : (
+            <Skeleton className="h-5 w-20" />
+          )
+        }
         actions={
           trace.data && (
             <>
-              <Link to={paths.newRun(trace.data.id)} aria-disabled={trace.data.state !== "ready"} className={buttonClass({})}>
+              <Link to={paths.newRun(trace.data.id)} aria-disabled={runBlocker(trace.data) !== null} className={buttonClass({})}>
                 <Settings2 className="size-4" {...ICON} />
                 Configure run
               </Link>
@@ -143,7 +153,7 @@ function TraceBody({ trace }: { trace: TraceDetail }) {
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <Panel className="min-w-0 self-start overflow-hidden">
-          <PanelHeader icon={<Braces {...ICON} />} title="Metadata" subtitle="From the profiler's metadata.json" />
+          <PanelHeader icon={<Braces {...ICON} />} title="Metadata" subtitle={trace.sample ? "From the sample's run.json, workload.json and corrected timeline" : "From the profiler's metadata.json"} />
           {trace.metadata === null ? (
             <EmptyState title="No metadata yet" body="metadata.json is uploaded last, once tracing finishes." />
           ) : (

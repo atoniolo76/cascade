@@ -126,7 +126,7 @@ ENDPOINTS: tuple[Endpoint, ...] = (
         errors=(
             UNAUTHORIZED,
             (404, "`trace_id` names no trace."),
-            (409, "The trace is not `ready`."),
+            (409, "The trace is not `ready`, or is a sample, which has no instruction traces."),
             (
                 422,
                 "An entry names an unknown `gpu_config`, or a config whose `arch` differs from the trace's `trace_gpu_arch`.",
@@ -175,7 +175,7 @@ ENDPOINTS: tuple[Endpoint, ...] = (
         path="/api/runs/{run_id}/cancel",
         title="Cancel a run",
         summary="Cancel every unfinished sim.",
-        doc="Moves every sim that has not finished to `cancelled` and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets `cancel: true`. Calling it again changes nothing, so it is safe to retry.",
+        doc="Moves every sim that has not finished to `cancelled` and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets `cancel: true`. Calling it again changes nothing, so it is safe to retry. On a sample run it changes nothing either, since its sim already `succeeded`.",
         returns="`200` with the `RunDetail` after cancelling.",
         example="run-cancel",
         params=(RUN_ID,),

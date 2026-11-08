@@ -22,7 +22,7 @@ curl -X POST "$CASCADE_URL/api/runs" \
 ```
 <p>The app checks the request before creating anything.</p>
 <ul>
-<li>The trace must exist (`404`) and be `ready` (`409`).</li>
+<li>The trace must exist (`404`), be `ready`, and not be a sample (`409`).</li>
 <li>Every `gpu_config` must be one [List GPU configs](api-runs.html#list-gpu-configs) returns, with the trace's architecture (`422`).</li>
 <li>`entries` can't be empty and every `count` is 1 to 64 (`422`).</li>
 </ul>

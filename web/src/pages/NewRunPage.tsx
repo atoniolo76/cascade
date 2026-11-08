@@ -11,6 +11,7 @@ import { configSeries } from "../domain/stats";
 import { LogoGlyph, LogoTile } from "../components/BrandLogo";
 import { gpuLogo, logoByKey } from "../domain/logos";
 import { suggestedConfig } from "../domain/configs";
+import { SAMPLE_RUN_BLOCKED, runBlocker } from "../domain/samples";
 import { toast } from "../lib/toast";
 import { cx } from "../components/cx";
 import { formatBytes, formatInt, plural } from "../domain/format";
@@ -27,7 +28,7 @@ export function NewRunPage() {
 
   const requested = params.get("trace");
   const trace =
-    traces.data?.find((t) => t.id === requested) ?? (requested === null ? traces.data?.find((t) => t.state === "ready") : undefined);
+    traces.data?.find((t) => t.id === requested) ?? (requested === null ? traces.data?.find((t) => runBlocker(t) === null) : undefined);
 
   return (
     <>
@@ -83,7 +84,7 @@ function RunForm({
     return count === undefined ? [] : [{ gpu_config: c.name, count }];
   });
   const total = entries.reduce((n, e) => n + e.count, 0);
-  const canLaunch = trace?.state === "ready" && total > 0 && !create.isPending;
+  const canLaunch = trace !== undefined && runBlocker(trace) === null && total > 0 && !create.isPending;
 
   const launch = () => {
     if (!trace) return;
@@ -113,8 +114,8 @@ function RunForm({
             >
               {trace === undefined && <option value="">Select a trace</option>}
               {traces.map((t) => (
-                <option key={t.id} value={t.id} disabled={t.state !== "ready"}>
-                  {t.state === "ready" ? t.id : `${t.id} (${TRACE_STATE[t.state].label.toLowerCase()})`}
+                <option key={t.id} value={t.id} disabled={runBlocker(t) !== null}>
+                  {t.sample ? `${t.id} (sample)` : t.state === "ready" ? t.id : `${t.id} (${TRACE_STATE[t.state].label.toLowerCase()})`}
                 </option>
               ))}
             </select>
@@ -127,6 +128,7 @@ function RunForm({
                 <span className="font-mono">{trace.trace_gpu_arch}</span>
               </div>
             )}
+            {trace?.sample === true && <p className="text-[13px] text-muted">{SAMPLE_RUN_BLOCKED}</p>}
           </div>
         </Panel>
 

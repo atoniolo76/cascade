@@ -15,7 +15,7 @@ description: The status codes the Cascade API returns, the two error body shapes
 {{example error-404-route}}
 
 <h2 id="e409">409 Conflict</h2>
-<p>Only [Create a run](api-runs.html#create-run) returns `409`, when the trace exists but isn't `ready`. Wait for it to finish processing, or check its `error` if it `failed`.</p>
+<p>Only [Create a run](api-runs.html#create-run) returns `409`, when the trace exists but isn't `ready`, or is the bundled sample, which can't be simulated again. Wait for it to finish processing, or check its `error` if it `failed`.</p>
 {{example error-409}}
 
 <h2 id="e413">413 Content Too Large</h2>
