@@ -29,15 +29,16 @@ export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; me
 
   const shown = rows.filter((r) => r.depth === 0 || r.track === focus);
   const replicasHidden = rows.length - shown.length;
-  const readings = shown.map(({ track }) => {
+  const all = rows.map(({ track }) => {
     const reading = readTrack(track, pos, scene.mode, scene.align);
     const other = k === null ? undefined : clipForKernel(track, k);
     const diff = linkable && focusClip && other && !other.pending && !focusClip.pending && track !== focus ? other.start - focusClip.start : null;
     return { track, reading, diff };
   });
 
+  const readings = all.filter((r) => shown.some((x) => x.track === r.track));
   let headline: { track: Track; diff: number } | null = null;
-  for (const r of readings) if (r.diff !== null && (headline === null || Math.abs(r.diff) > Math.abs(headline.diff))) headline = { track: r.track, diff: r.diff };
+  for (const r of all) if (r.diff !== null && (headline === null || Math.abs(r.diff) > Math.abs(headline.diff))) headline = { track: r.track, diff: r.diff };
 
   const span = coarse.range ? kernelRange(focus, coarse.range.from, coarse.range.to, scene.mode, scene.align) : null;
   const focusRange = span ? rangeTime(focus, span) : null;
