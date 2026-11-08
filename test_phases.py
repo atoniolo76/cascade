@@ -174,10 +174,12 @@ class PhasesTest(unittest.TestCase):
         result = a._corrected_timeline(meta, baseline, profiled, iterations, metrics,
                                        stats, ranges, kernels)
         self.assertEqual(set(result), {"meta", "steps", "requests", "summary"})
-        self.assertEqual(set(result["meta"]), set(meta))
+        self.assertEqual(set(result["meta"]), set(meta) | {"clock"})
         step_keys = {"step", "repeat", "warmup", "kind", "num_reqs", "num_scheduled_tokens",
                      "baseline_wall_ns", "profiled_wall_ns", "gpu_busy_ns", "cuda_api_ns",
-                     "host_ns", "kernels"}
+                     "host_ns", "kernels", "baseline_wall_start_ns", "baseline_wall_end_ns",
+                     "baseline_gap_before_ns", "profiled_wall_start_ns", "profiled_wall_end_ns",
+                     "profiled_gap_before_ns"}
         for s in result["steps"]:
             self.assertEqual(set(s), step_keys)
         for s in result["steps"][:2] + result["steps"][3:]:
@@ -200,7 +202,10 @@ class PhasesTest(unittest.TestCase):
             "seq", "name", "grid", "block", "duration_ns", "start_offset_ns"})
         req = result["requests"][0]
         self.assertEqual(set(req), {"repeat", "warmup", "queued_ms", "ttft_ms", "itl_ms_mean",
-                                    "itl_ms_p50", "e2e_ms", "num_output_tokens"})
+                                    "itl_ms_p50", "e2e_ms", "num_output_tokens",
+                                    "first_step_start_ns", "last_step_end_ns", "arrival_ns",
+                                    "queued_ns", "first_token_ns", "last_token_ns",
+                                    "pre_first_step_ns", "post_last_step_ns"})
         self.assertEqual((req["queued_ms"], req["ttft_ms"], req["itl_ms_mean"], req["e2e_ms"]),
                          (1000, 2000, 1000, 4000))
         self.assertIsNone(req["itl_ms_p50"])
@@ -209,7 +214,8 @@ class PhasesTest(unittest.TestCase):
         self.assertIsNone(result["requests"][2]["ttft_ms"])
         summary = result["summary"]["prefill"]
         self.assertEqual(set(summary), {"n", "baseline_wall_ns", "gpu_busy_ns", "host_ns",
-                                        "profiler_overhead_pct"})
+                                        "profiler_overhead_pct", "baseline_gap_before_ns",
+                                        "profiled_gap_before_ns"})
         self.assertEqual(summary["baseline_wall_ns"], {"mean": 100, "p50": 100, "p95": 100})
         self.assertEqual(summary["host_ns"], {"mean": 60, "p50": 60})
         self.assertEqual(summary["gpu_busy_ns"], {"mean": 40, "p50": 40})
@@ -227,10 +233,62 @@ class PhasesTest(unittest.TestCase):
         self.assertEqual(fallback["steps"][0]["num_reqs"], 2)
         self.assertEqual(fallback["steps"][0]["num_scheduled_tokens"], 9)
         empty = a._corrected_timeline(meta, [], [], [], {}, {}, {}, [])
-        self.assertEqual(empty, {"meta": meta, "steps": [], "requests": [], "summary": {}})
+        self.assertEqual(empty, {"meta": result["meta"], "steps": [], "requests": [], "summary": {}})
         with self.assertRaises(ValueError):
             a._corrected_timeline(meta, baseline, profiled, iterations, {}, stats, ranges,
                                   [{**kernels[0], "grid": "invalid"}])
+
+    def test_corrected_timeline_monotonic_gaps(self):
+        meta = {k: None for k in ("run_name", "model", "prompt", "max_tokens", "repeats",
+                                  "exec_mode", "gpu_name", "sm_clock_mhz_median", "mem_clock_mhz",
+                                  "vllm_version", "layerwise_nvtx")}
+        baseline = [
+            {"step": 0, "repeat": 0, "warmup": True, "kind": "prefill",
+             "wall_start_ns": 1010, "wall_end_ns": 1020,
+             "monotonic_start_ns": 10, "monotonic_end_ns": 20},
+            {"step": 1, "repeat": 1, "warmup": False, "kind": "prefill",
+             "wall_start_ns": 1100, "wall_end_ns": 1120,
+             "monotonic_start_ns": 100, "monotonic_end_ns": 120},
+            {"step": 2, "repeat": 1, "warmup": False, "kind": "decode",
+             "wall_start_ns": 1150, "wall_end_ns": 1170,
+             "monotonic_start_ns": 150, "monotonic_end_ns": 170},
+            {"step": 3, "repeat": 1, "warmup": False, "kind": "decode",
+             "wall_start_ns": 1210, "wall_end_ns": 1230,
+             "monotonic_start_ns": 210, "monotonic_end_ns": 230}]
+        profiled = [{**r, "step": r["step"] + 10, "monotonic_start_ns": r["monotonic_start_ns"] + 500,
+                     "monotonic_end_ns": r["monotonic_end_ns"] + 505} for r in baseline[:-1]]
+        metrics = {"clock": {"step_clock": "monotonic", "wall_minus_monotonic_ns": 1000,
+                              "how": "fake"}, "requests": [{"repeat": 1, "metrics": {
+                                  "arrival_time": 1080e-9, "queued_ts": 90e-9,
+                                  "first_token_ts": 115e-9, "last_token_ts": 225e-9},
+                                  "generate_return_monotonic_ns": 250}]}
+        result = a._corrected_timeline(meta, baseline, profiled, [], metrics, {}, {}, [],
+                                       {"clock": {"wall_minus_monotonic_ns": 2000}})
+        self.assertEqual([s["baseline_gap_before_ns"] for s in result["steps"]], [None, None, 30, 40])
+        self.assertEqual([s["profiled_gap_before_ns"] for s in result["steps"]], [None, None, 25, None])
+        self.assertEqual(result["steps"][1]["profiled_wall_start_ns"], 600)
+        # New profiled timestamps exist even for uncaptured steps; old nsys fields stay null.
+        self.assertIsNone(result["steps"][1]["profiled_wall_ns"])
+        self.assertIsNone(result["steps"][3]["profiled_wall_end_ns"])
+        req = result["requests"][0]
+        self.assertEqual({k: req[k] for k in ("first_step_start_ns", "last_step_end_ns",
+                         "arrival_ns", "queued_ns", "first_token_ns", "last_token_ns",
+                         "pre_first_step_ns", "post_last_step_ns")}, {
+                             "first_step_start_ns": 100, "last_step_end_ns": 230,
+                             "arrival_ns": 80, "queued_ns": 90, "first_token_ns": 115,
+                             "last_token_ns": 225, "pre_first_step_ns": 20, "post_last_step_ns": 20})
+        self.assertEqual(result["meta"]["clock"]["wall_minus_monotonic_ns"], 1000)
+        self.assertEqual(result["meta"]["clock"]["profiled_wall_minus_monotonic_ns"], 2000)
+        self.assertEqual(result["summary"]["decode"]["baseline_gap_before_ns"], {
+            "mean": 35, "p50": 35, "p95": 39.5})
+        self.assertEqual(result["summary"]["decode"]["profiled_gap_before_ns"]["mean"], 25)
+        self.assertIsNone(result["summary"]["prefill"]["baseline_gap_before_ns"]["mean"])
+        legacy = [{k: v for k, v in r.items() if not k.startswith("monotonic_")} for r in baseline]
+        converted = a._corrected_timeline(meta, legacy, [], [], metrics, {}, {}, [])
+        self.assertEqual(converted["steps"][2]["baseline_wall_start_ns"], 150)
+        missing = a._corrected_timeline(meta, legacy, [], [], {"requests": [{"repeat": 5}]}, {}, {}, [])
+        self.assertIsNone(missing["steps"][2]["baseline_wall_start_ns"])
+        self.assertIsNone(missing["requests"][0]["post_last_step_ns"])
 
     def test_workload_repeats_and_profiler_order(self):
         @dataclass
@@ -277,7 +335,7 @@ class PhasesTest(unittest.TestCase):
 
         fake_modules = {
             "torch": SimpleNamespace(nn=SimpleNamespace(Module=object),
-                                     cuda=SimpleNamespace(synchronize=lambda: None)),
+                                     cuda=SimpleNamespace(synchronize=lambda: calls.append("sync"))),
             "torch_hook": SimpleNamespace(TorchModelHookWrapper=object,
                                           hook_nvbit_to_layer=lambda *args: None),
             "vllm": SimpleNamespace(LLM=FakeLLM, SamplingParams=lambda **kw: kw),
@@ -308,6 +366,24 @@ class PhasesTest(unittest.TestCase):
         self.assertEqual(len(data["requests"]), 3)
         self.assertEqual(data["requests"][0]["ttft_s"], 1)
         self.assertEqual(data["metrics"][0]["buckets"], {"+Inf": 1})
+        self.assertEqual(data["clock"]["step_clock"], "monotonic")
+        self.assertIsInstance(data["clock"]["wall_minus_monotonic_ns"], int)
+        self.assertGreaterEqual(data["clock"]["sample_bracket_ns"], 0)
+        self.assertGreaterEqual(data["requests"][-1]["generate_return_monotonic_ns"],
+                                recorded[-1]["monotonic_end_ns"])
+        self.assertEqual(calls.count("sync"), 13)  # startup plus two per step
+        for r in recorded:
+            self.assertGreaterEqual(r["monotonic_end_ns"], r["monotonic_start_ns"])
+            self.assertGreaterEqual(r["pre_step_sync_ns"], 0)
+            self.assertGreaterEqual(r["post_step_sync_ns"], 0)
+        calls.clear()
+        with patch.dict(sys.modules, fake_modules), patch.object(sys, "argv", args + ["--no-step-sync"]), \
+                patch.dict(os.environ, {}, clear=True):
+            runpy.run_path(str(Path(__file__).with_name("vllm_trace.py")), run_name="__main__")
+        self.assertEqual(calls.count("sync"), 1)  # LLM initialization sync is unchanged
+        for r in json.loads(steps.read_text()):
+            self.assertEqual(r["pre_step_sync_ns"], 0)
+            self.assertEqual(r["post_step_sync_ns"], 0)
 
 
 if __name__ == "__main__":

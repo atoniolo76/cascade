@@ -1379,7 +1379,27 @@ def _reconcile(phases: dict, nsys_stats: dict) -> list[dict]:
 
 def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: list[dict],
                         iterations: list[dict], metrics: dict, nsys_stats: dict,
-                        nsys_steps: dict, kernels: list[dict]) -> dict:
+                        nsys_steps: dict, kernels: list[dict], profiled_metrics: dict | None = None) -> dict:
+    clock = metrics.get("clock", {})
+    profiled_clock = (profiled_metrics or {}).get("clock", {})
+
+    def timing(records, run_clock):
+        previous, out = {}, {}
+        offset = run_clock.get("wall_minus_monotonic_ns")
+        for r in sorted(records, key=lambda r: r["step"]):
+            start, end = r.get("monotonic_start_ns"), r.get("monotonic_end_ns")
+            if offset is not None:
+                if start is None and r.get("wall_start_ns") is not None:
+                    start = r["wall_start_ns"] - offset
+                if end is None and r.get("wall_end_ns") is not None:
+                    end = r["wall_end_ns"] - offset
+            prev = previous.get(r["repeat"])
+            out[r["step"]] = (start, end, start - prev if start is not None and prev is not None else None)
+            previous[r["repeat"]] = end
+        return out
+
+    baseline_times = timing(baseline_steps, clock)
+    profiled_times = timing(profiled_steps, profiled_clock)
     def indexed(records):
         counts, out = {}, {}
         for record in sorted(records, key=lambda r: r["step"]):
@@ -1418,6 +1438,10 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
                       "profiled_wall_ns": stats["nsys_span_ns"] if captured else None,
                       "gpu_busy_ns": busy, "cuda_api_ns": stats["cuda_api_ns"] if captured else None,
                       "host_ns": wall - busy if captured else None, "kernels": step_kernels})
+        for phase_name, values in (("baseline", baseline_times[record["step"]]),
+                                   ("profiled", profiled_times.get(pid, (None, None, None)))):
+            for field, value in zip(("wall_start_ns", "wall_end_ns", "gap_before_ns"), values):
+                steps[-1][f"{phase_name}_{field}"] = value
     requests = []
     for record in metrics.get("requests", []):
         m = record.get("metrics") or {}
@@ -1425,13 +1449,26 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
             return (m[end] - m[start]) * 1000 if end in m and start in m else None
         n = m.get("num_generation_tokens")
         decode_ms = elapsed("last_token_ts", "first_token_ts")
+        repeat_steps = [s for s in steps if s["repeat"] == record["repeat"]]
+        first_step = repeat_steps[0]["baseline_wall_start_ns"] if repeat_steps else None
+        last_step = repeat_steps[-1]["baseline_wall_end_ns"] if repeat_steps else None
+        offset = clock.get("wall_minus_monotonic_ns")
+        arrival = round(m["arrival_time"] * 1e9) - offset if m.get("arrival_time") is not None and offset is not None else None
+        finish = record.get("generate_return_monotonic_ns")
         requests.append({"repeat": record["repeat"], "warmup": record["repeat"] == 0,
                          "queued_ms": elapsed("scheduled_ts", "queued_ts"),
                          "ttft_ms": elapsed("first_token_ts", "queued_ts"),
                          "itl_ms_mean": decode_ms / (n - 1) if n is not None and n > 1
                          and decode_ms is not None else None,
                          "itl_ms_p50": None, "e2e_ms": elapsed("last_token_ts", "queued_ts"),
-                         "num_output_tokens": n})
+                         "num_output_tokens": n,
+                         "first_step_start_ns": first_step, "last_step_end_ns": last_step,
+                         "arrival_ns": arrival,
+                         "queued_ns": round(m["queued_ts"] * 1e9) if "queued_ts" in m else None,
+                         "first_token_ns": round(m["first_token_ts"] * 1e9) if "first_token_ts" in m else None,
+                         "last_token_ns": round(m["last_token_ts"] * 1e9) if "last_token_ts" in m else None,
+                         "pre_first_step_ns": first_step - arrival if first_step is not None and arrival is not None else None,
+                         "post_last_step_ns": finish - last_step if finish is not None and last_step is not None else None})
     summary = {}
     for kind in sorted({s["kind"] for s in steps}):
         steady = [s for s in steps if s["kind"] == kind and not s["warmup"]]
@@ -1445,9 +1482,15 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
         for metric in ("gpu_busy_ns", "host_ns"):
             dist = _distribution([s[metric] for s in matched])
             summary[kind][metric] = {k: dist[k] for k in ("mean", "p50")}
+        for metric in ("baseline_gap_before_ns", "profiled_gap_before_ns"):
+            dist = _distribution([s[metric] for s in steady if s[metric] is not None])
+            summary[kind][metric] = {k: dist[k] for k in ("mean", "p50", "p95")}
     return {"meta": {k: meta[k] for k in (
         "run_name", "model", "prompt", "max_tokens", "repeats", "exec_mode", "gpu_name",
-        "sm_clock_mhz_median", "mem_clock_mhz", "vllm_version", "layerwise_nvtx")},
+        "sm_clock_mhz_median", "mem_clock_mhz", "vllm_version", "layerwise_nvtx")} | {
+            "clock": {"step_clock": "monotonic", "wall_minus_monotonic_ns": None,
+                      "how": "unavailable in legacy metrics", **clock,
+                      "profiled_wall_minus_monotonic_ns": profiled_clock.get("wall_minus_monotonic_ns")}},
         "steps": steps, "requests": requests, "summary": summary}
 
 
@@ -1458,7 +1501,7 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
 def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is",
                    max_tokens: int = 32, repeats: int = 4, max_model_len: int = 2048,
                    exec_mode: str = "eager", phase: str = "both", layerwise_nvtx: bool = False,
-                   run_name: str = "", keep_nsys_rep: bool = False) -> dict:
+                   run_name: str = "", keep_nsys_rep: bool = False, no_step_sync: bool = False) -> dict:
     if phase not in {"baseline", "profiled", "both"}:
         raise ValueError("phase must be baseline, profiled, or both")
     if repeats < (1 if phase == "baseline" else 2) or exec_mode not in EXEC_MODES:
@@ -1481,6 +1524,8 @@ def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my na
                 "max_model_len": max_model_len, "trace_scope": "steps", "async_scheduling": False}
         cmd = [*_workload(meta, exec_mode), "--iteration-details", "--repeats", str(repeats),
                "--metrics-out", str(work / "metrics.json")]
+        if no_step_sync:
+            cmd.append("--no-step-sync")
         if name == "profiled":
             cmd += ["--cuda-profiler-from-repeat", "1"]
             if exec_mode == "eager" and layerwise_nvtx:
@@ -1543,7 +1588,7 @@ def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my na
                 "mem_clock_mhz": clocks.get("mem_mhz", {}).get("median")}
         timeline = _corrected_timeline(meta, step_logs["baseline"], step_logs["profiled"],
                                        phases["baseline"], request_metrics["baseline"],
-                                       nsys_stats, steps, kernels)
+                                       nsys_stats, steps, kernels, request_metrics["profiled"])
         (dest / "corrected_timeline.json").write_text(json.dumps(timeline, indent=2))
     else:
         (dest / "corrected_timeline.json").unlink(missing_ok=True)
@@ -1556,11 +1601,11 @@ def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my na
 def phases_main(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is",
                 max_tokens: int = 32, repeats: int = 4, max_model_len: int = 2048,
                 exec_mode: str = "eager", phase: str = "both", layerwise_nvtx: bool = False,
-                run_name: str = "", keep_nsys_rep: bool = False):
+                run_name: str = "", keep_nsys_rep: bool = False, no_step_sync: bool = False):
     s = profile_phases.remote(model=model, prompt=prompt, max_tokens=max_tokens, repeats=repeats,
                               max_model_len=max_model_len, exec_mode=exec_mode, phase=phase,
                               layerwise_nvtx=layerwise_nvtx, run_name=run_name,
-                              keep_nsys_rep=keep_nsys_rep)
+                              keep_nsys_rep=keep_nsys_rep, no_step_sync=no_step_sync)
     print("kind       A wall mean(ns) B wall mean(ns) delta(%) A elapsed(ms) B elapsed(ms)")
     for r in s["table"]:
         print(r["kind"], *(r[k] for k in ("baseline_wall_ns_mean", "profiled_wall_ns_mean",

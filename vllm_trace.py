@@ -110,6 +110,7 @@ class StepRecorder:
         self.repeat = 0
         self.profiler_from_repeat = None
         self.profiling = False
+        self.sync_steps = True
         self.nvbit_lib, self.trace_steps, self.log_path = nvbit_lib, trace_steps, log_path
         self.steps: list[dict] = []
         self._sched = None
@@ -143,16 +144,23 @@ class StepRecorder:
             not self.trace_steps or i in self.trace_steps)
         self._sched = None
         self._kind_pushed = False
-        torch.cuda.synchronize()
+        sync_start = time.monotonic_ns()
+        if self.sync_steps:
+            torch.cuda.synchronize()
+        pre_sync_ns = time.monotonic_ns() - sync_start if self.sync_steps else 0
         first_id = tracer_next_kernel_id()
         wall_start = time.time_ns()
+        monotonic_start = time.monotonic_ns()
         if nvtx:
             nvtx.push_range(f"vllm_step_{i}", domain="vllm_steps")
         if trace_this:
             self.nvbit_lib.enable_nvbit_instrumentation()
         try:
             out = self._orig_step()
-            torch.cuda.synchronize()
+            sync_start = time.monotonic_ns()
+            if self.sync_steps:
+                torch.cuda.synchronize()
+            post_sync_ns = time.monotonic_ns() - sync_start if self.sync_steps else 0
         finally:
             if trace_this:
                 self.nvbit_lib.disable_nvbit_instrumentation()
@@ -161,9 +169,12 @@ class StepRecorder:
                     nvtx.pop_range(domain="vllm_steps")
                 nvtx.pop_range(domain="vllm_steps")
         wall_end = time.time_ns()
+        monotonic_end = time.monotonic_ns()
         rec = {"step": i, "repeat": self.repeat, "warmup": self.repeat == 0,
                "nvtx_range": f"vllm_step_{i}", "traced": trace_this,
                "wall_start_ns": wall_start, "wall_end_ns": wall_end,
+               "monotonic_start_ns": monotonic_start, "monotonic_end_ns": monotonic_end,
+               "pre_step_sync_ns": pre_sync_ns, "post_step_sync_ns": post_sync_ns,
                "first_kernel_id": first_id, "end_kernel_id": tracer_next_kernel_id()}
         rec.update(self._describe(self._sched))
         self.steps.append(rec)
@@ -221,6 +232,8 @@ def main():
     p.add_argument("--repeats", type=int, default=1)
     p.add_argument("--cuda-profiler-from-repeat", type=int)
     p.add_argument("--metrics-out", default="")
+    p.add_argument("--no-step-sync", action="store_true",
+                   help="skip StepRecorder CUDA synchronizations (profiling experiment)")
     args = p.parse_args()
     if args.layerwise_nvtx and args.exec_mode != "eager":
         p.error("--layerwise-nvtx requires --exec-mode eager")
@@ -238,6 +251,13 @@ def main():
         extra["enable_layerwise_nvtx_tracing"] = True
     if args.cuda_profiler_from_repeat is not None:
         extra["profiler_config"] = {"profiler": "cuda"}
+    mono_before = time.monotonic_ns()
+    wall = time.time_ns()
+    mono_after = time.monotonic_ns()
+    clock = {"step_clock": "monotonic",
+             "wall_minus_monotonic_ns": wall - (mono_before + mono_after) // 2,
+             "how": "time.time_ns sampled between two time.monotonic_ns calls; midpoint offset",
+             "sample_bracket_ns": mono_after - mono_before}
 
     # Startup: weight load, memory profiling, warmup, torch.compile, CUDA-graph capture.
     if nvtx:
@@ -268,6 +288,7 @@ def main():
     recorder = StepRecorder(llm, load_nvbit_tool() if trace_steps is not None else None,
                             trace_steps, args.step_log)
     recorder.profiler_from_repeat = args.cuda_profiler_from_repeat
+    recorder.sync_steps = not args.no_step_sync
 
     # Greedy + ignore_eos: the spinlock-detection passes, the trace pass and the nsys pass must
     # launch the exact same kernel sequence (same number of decode steps), so no randomness.
@@ -279,10 +300,12 @@ def main():
         for repeat in range(args.repeats):
             recorder.repeat = repeat
             outputs = llm.generate(json.loads(args.prompts), sampling_params)
+            generate_return_ns = time.monotonic_ns()
             if args.metrics_out:
                 for output in outputs:
                     m = asdict(output.metrics) if output.metrics is not None else None
-                    row = {"repeat": repeat, "request_id": output.request_id, "metrics": m}
+                    row = {"repeat": repeat, "request_id": output.request_id, "metrics": m,
+                           "generate_return_monotonic_ns": generate_return_ns}
                     if m:
                         decode = m["last_token_ts"] - m["first_token_ts"]
                         row.update(queue_s=m["scheduled_ts"] - m["queued_ts"],
@@ -297,7 +320,8 @@ def main():
             llm.stop_profile()
     if args.metrics_out:
         Path(args.metrics_out).write_text(json.dumps({
-            "requests": requests, "metrics": [asdict(m) for m in llm.get_metrics()]}, indent=2))
+            "clock": clock, "requests": requests,
+            "metrics": [asdict(m) for m in llm.get_metrics()]}, indent=2))
     for output in outputs:
         print(f"Prompt: {output.prompt!r}, Generated text: {output.outputs[0].text!r}")
 

@@ -104,14 +104,20 @@ trusting joins. Mixed steps are exported but excluded from the prefill/decode co
 
 ```
 meta: run_name, model, prompt, max_tokens, repeats, exec_mode, gpu_name,
-      sm_clock_mhz_median, mem_clock_mhz, vllm_version, layerwise_nvtx
+      sm_clock_mhz_median, mem_clock_mhz, vllm_version, layerwise_nvtx, clock
 steps[]: step, repeat, warmup, kind, num_reqs, num_scheduled_tokens,
          baseline_wall_ns, profiled_wall_ns, gpu_busy_ns, cuda_api_ns, host_ns,
+         baseline_wall_start_ns, baseline_wall_end_ns, baseline_gap_before_ns,
+         profiled_wall_start_ns, profiled_wall_end_ns, profiled_gap_before_ns,
          kernels: [{seq, name, grid, block, duration_ns, start_offset_ns}]
 requests[]: repeat, warmup, queued_ms, ttft_ms, itl_ms_mean, itl_ms_p50,
-            e2e_ms, num_output_tokens
+            e2e_ms, num_output_tokens, first_step_start_ns, last_step_end_ns,
+            arrival_ns, queued_ns, first_token_ns, last_token_ns,
+            pre_first_step_ns, post_last_step_ns
 summary[kind]: n, baseline_wall_ns: {mean, p50, p95}, gpu_busy_ns: {mean, p50},
-               host_ns: {mean, p50}, profiler_overhead_pct
+               host_ns: {mean, p50}, profiler_overhead_pct,
+               baseline_gap_before_ns: {mean, p50, p95},
+               profiled_gap_before_ns: {mean, p50, p95}
 ```
 
 Steps come from the baseline records; match to B by `(repeat, step-in-repeat)`, where
@@ -140,6 +146,68 @@ wall p50 over the same matched non-warmup steps: `(B_p50 - A_p50) / A_p50 * 100`
 Empty statistics are null. Clock metadata uses medians of all profiled-phase ClockSampler
 samples (both SM and memory; null if sampling failed), and vLLM version comes from container
 package metadata. Single-phase runs print a skip note and do not write this artifact.
+
+### What's between steps
+
+The new absolute `*_wall_start_ns` / `*_wall_end_ns` fields use **CLOCK_MONOTONIC**, despite
+the historical `wall` name. StepRecorder retains its original `time.time_ns` fields and spans
+unchanged and additionally records `monotonic_start_ns` / `monotonic_end_ns` in steps.json.
+`meta.clock` records `step_clock="monotonic"`, baseline `wall_minus_monotonic_ns`, sampling
+`how` and `sample_bracket_ns`, plus `profiled_wall_minus_monotonic_ns`. Each workload samples
+wall time between two monotonic reads once and uses their midpoint for the offset. Raw clock
+metadata is also in each phase's metrics.json. Request core timestamps are monotonic seconds
+converted to ns; `arrival_ns = round(arrival_time * 1e9) - baseline offset` converts wall time.
+Linux CLOCK_MONOTONIC is comparable across processes in one container (not across hosts).
+vLLM defaults to a separate EngineCore process (`vllm/envs.py:1112-1114`), but these phase runs
+force multiprocessing off (`accelsim_trace.py::_nsys_env`).
+
+Gaps are this step's monotonic start minus the preceding step's end **within the same repeat**;
+the first gap is null. The profiled timestamp/gap fields come from B's step records even when
+outside capture, unlike the existing `profiled_wall_ns` NVTX-span field, which stays null for
+uncaptured steps. A missing partner yields null new B fields. Summary gaps use non-warmup,
+non-null gaps, attributed to the kind of the following step, independent of capture availability.
+Legacy records can be converted if their run offset is provided; without either monotonic
+timestamps or an offset, the new absolute times and gaps are null rather than mixed clocks.
+
+Request step endpoints use the first/last baseline step of that repeat (a batch envelope,
+not individual request membership). `pre_first_step_ns = first_step_start_ns - arrival_ns`.
+RequestStateStats and RequestOutput have no finish timestamp; each request's raw metrics row
+now records `generate_return_monotonic_ns`, sampled immediately after that repeat's generate
+returns. `post_last_step_ns` subtracts the final step end from this return timestamp; for multiple
+requests this is the batch-return upper bound, not each request's precise completion time.
+Existing `e2e_ms` remains last-token minus queued time and is deliberately unchanged.
+
+Code-path findings in vLLM 0.21.0 (paths relative to the unpacked vLLM source):
+
+- StepRecorder wraps **LLMEngine.step**, not just EngineCore.step. In-process get_output calls
+  EngineCore.step_fn and post_step (`v1/engine/core_client.py:287-290`). Scheduler execution and
+  `update_from_output` are **inside** our span (`v1/engine/core.py:406-435`).
+- Output processing, incremental detokenization, output construction and stats logging are
+  also **inside** (`v1/engine/llm_engine.py:295-323`, `v1/engine/output_processor.py:633-709`,
+  `v1/engine/detokenizer.py:95-135`); they cannot be assigned again to the inter-step gap.
+- Our pre-step device synchronize is **outside** the span; post-step synchronize and NVTX
+  pushes/pops are **inside**. Record assembly plus writing the entire growing, indented step
+  JSON list happen **after** the end timestamp on every step (`vllm_trace.py::StepRecorder.step/write`).
+  This logging is reachable in both phases and adds gap/post-step overhead, not model time.
+- `LLM._run_engine` does loop checks and output collection outside the wrapper, and tqdm setup,
+  updates/refresh, closing and final sorting (`entrypoints/llm.py:1839-1892`). However `_add_request`
+  sets FINAL_ONLY (`1826-1828`): progress updates are on completed outputs, **not each decode
+  token** here, so they cannot alone explain every decode gap. Prompt rendering/tokenization and
+  adding requests happen before the first step (`1592-1651`, `1789-1837`); some rendering precedes
+  recorded arrival (`v1/engine/input_processor.py:269-281`).
+- The default is two extra device synchronizations per step (64 for 32 steps), plus unchanged
+  initialization sync. Synchronous non-speculative sampling already copies generated IDs to CPU
+  and waits on its transfer event (`v1/worker/gpu_model_runner.py:3466-3472`, `7090-7103`), so
+  additional device syncs need not wait for all forward work again, but may wait for other
+  streams and have API overhead. Their real cost is **not measured by code inspection**.
+
+`steps.json` now includes `pre_step_sync_ns` and `post_step_sync_ns` measured around our calls
+(host duration including waits). To measure the intervention, use
+`modal run accelsim_trace.py::phases_main --no-step-sync` (also available directly in
+vllm_trace.py). The default remains synchronized. With sync disabled, asynchronous work may
+cross range boundaries: treat GPU attribution and host subtraction with caution. No numeric
+attribution of the reported 34–57 ms deficit is claimed without a fresh instrumented run;
+optional gap-specific CUDA/NVTX attribution is not exported in this change.
 
 All nsys entrypoints strip MODAL and secret-named environment variables (except the two HF
 token variables required by gated models), remove environment rows from sqlite and VACUUM.
