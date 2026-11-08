@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatErrorTick, formatTimeTick, niceTicks, percentAlong, symmetricTicks, timeUnitFor } from "./scale.ts";
+import { formatErrorTick, formatTimeTick, niceTicks, percentAlong, spanTicks, timeUnitFor } from "./scale.ts";
 
 describe("niceTicks", () => {
   it("steps by 1, 2, 2.5 or 5 and ends at or above the max", () => {
@@ -16,14 +16,19 @@ describe("niceTicks", () => {
   });
 });
 
-describe("symmetricTicks", () => {
-  it("centers on zero with the same steps on both sides", () => {
-    assert.deepEqual(symmetricTicks(0.52, 2), [-0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6]);
-    assert.deepEqual(symmetricTicks(0.08, 2), [-0.1, -0.05, 0, 0.05, 0.1]);
+describe("spanTicks", () => {
+  it("covers both sides on one step that passes through zero", () => {
+    assert.deepEqual(spanTicks(-0.51, 0.36, 4), [-0.6, -0.4, -0.2, 0, 0.2, 0.4]);
+    assert.deepEqual(spanTicks(-0.08, 0.02, 4), [-0.08, -0.06, -0.04, -0.02, 0, 0.02]);
   });
 
-  it("keeps a usable axis when every error is zero", () => {
-    assert.deepEqual(symmetricTicks(0, 2), [-1, -0.5, 0, 0.5, 1]);
+  it("keeps zero on the axis when every value sits on one side", () => {
+    assert.deepEqual(spanTicks(0.12, 0.3, 3), [0, 0.1, 0.2, 0.3]);
+    assert.deepEqual(spanTicks(-0.3, -0.12, 3), [-0.3, -0.2, -0.1, 0]);
+  });
+
+  it("keeps a usable axis when every value is zero", () => {
+    assert.deepEqual(spanTicks(0, 0), [-0.1, 0, 0.1]);
   });
 });
 

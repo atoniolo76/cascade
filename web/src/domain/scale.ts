@@ -23,11 +23,15 @@ export function niceTicks(max: number, targetTicks = 4): number[] {
   return Array.from({ length: n + 1 }, (_, i) => round(i * step));
 }
 
-/** Ticks from -end to +end around 0, `perSide` steps on each side. */
-export function symmetricTicks(extent: number, perSide = 2): number[] {
-  const step = niceStep(extent > 0 ? extent : 1, perSide);
-  const n = Math.max(1, Math.ceil((extent > 0 ? extent : 1) / step - 1e-9));
-  return Array.from({ length: 2 * n + 1 }, (_, i) => round((i - n) * step));
+/** Ticks covering [min, max] on one step that lands on 0, for an axis with values on both sides of it. */
+export function spanTicks(min: number, max: number, targetTicks = 4): number[] {
+  const lo = Math.min(0, min);
+  const hi = Math.max(0, max);
+  if (!(hi - lo > 0)) return [-0.1, 0, 0.1];
+  const step = niceStep(hi - lo, targetTicks);
+  const from = Math.floor(lo / step + 1e-9);
+  const to = Math.ceil(hi / step - 1e-9);
+  return Array.from({ length: to - from + 1 }, (_, i) => round((from + i) * step) + 0);
 }
 
 const round = (v: number) => Number(v.toPrecision(12));

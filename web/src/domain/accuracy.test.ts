@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { ComparisonRow } from "../api/types";
-import { configAccuracy, errorExtent, relativeError } from "./accuracy.ts";
+import { configAccuracy, errorRange, relativeError } from "./accuracy.ts";
 
 const row = (kernel_index: number, real_ns: number | null, sim_ns: Record<string, number | null>): ComparisonRow => ({
   kernel_index,
@@ -46,10 +46,10 @@ describe("configAccuracy", () => {
   });
 });
 
-describe("errorExtent", () => {
-  it("is the largest absolute error over the given configs", () => {
-    assert.equal(errorExtent(rows, ["a", "b"]), 0.25);
-    assert.equal(errorExtent(rows, ["b"]), 0.2);
-    assert.equal(errorExtent([], ["a"]), 0);
+describe("errorRange", () => {
+  it("spans the errors of the given configs and always includes zero", () => {
+    assert.deepEqual(errorRange(rows, ["a", "b"]), { min: -0.25, max: 0.2 });
+    assert.deepEqual(errorRange(rows, ["b"]), { min: -0.1, max: 0.2 });
+    assert.deepEqual(errorRange([], ["a"]), { min: 0, max: 0 });
   });
 });

@@ -48,14 +48,17 @@ export function configAccuracy(rows: readonly ComparisonRow[], config: string): 
   };
 }
 
-/** The largest |error| across configs, so every config shares one diverging axis. */
-export function errorExtent(rows: readonly ComparisonRow[], configs: readonly string[]): number {
+/** The lowest and highest error across configs, each clamped to include 0, so every config shares one axis. */
+export function errorRange(rows: readonly ComparisonRow[], configs: readonly string[]): { min: number; max: number } {
+  let min = 0;
   let max = 0;
   for (const r of rows) {
     for (const c of configs) {
       const e = relativeError(r.sim_ns[c], r.real_ns);
-      if (e !== null) max = Math.max(max, Math.abs(e));
+      if (e === null) continue;
+      min = Math.min(min, e);
+      max = Math.max(max, e);
     }
   }
-  return max;
+  return { min, max };
 }

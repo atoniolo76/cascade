@@ -15,7 +15,7 @@ const cases: [string, string][] = [
     "_ZN2at6native27unrolled_elementwise_kernelIZZZNS0_23direct_copy_kernel_cudaERNS_18TensorIteratorBaseEENKUlvE1_clEvENKUlvE8_clEvEUlN3c104HalfEE_St5arrayIPcLm2EELi4E23TrivialOffsetCalculatorILi1EjESC_NS0_6memory12LoadWithCastILi1EEENSD_13StoreWithCastILi1EEEEEviT_T0_T2_T3_T4_T5_",
     "at::native::unrolled_elementwise_kernel",
   ],
-  ["_ZN7cutlass7Kernel2I64cutlass_80_tensorop_f16_s16816gemm_relu_f16_64x64_64x4_tn_align8EEvNT_6ParamsE", "cutlass::Kernel2<cutlass_80_tensorop_f16_s16816gemm_relu_f16_64x64_64x4_tn_align8>"],
+  ["_ZN7cutlass7Kernel2I64cutlass_80_tensorop_f16_s16816gemm_relu_f16_64x64_64x4_tn_align8EEvNT_6ParamsE", "cutlass_80_tensorop_f16_s16816gemm_relu_f16_64x64_64x4_tn_align8"],
   ["_Z10add_kernelPfS_S_i", "add_kernel"],
   ["_Z6reduceILi256EEvPKfPfi", "reduce"],
   ["_ZN12_GLOBAL__N_116softmax_warp_fwdEPKfPfi", "softmax_warp_fwd"],

@@ -1,4 +1,5 @@
 import type { ComparisonRow, RunEntry, SimSummary } from "../api/types";
+import { relativeError } from "./accuracy";
 import type { KernelsBySim } from "./runLive";
 
 export interface KernelRow {
@@ -25,8 +26,6 @@ export function configSeries(entries: readonly RunEntry[]): Series[] {
     color: i < SERIES_SLOTS ? `var(--series-${i + 1})` : "var(--series-ref)",
   }));
 }
-
-export const REAL_SERIES: Series = { key: "__real__", label: "Real hardware", color: "var(--series-ref)" };
 
 export function median(values: readonly number[]): number | null {
   if (values.length === 0) return null;
@@ -63,19 +62,6 @@ export function simTimeRows({
       name,
       values: Object.fromEntries(configs.map((c) => [c, median(byConfig.get(c) ?? [])])),
     }));
-}
-
-export function comparisonRows(rows: readonly ComparisonRow[]): KernelRow[] {
-  return rows.map((r) => ({
-    index: r.kernel_index,
-    name: r.kernel_name,
-    values: { ...r.sim_ns, [REAL_SERIES.key]: r.real_ns },
-  }));
-}
-
-export function relativeError(sim: number | null | undefined, real: number | null): number | null {
-  if (sim === null || sim === undefined || real === null || real === 0) return null;
-  return (sim - real) / real;
 }
 
 export interface KernelProgress {
@@ -135,5 +121,23 @@ function csvCell(v: string | number | null | undefined): string {
 export function kernelRowsCsv(rows: readonly KernelRow[], series: readonly Series[]): string {
   const head = ["kernel_index", "kernel_name", ...series.map((s) => `${s.label}_ns`)];
   const body = rows.map((r) => [r.index, r.name, ...series.map((s) => r.values[s.key])].map(csvCell).join(","));
+  return [head.map(csvCell).join(","), ...body].join("\n") + "\n";
+}
+
+export function comparisonCsv(rows: readonly ComparisonRow[], configs: readonly string[]): string {
+  const head = ["kernel_index", "kernel_name", "real_ns", ...configs.flatMap((c) => [`${c}_ns`, `${c}_error_pct`])];
+  const body = rows.map((r) =>
+    [
+      r.kernel_index,
+      r.kernel_name,
+      r.real_ns,
+      ...configs.flatMap((c) => {
+        const err = relativeError(r.sim_ns[c], r.real_ns);
+        return [r.sim_ns[c], err === null ? null : Number((err * 100).toFixed(2))];
+      }),
+    ]
+      .map(csvCell)
+      .join(","),
+  );
   return [head.map(csvCell).join(","), ...body].join("\n") + "\n";
 }

@@ -6,6 +6,7 @@ export interface KernelName {
 }
 
 const ANON = "(anonymous namespace)";
+/** Generic launchers whose first template argument is the kernel that actually runs; they read as that argument. */
 const WRAPPERS = new Set(["cutlass::Kernel", "cutlass::Kernel2", "cutlass::device_kernel"]);
 
 class Bail extends Error {}
@@ -329,7 +330,7 @@ function fromParts(parts: readonly string[], full: string, firstArg: string | nu
   const base = named.at(-1);
   if (base === undefined) return { scope: "", base: full, full };
   const scope = named.slice(0, -1).map((p) => `${p}::`).join("");
-  return WRAPPERS.has(`${scope}${base}`) && firstArg !== null ? { scope, base: `${base}<${firstArg}>`, full } : { scope, base, full };
+  return WRAPPERS.has(`${scope}${base}`) && firstArg !== null ? { scope: "", base: firstArg, full } : { scope, base, full };
 }
 
 function demangle(full: string): KernelName {
