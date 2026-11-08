@@ -77,17 +77,22 @@ print(response.model_extra["cascade"])
   returns 504 with `error.run_id` and `error.sim_id`; it does not cancel the run.
   Poll `/api/runs/{run_id}`. Failed/cancelled simulations return 502 with their
   error; success without posted step timing also returns 502.
-- Output count is `max_tokens` for completions, `max_completion_tokens` or
-  `max_tokens` for chat, defaulting to the trace workload's `max_tokens`. Supplying
-  conflicting chat counts returns 422. Output counts must be nonnegative, prompt
+- Both completions and chat accept `max_tokens` or `max_completion_tokens`,
+  defaulting to the trace workload's `max_tokens`. Supplying conflicting counts
+  returns 422. Output counts must be nonnegative, prompt
   counts positive, and their sum must fit the supplied run/meta `max_model_len`
   (2048 when absent); invalid shapes return 422 before launching a base run.
   A zero-output request is prefill-only, with null TTFT and ITL.
 - Output IDs are sampled uniformly with replacement from the trace model's
   non-special vocabulary. `seed` makes sampling deterministic. The lightweight
   `tokenizers` library loads public HF `tokenizer.json`, cached under
-  `$CASCADE_DATA_DIR/tokenizers/<sha256(model)>.json`. No model weights or remote
-  code are loaded. Offline, unsupported or unavailable tokenizers fall back to
+  `$CASCADE_DATA_DIR/tokenizers/<sha256(model)>.json`. If `tokenizer.json` is absent
+  (404), GPT2/OPT byte-level BPE tokenizers are built from public `vocab.json`,
+  `merges.txt`, `tokenizer_config.json` and the optional `special_tokens_map.json`,
+  then cached in the same format. Special tokens and configured BOS/EOS insertion
+  are preserved; OPT's `add_bos_token` prepends `</s>` (ID 2), so
+  `Hello, my name is` encodes to `[2, 31414, 6, 127, 766, 16]` (six tokens).
+  No model weights or remote code are loaded. Offline, unsupported or unavailable tokenizers fall back to
   seeded `tok<i>` placeholders; failed loads are remembered until server restart.
   `cascade.tokens_source` is `vocab_uniform` or `placeholder`.
 - `usage.completion_tokens` counts sampled IDs (also available as

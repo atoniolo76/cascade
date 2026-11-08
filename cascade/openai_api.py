@@ -105,7 +105,7 @@ class OpenAI:
         meta = real.get("meta", {})
         profiled_max = workload.get("max_tokens", meta.get("max_tokens"))
         requested = body.max_tokens
-        if chat and body.max_completion_tokens is not None:
+        if body.max_completion_tokens is not None:
             if requested is not None and requested != body.max_completion_tokens:
                 raise error(422, "max_tokens and max_completion_tokens disagree", "invalid_request")
             requested = body.max_completion_tokens

@@ -13,7 +13,7 @@ import httpx
 from jinja2 import nodes
 from jinja2.ext import Extension
 from jinja2.sandbox import ImmutableSandboxedEnvironment
-from tokenizers import Tokenizer
+from tokenizers import AddedToken, Tokenizer, decoders, models, pre_tokenizers, processors
 from tokenizers.decoders import DecodeStream
 
 log = logging.getLogger(__name__)
@@ -53,15 +53,14 @@ class Tokenizers:
             if path.is_file():
                 tokenizer = Tokenizer.from_file(str(path))
             else:
-                response = httpx.get(
-                    f"https://huggingface.co/{model}/resolve/main/tokenizer.json",
-                    follow_redirects=True,
-                    timeout=5,
-                )
-                response.raise_for_status()
-                tokenizer = Tokenizer.from_str(response.text)
+                response = self._fetch(model, "tokenizer.json")
+                if response.status_code == 404:
+                    tokenizer = self._load_bpe(model)
+                else:
+                    response.raise_for_status()
+                    tokenizer = Tokenizer.from_str(response.text)
                 self.root.mkdir(parents=True, exist_ok=True)
-                path.write_text(response.text)
+                tokenizer.save(str(path))
             special = {
                 token_id
                 for token_id, token in tokenizer.get_added_tokens_decoder().items()
@@ -73,26 +72,111 @@ class Tokenizers:
             log.warning("tokenizer unavailable for %s; using placeholder tokens", model)
             return None
 
+    @staticmethod
+    def _fetch(model: str, name: str) -> httpx.Response:
+        return httpx.get(
+            f"https://huggingface.co/{model}/resolve/main/{name}",
+            follow_redirects=True,
+            timeout=5,
+        )
+
+    def _configuration(self, model: str) -> dict:
+        path = self.root / f"{hashlib.sha256(model.encode()).hexdigest()}-config.json"
+        if path.is_file():
+            value = json.loads(path.read_text())
+        else:
+            response = self._fetch(model, "tokenizer_config.json")
+            response.raise_for_status()
+            value = response.json()
+            if not isinstance(value, dict):
+                raise ValueError("tokenizer configuration must be an object")
+            self.root.mkdir(parents=True, exist_ok=True)
+            path.write_text(response.text)
+        if not isinstance(value, dict):
+            raise ValueError("tokenizer configuration must be an object")
+        self._chat_configs[model] = value
+        return value
+
+    def _load_bpe(self, model: str) -> Tokenizer:
+        config = self._configuration(model)
+        if config.get("tokenizer_class") not in (None, "GPT2Tokenizer", "GPT2TokenizerFast"):
+            raise ValueError("unsupported byte-level BPE tokenizer class")
+        vocab = self._fetch(model, "vocab.json")
+        vocab.raise_for_status()
+        merges = self._fetch(model, "merges.txt")
+        merges.raise_for_status()
+        special_map = self._fetch(model, "special_tokens_map.json")
+        if special_map.status_code == 404:
+            special = {}
+        else:
+            special_map.raise_for_status()
+            special = special_map.json()
+        special = {**special, **config}
+
+        def token(name):
+            value = special.get(name)
+            return value.get("content") if isinstance(value, dict) else value
+
+        tokenizer = Tokenizer(
+            models.BPE(
+                vocab=vocab.json(),
+                merges=[
+                    tuple(line.split())
+                    for line in merges.text.splitlines()
+                    if line.strip() and not line.startswith("#version:")
+                ],
+                unk_token=token("unk_token"),
+            )
+        )
+        tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel(
+            add_prefix_space=config.get("add_prefix_space", False)
+        )
+        tokenizer.decoder = decoders.ByteLevel()
+        values = [v for k, v in special.items() if k.endswith("_token")]
+        values.extend(special.get("additional_special_tokens", []))
+        added = []
+        for value in values:
+            if isinstance(value, str):
+                added.append(AddedToken(value, special=True))
+            elif isinstance(value, dict) and isinstance(value.get("content"), str):
+                added.append(
+                    AddedToken(
+                        **{
+                            k: v
+                            for k, v in value.items()
+                            if k in ("content", "single_word", "lstrip", "rstrip", "normalized")
+                        },
+                        special=True,
+                    )
+                )
+        tokenizer.add_special_tokens(added)
+        prefix, suffix, inserted = [], [], []
+        for flag, name, target in (
+            ("add_bos_token", "bos_token", prefix),
+            ("add_eos_token", "eos_token", suffix),
+        ):
+            if config.get(flag, False):
+                text = token(name)
+                token_id = tokenizer.token_to_id(text) if isinstance(text, str) else None
+                if token_id is None:
+                    raise ValueError(f"{flag} requires {name}")
+                target.append(text)
+                inserted.append((text, token_id))
+        if inserted:
+            tokenizer.post_processor = processors.TemplateProcessing(
+                single=prefix + ["$A"] + suffix,
+                pair=prefix + ["$A"] + suffix + prefix + ["$B"] + suffix,
+                special_tokens=inserted,
+            )
+        return tokenizer
+
     def _chat_config(self, model: str) -> dict:
         if not model or not MODEL_NAME.fullmatch(model):
             return {}
         with self._lock:
             if model not in self._chat_configs:
-                path = self.root / f"{hashlib.sha256(model.encode()).hexdigest()}-config.json"
                 try:
-                    if path.is_file():
-                        value = json.loads(path.read_text())
-                    else:
-                        response = httpx.get(
-                            f"https://huggingface.co/{model}/resolve/main/tokenizer_config.json",
-                            follow_redirects=True,
-                            timeout=5,
-                        )
-                        response.raise_for_status()
-                        value = response.json()
-                        self.root.mkdir(parents=True, exist_ok=True)
-                        path.write_text(response.text)
-                    self._chat_configs[model] = value if isinstance(value, dict) else {}
+                    self._configuration(model)
                 except Exception:
                     self._chat_configs[model] = {}
             return self._chat_configs[model]
