@@ -1,16 +1,22 @@
 import { useCallback, useEffect, useReducer, useRef, type CSSProperties, type ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router";
 import { BrandTile } from "../components/Logo";
 import { Button } from "../components/ui";
 import { ICON } from "../components/styles";
 import { cx } from "../components/cx";
 import { Preview } from "./Preview";
+import { StepFleet } from "./StepFleet";
+import { StepReplay } from "./StepReplay";
+import { StepRouter } from "./StepRouter";
 import { StepSources } from "./StepSources";
-import { canAdvance, initialState, reducer, STEPS, summary, type OnboardingState, type SourceId } from "./store";
+import { canAdvance, fleetSize, initialState, reducer, STEPS, summary, type OnboardingState, type SourceId } from "./store";
 import "./onboarding.css";
 
 /** How long a source shows as "connecting" before it confirms. */
 const CONNECT_MS = 650;
+/** One replay tick; 25 of them make the scripted 2.5 s replay. */
+const TICK_MS = 100;
 
 export function OnboardingPage() {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -30,7 +36,20 @@ export function OnboardingPage() {
     timers.current.add(t);
   }, []);
 
-  const next = useCallback(() => { dispatch({ type: "next" }); }, []);
+  // The scripted replay ticks only while step 4 is running it.
+  const replaying = state.replay.status === "running";
+  useEffect(() => {
+    if (!replaying) return;
+    const t = window.setInterval(() => { dispatch({ type: "tick" }); }, TICK_MS);
+    return () => { window.clearInterval(t); };
+  }, [replaying]);
+
+  const navigate = useNavigate();
+  const done = state.step === "done";
+  const next = useCallback(() => {
+    if (done) void navigate("/");
+    else dispatch({ type: "next" });
+  }, [done, navigate]);
   const back = useCallback(() => { dispatch({ type: "back" }); }, []);
 
   // Enter advances and Esc goes back, unless focus is on a control that already owns the key.
@@ -115,37 +134,68 @@ function StepBody({ state, connect, dispatch, next, back }: StepProps) {
             <PrimaryButton disabled={!ready} onClick={next}>
               Continue
             </PrimaryButton>
-            {!ready && (
-              <QuietButton onClick={() => { connect("sample"); }}>Use the sample</QuietButton>
-            )}
+            {!ready && <QuietButton onClick={() => { connect("sample"); }}>Use the sample</QuietButton>}
           </Actions>
         </>
       );
-    case 2:
+    case 2: {
+      const n = fleetSize(state.fleet);
       return (
-        <Placeholder lead="Pick a fleet." rest="Start from the GPUs you have, then add the ones you don't." next={next} back={back} />
+        <>
+          <Headline lead="Pick a fleet.">Start from the GPUs you have, then add the ones you don&rsquo;t.</Headline>
+          <StepFleet fleet={state.fleet} setCount={(gpu, count) => { dispatch({ type: "setCount", gpu, count }); }} />
+          <Actions>
+            <PrimaryButton disabled={!ready} onClick={next}>
+              {n === 0 ? "Continue" : `Continue with ${n} GPU${n === 1 ? "" : "s"}`}
+            </PrimaryButton>
+            <QuietButton onClick={back}>Back</QuietButton>
+          </Actions>
+        </>
       );
+    }
     case 3:
       return (
-        <Placeholder lead="Choose a router." rest="This decides which GPU each request lands on. You can change it any time." next={next} back={back} />
+        <>
+          <Headline lead="Choose a router.">This decides which GPU each request lands on. You can change it any time.</Headline>
+          <StepRouter
+            fleet={state.fleet}
+            router={state.router}
+            engine={state.engine}
+            choose={(router) => { dispatch({ type: "chooseRouter", router }); }}
+            setEngine={(engine) => { dispatch({ type: "setEngine", engine }); }}
+          />
+          <Actions>
+            <PrimaryButton disabled={!ready} onClick={next}>
+              Run the replay
+            </PrimaryButton>
+            <QuietButton onClick={back}>Back</QuietButton>
+          </Actions>
+        </>
       );
     case 4:
+      return (
+        <>
+          <Headline lead="Try it out.">Cascade is replaying your trace on the fleet you built.</Headline>
+          <StepReplay state={state} />
+          <Actions>
+            <PrimaryButton disabled onClick={next} arrow={false}>
+              Working…
+            </PrimaryButton>
+            <QuietButton onClick={back}>Back</QuietButton>
+          </Actions>
+        </>
+      );
     case "done":
-      return <Placeholder lead="Try it out." rest="Cascade is replaying your trace on the fleet you built." next={next} back={back} />;
+      return (
+        <>
+          <Headline lead="You’re set up.">Cascade ran its first replay. Change the fleet and run it again whenever you like.</Headline>
+          <StepReplay state={state} />
+          <Actions>
+            <PrimaryButton onClick={next}>Open Cascade</PrimaryButton>
+          </Actions>
+        </>
+      );
   }
-}
-
-/** Steps 2 to 4 keep their headline and navigation until their controls are built. */
-function Placeholder({ lead, rest, next, back }: { lead: string; rest: string; next: () => void; back: () => void }) {
-  return (
-    <>
-      <Headline lead={lead}>{rest}</Headline>
-      <Actions>
-        <PrimaryButton onClick={next}>Continue</PrimaryButton>
-        <QuietButton onClick={back}>Back</QuietButton>
-      </Actions>
-    </>
-  );
 }
 
 function Headline({ lead, children }: { lead: string; children: ReactNode }) {
@@ -160,11 +210,11 @@ function Actions({ children }: { children: ReactNode }) {
   return <div className="mt-8 flex items-center gap-2">{children}</div>;
 }
 
-function PrimaryButton({ disabled, onClick, children }: { disabled?: boolean; onClick: () => void; children: ReactNode }) {
+function PrimaryButton({ disabled, onClick, arrow = true, children }: { disabled?: boolean; onClick: () => void; arrow?: boolean; children: ReactNode }) {
   return (
     <Button variant="primary" disabled={disabled} onClick={onClick} className="group h-10 px-4">
       {children}
-      <ArrowRight className={cx("size-4 transition-transform duration-200 ease-out", !disabled && "group-hover:translate-x-0.5")} {...ICON} />
+      {arrow && <ArrowRight className={cx("size-4 transition-transform duration-200 ease-out", !disabled && "group-hover:translate-x-0.5")} {...ICON} />}
     </Button>
   );
 }

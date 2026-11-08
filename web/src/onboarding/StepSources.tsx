@@ -61,8 +61,8 @@ function SourceCard({ id, source, onClick }: { id: SourceId; source: Source | un
       onClick={onClick}
       aria-pressed={source !== undefined}
       className={cx(
-        "ob-fade flex h-[68px] items-center gap-3 rounded-[14px] bg-surface px-3.5 text-left shadow-tile ring-1 ring-inset",
-        connected ? "ring-(--st-ok-dot)/45" : "ring-border hover:bg-surface-2 hover:ring-border-strong",
+        "ob-fade flex h-[68px] items-center gap-3 rounded-[14px] border bg-surface px-3.5 text-left",
+        connected ? "border-(--st-ok-dot) bg-(--st-ok-bg)" : "border-border hover:border-border-strong hover:bg-surface-2",
       )}
     >
       <SourceIcon id={id} size="lg" />

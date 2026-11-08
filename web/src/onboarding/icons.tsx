@@ -1,10 +1,10 @@
-import { Check, Upload } from "lucide-react";
+import { Check, Cpu, Upload, type LucideIcon } from "lucide-react";
 import { LogoTile } from "../components/BrandLogo";
 import { Mark } from "../components/Logo";
 import { ICON } from "../components/styles";
 import { cx } from "../components/cx";
 import { logoByKey } from "../domain/logos";
-import type { SourceId } from "./store";
+import { gpuDef, type GpuId, type SourceId } from "./store";
 
 const BRAND: Partial<Record<SourceId, string>> = { modal: "modal", vllm: "vllm", aiperf: "nvidia", openai: "openai" };
 
@@ -47,8 +47,38 @@ export function Spinner({ className }: { className?: string }) {
 export function WorkspaceIcon({ size }: { size: keyof typeof OWN }) {
   const s = OWN[size];
   return (
-    <span className={cx("grid shrink-0 place-items-center bg-surface shadow-tile ring-1 ring-border ring-inset", s.tile)}>
+    <span className={cx("grid shrink-0 place-items-center bg-surface ring-1 ring-border ring-inset", s.tile)}>
       <Mark className={cx("text-fg", s.mark)} />
+    </span>
+  );
+}
+
+/** NVIDIA parts wear the NVIDIA logo; the TPU gets a plain chip, since there is no Google logo in the set. */
+export function GpuIcon({ id, size }: { id: GpuId; size: keyof typeof OWN }) {
+  if (gpuDef(id).vendor === "nvidia") return <LogoTile logo={logoByKey("nvidia")} fallback="nvidia" size={size} />;
+  return <GlyphIcon Icon={Cpu} size={size} />;
+}
+
+/** A stroke icon on the same tile as the logos, so every row in the preview lines up. */
+export function GlyphIcon({ Icon, size, tone = "plain" }: { Icon: LucideIcon; size: keyof typeof OWN; tone?: "plain" | "accent" | "ok" }) {
+  const s = OWN[size];
+  const look = {
+    plain: "bg-surface text-fg ring-border",
+    accent: "bg-accent-soft text-accent-ink ring-transparent",
+    ok: "bg-(--st-ok-bg) text-(--st-ok-ink) ring-transparent",
+  }[tone];
+  return (
+    <span className={cx("grid shrink-0 place-items-center ring-1 ring-inset", look, s.tile)}>
+      <Icon className={s.mark} {...ICON} />
+    </span>
+  );
+}
+
+/** A grey dot for queued checklist items, sized like CheckDot. */
+export function QueuedDot() {
+  return (
+    <span className="grid size-5 place-items-center">
+      <span className="size-1.5 rounded-full bg-block-off" />
     </span>
   );
 }
