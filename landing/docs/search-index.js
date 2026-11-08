@@ -10,6 +10,11 @@ window.DOCS_INDEX = [
 "g": "Introduction"
 },
 {
+"t": "Worked example: OPT-125m",
+"u": "index.html#worked-example-opt-125m",
+"g": "Introduction"
+},
+{
 "t": "Where to go next",
 "u": "index.html#where-to-go-next",
 "g": "Introduction"
@@ -265,8 +270,13 @@ window.DOCS_INDEX = [
 "g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
 },
 {
-"t": "Reproduce and finish the A100 comparison",
-"u": "sample-analysis-opt125m.html#reproduce-and-finish-the-a100-comparison",
+"t": "Native A100 complete reference",
+"u": "sample-analysis-opt125m.html#native-a100-complete-reference",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Reproduce the A100 comparison",
+"u": "sample-analysis-opt125m.html#reproduce-the-a100-comparison",
 "g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
 },
 {
