@@ -229,6 +229,4 @@ class KernelEvent(BaseModel):
     stat: KernelStat
 
 
-RunEvent = Annotated[
-    SnapshotEvent | SimEvent | LogEvent | KernelEvent, Field(discriminator="type")
-]
+RunEvent = Annotated[SnapshotEvent | SimEvent | LogEvent | KernelEvent, Field(discriminator="type")]
