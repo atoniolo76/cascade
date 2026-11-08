@@ -29,7 +29,12 @@ def main() -> None:
     p.add_argument("--prefix", default="accelsim-traces")
     p.add_argument("--part-mib", type=int, default=128)
     p.add_argument("--status", default="ok", choices=["ok", "failed"])
-    p.add_argument("--meta", action="append", default=[], help="extra metadata.json key=value")
+    p.add_argument(
+        "--meta",
+        action="append",
+        default=[],
+        help="extra metadata.json key=value (JSON if it starts with [ or {)",
+    )
     args = p.parse_args()
 
     client = boto3.client(
@@ -57,7 +62,7 @@ def main() -> None:
     meta = {"status": args.status, "files": files}
     for kv in args.meta:
         key, _, value = kv.partition("=")
-        meta[key] = value
+        meta[key] = json.loads(value) if value[:1] in "[{" else value
     client.put_object(
         Bucket=args.bucket, Key=f"{base}/metadata.json", Body=json.dumps(meta, indent=2).encode()
     )

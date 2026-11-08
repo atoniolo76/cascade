@@ -12,6 +12,7 @@ the same way a crashing simulator reports itself.
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 import time
@@ -67,6 +68,8 @@ def upload(trace_dir: Path, s3: str, run_name: str, model: str, layer: str, gpu:
             f"model={model}",
             "--meta",
             f"gpu={gpu}",
+            "--meta",
+            f"layers={json.dumps([layer])}",
         ],
         check=True,
         capture_output=True,
