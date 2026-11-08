@@ -211,6 +211,7 @@ class RunResults(BaseModel):
 class SnapshotEvent(BaseModel):
     type: Literal["snapshot"] = "snapshot"
     run: RunDetail
+    kernels: list[KernelStat]  # every stat for every sim in the run, so reloads can redraw
 
 
 class SimEvent(BaseModel):

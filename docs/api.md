@@ -16,7 +16,7 @@ All `/api` routes require `Authorization: Bearer $CASCADE_TOKEN`, except `GET /a
 | POST | `/api/runs` | body `RunCreate`, returns `RunDetail` (201). 409 if the trace is not `ready`. 422 if a config is unknown or its arch differs from the trace's `trace_gpu_arch`. |
 | GET | `/api/runs/{id}` | `RunDetail` |
 | POST | `/api/runs/{id}/cancel` | `RunDetail`. Moves every non-terminal sim to `cancelled` and calls `Launcher.terminate`. Idempotent. |
-| GET | `/api/runs/{id}/events` | SSE stream of `RunEvent`. First event is a `snapshot`. |
+| GET | `/api/runs/{id}/events` | SSE stream of `RunEvent` as plain `data:` lines. First event is a `snapshot` with the run and every `KernelStat` so far. |
 | GET | `/api/runs/{id}/comparison` | `Comparison` |
 | GET | `/api/runs/{id}/results` | `RunResults` (download) |
 | GET | `/api/sims/{id}/results` | `SimResults` (download) |

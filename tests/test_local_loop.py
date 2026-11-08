@@ -83,9 +83,14 @@ def test_fake_sim_runs_to_success_and_streams_events(server):
     types = {e["type"] for e in events}
     assert {"snapshot", "sim", "log", "kernel"} <= types
     kernel_events = [e["stat"] for e in events if e["type"] == "kernel"]
-    assert sorted((k["sim_id"], k["kernel_index"]) for k in kernel_events) == sorted(
-        (s["id"], i) for s in done["sims"] for i in range(6)
-    )
+    expected = sorted((s["id"], i) for s in done["sims"] for i in range(6))
+    assert sorted((k["sim_id"], k["kernel_index"]) for k in kernel_events) == expected
+
+    with httpx.stream("GET", f"{url}/api/runs/{run['id']}/events?token={TOKEN}") as r:
+        first = json.loads(next(line for line in r.iter_lines() if line.startswith("data: "))[6:])
+    assert first["type"] == "snapshot"
+    assert sorted((k["sim_id"], k["kernel_index"]) for k in first["kernels"]) == expected
+    assert first["kernels"][5]["gpu_sim_cycle"] == 45709
 
 
 def test_cancel_stops_the_fake_sim(server):

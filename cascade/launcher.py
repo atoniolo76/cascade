@@ -134,12 +134,16 @@ class SailLauncher:
         out = self.settings.work_dir / "sims" / f"{sim.id}.out"
         # Background exec discards output, so keep a copy on the fork's disk for debugging.
         shell = f"mkdir -p {shlex.quote(str(out.parent))} && ({cmd}) > {shlex.quote(str(out))} 2>&1"
-        box.exec(
-            shell,
-            background=True,
-            env=sim_env(self.settings, sim, trace_dir),
-            idempotency_key=sim.id,
-        )
+        try:
+            box.exec(
+                shell,
+                background=True,
+                env=sim_env(self.settings, sim, trace_dir),
+                idempotency_key=sim.id,
+            )
+        except BaseException:
+            box.terminate()
+            raise
         return box.sailbox_id
 
     def terminate(self, sim: SimSummary) -> None:

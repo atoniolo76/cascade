@@ -339,7 +339,7 @@ class Store:
             sets["started_at"] = t
         if to in TERMINAL_SIM_STATES:
             sets["finished_at"] = t
-        if error is not None:
+        if error is not None or to == SimState.running:
             sets["error"] = error
         if exit_code is not None:
             sets["exit_code"] = exit_code
@@ -374,17 +374,38 @@ class Store:
             db.execute("UPDATE sims SET launcher_ref = ? WHERE id = ?", (ref, sim_id))
             return _sim_summary(db.execute("SELECT * FROM sims WHERE id = ?", (sim_id,)).fetchone())
 
-    def stale_sim_ids(self, cutoff: datetime) -> list[str]:
-        """launching/running sims whose last heartbeat (or state change, if none) predates
-        cutoff."""
-        rows = self._all(
-            "SELECT id FROM sims WHERE state IN (?, ?)"
-            " AND COALESCE(last_heartbeat_at, state_changed_at) < ?",
-            SimState.launching,
-            SimState.running,
-            _ts(cutoff),
+    def mark_stale_lost(self, cutoff: datetime) -> list[SimSummary]:
+        """Moves launching/running sims whose last heartbeat (or state change, if none)
+        predates cutoff to lost."""
+        return self._expire(
+            (SimState.launching, SimState.running), cutoff, SimState.lost, "no heartbeat"
         )
-        return [r["id"] for r in rows]
+
+    def fail_lost(self, cutoff: datetime, error: str) -> list[SimSummary]:
+        return self._expire((SimState.lost,), cutoff, SimState.failed, error)
+
+    def _expire(
+        self, states: tuple[SimState, ...], cutoff: datetime, to: SimState, error: str
+    ) -> list[SimSummary]:
+        marks = ", ".join("?" for _ in states)
+        with self._tx() as db:
+            rows = db.execute(
+                f"SELECT id FROM sims WHERE state IN ({marks})"
+                " AND COALESCE(last_heartbeat_at, state_changed_at) < ?",
+                (*states, _ts(cutoff)),
+            ).fetchall()
+            return [
+                self._transition(db, r["id"], to, error=error, exit_code=None, hb=False)
+                for r in rows
+            ]
+
+    def kernel_stats_for_run(self, run_id: str) -> list[KernelStat]:
+        rows = self._all(
+            "SELECT k.* FROM kernel_stats k JOIN sims s ON s.id = k.sim_id WHERE s.run_id = ?"
+            " ORDER BY s.gpu_config, s.replica, s.id, k.kernel_index",
+            run_id,
+        )
+        return [_kernel_stat(r) for r in rows]
 
     def add_log_chunk(self, sim_id: str, seq: int, lines: list[str]) -> bool:
         """False when this seq was already stored (a retried chunk)."""

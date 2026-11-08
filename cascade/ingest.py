@@ -130,6 +130,10 @@ def kernelslist_kernel_count(path: Path) -> int:
     return sum(1 for line in path.read_text().splitlines() if line.startswith("kernel"))
 
 
+class Interrupted(Exception):
+    """Main stopped mid post-processing; the trace stays `processing` so a restart reruns it."""
+
+
 class Ingestor:
     def __init__(self, settings: Settings, store: Store):
         self.settings = settings
@@ -139,6 +143,7 @@ class Ingestor:
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="postprocess")
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._child: subprocess.Popen | None = None
 
     @property
     def key_prefix_base(self) -> str:
@@ -153,6 +158,9 @@ class Ingestor:
         self._stop.set()
         if self._thread:
             self._thread.join(timeout=10)
+        # A post-processor left running would race the rerun that restart starts.
+        if self._child and self._child.poll() is None:
+            self._child.kill()
         self._pool.shutdown(wait=False, cancel_futures=True)
 
     def drain(self) -> None:
@@ -227,11 +235,16 @@ class Ingestor:
     def _process_safely(self, trace_id: str) -> None:
         try:
             self._process(trace_id)
+        except Interrupted:
+            log.info("post-processing %s interrupted; it reruns on the next start", trace_id)
         except Exception as e:
             log.exception("processing trace %s failed", trace_id)
             self.store.update_trace(trace_id, state=TraceState.failed, error=f"processing: {e}")
 
     def _process(self, trace_id: str) -> None:
+        trace = self.store.get_trace_summary(trace_id)
+        if trace is None or trace.state != TraceState.processing:
+            return
         run_dir = self.settings.trace_dir(trace_id)
         traces = run_dir / "traces"
         work = self.settings.work_dir / "postprocess"
@@ -280,7 +293,10 @@ class Ingestor:
         cmd = [exe, *argv[1:], str(traces), "-j", str(os.cpu_count() or 8)]
         log.info("post-processing %s: %s", trace_id, shlex.join(cmd))
         with log_path.open("w") as out:
-            proc = subprocess.run(cmd, stdout=out, stderr=subprocess.STDOUT)
+            proc = self._child = subprocess.Popen(cmd, stdout=out, stderr=subprocess.STDOUT)
+            proc.wait()
+        if self._stop.is_set():
+            raise Interrupted(trace_id)
         if proc.returncode != 0:
             tail = log_path.read_text(errors="replace").splitlines()[-5:]
             return f"post-processing exited {proc.returncode}: " + " | ".join(tail)

@@ -31,6 +31,7 @@ class FakeSail:
     def __init__(self, existing=()):
         self.calls: list[tuple] = []
         self.existing = list(existing)
+        self.fail_exec = False
         fake = self
 
         class Box:
@@ -56,6 +57,8 @@ class FakeSail:
             def exec(self, command, **kw):
                 bind(sail.Sailbox.exec, self, command, **kw)
                 fake.calls.append(("exec", self.sailbox_id, command, kw))
+                if fake.fail_exec:
+                    raise RuntimeError("exec refused")
 
             def terminate(self):
                 bind(sail.Sailbox.terminate, self)
@@ -140,3 +143,12 @@ def test_terminate_uses_the_recorded_sailbox(tmp_path):
     launcher.terminate(sim("sim-a", ref="sb-123"))
     launcher.terminate(sim("sim-b", ref=None))
     assert fake.calls == [("terminate", "sb-123")]
+
+
+def test_failed_exec_terminates_the_new_fork(tmp_path):
+    fake = FakeSail()
+    fake.fail_exec = True
+    launcher = SailLauncher(make_settings(tmp_path, CASCADE_SIM_CMD="simulate"), fake)
+    with pytest.raises(RuntimeError):
+        launcher.launch(sim("sim-a"), tmp_path)
+    assert fake.calls[-1] == ("terminate", "sb-cascade-sim-a")

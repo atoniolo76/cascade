@@ -1,4 +1,5 @@
 import threading
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -29,8 +30,10 @@ class RecordingLauncher:
         return f"fake-{sim.id}"
 
     def terminate(self, sim):
-        with self.lock:
-            self.terminated.append(sim.id)
+        # Like the real launchers, nothing can be stopped without a launcher_ref.
+        if sim.launcher_ref:
+            with self.lock:
+                self.terminated.append(sim.id)
 
 
 @pytest.fixture
@@ -178,22 +181,59 @@ def test_run_lifecycle(setup):
     assert summary[0]["sim_counts"] == {"succeeded": 2, "cancelled": 1}
 
 
-def test_stale_sim_goes_lost_and_heartbeat_revives_it(setup):
+def test_stale_sim_goes_lost_then_revives_or_is_given_up(setup):
     client, launcher, _ = setup
+    run = client.post(
+        "/api/runs",
+        json={"trace_id": "trace-h100", "entries": [{"gpu_config": "SM90_H100", "count": 2}]},
+        headers=AUTH,
+    ).json()
+    revived, abandoned = (s["id"] for s in run["sims"])
+    cascade = client.app.state.cascade
+    wait_for(lambda: all(cascade.store.get_sim(i).launcher_ref for i in (revived, abandoned)))
+    object.__setattr__(cascade.settings, "heartbeat_timeout_s", 0.1)
+    time.sleep(0.3)
+    cascade.sweep()
+    assert {cascade.store.get_sim(i).state for i in (revived, abandoned)} == {SimState.lost}
+    assert cascade.store.get_sim(revived).error == "no heartbeat"
+
+    ack = client.post(f"/api/sims/{revived}/heartbeat", json={"state": "running"}, headers=AUTH)
+    assert ack.json() == {"state": "running", "cancel": False}
+    assert cascade.store.get_sim(revived).error is None
+
+    time.sleep(1.0)
+    client.post(f"/api/sims/{revived}/heartbeat", json={"state": "running"}, headers=AUTH)
+    cascade.sweep()
+    assert cascade.store.get_sim(revived).state == SimState.running
+    gone = cascade.store.get_sim(abandoned)
+    assert (gone.state, gone.error) == (SimState.failed, "no heartbeat for 1s")
+    wait_for(lambda: abandoned in launcher.terminated)
+    assert revived not in launcher.terminated
+
+
+def test_cancel_during_launch_terminates_once_the_ref_exists(setup):
+    client, launcher, _ = setup
+    gate = threading.Event()
+    real_launch = launcher.launch
+
+    def slow_launch(sim, trace_dir):
+        gate.wait(5)
+        return real_launch(sim, trace_dir)
+
+    launcher.launch = slow_launch
     run = client.post(
         "/api/runs",
         json={"trace_id": "trace-h100", "entries": [{"gpu_config": "SM90_H100", "count": 1}]},
         headers=AUTH,
     ).json()
     sim_id = run["sims"][0]["id"]
-    wait_for(lambda: sim_id in launcher.launched)
     cascade = client.app.state.cascade
     wait_for(lambda: cascade.store.get_sim(sim_id).state == SimState.launching)
-    object.__setattr__(cascade.settings, "heartbeat_timeout_s", 0.0)
-    cascade.sweep()
-    assert cascade.store.get_sim(sim_id).state == SimState.lost
-    ack = client.post(f"/api/sims/{sim_id}/heartbeat", json={"state": "running"}, headers=AUTH)
-    assert ack.json() == {"state": "running", "cancel": False}
+    client.post(f"/api/runs/{run['id']}/cancel", headers=AUTH)
+    gate.set()
+    wait_for(lambda: cascade.store.get_sim(sim_id).launcher_ref == f"fake-{sim_id}")
+    wait_for(lambda: sim_id in launcher.terminated)
+    assert cascade.store.get_sim(sim_id).state == SimState.cancelled
 
 
 def test_launch_error_fails_sim(tmp_path):

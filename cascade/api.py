@@ -54,6 +54,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 SWEEP_S = 5.0
 SSE_KEEPALIVE_S = 15.0
 SSE_QUEUE_MAX = 2000
+LOST_GIVE_UP_FACTOR = 10
 
 
 class Bus:
@@ -63,10 +64,10 @@ class Bus:
         self._subs: dict[str, set[tuple[asyncio.AbstractEventLoop, asyncio.Queue]]] = {}
         self._lock = threading.Lock()
 
-    def subscribe(self, run_id: str) -> asyncio.Queue:
+    def subscribe(self, run_id: str, loop: asyncio.AbstractEventLoop) -> asyncio.Queue:
         q: asyncio.Queue = asyncio.Queue(SSE_QUEUE_MAX)
         with self._lock:
-            self._subs.setdefault(run_id, set()).add((asyncio.get_running_loop(), q))
+            self._subs.setdefault(run_id, set()).add((loop, q))
         return q
 
     def unsubscribe(self, run_id: str, q: asyncio.Queue) -> None:
@@ -104,8 +105,9 @@ class Cascade:
         self.ingestor = Ingestor(settings, self.store)
         self.bus = Bus()
         self._parsers: dict[str, LogParser] = {}
-        self._parser_locks: dict[str, threading.Lock] = {}
-        self._locks_lock = threading.Lock()
+        # Held across every store write that publishes an event, and across subscribe+snapshot,
+        # so subscribers see events in commit order and a snapshot never overlaps queued events.
+        self._lock = threading.RLock()
         self._launch_pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="launch")
         self._stop = threading.Event()
         self._sweeper: threading.Thread | None = None
@@ -122,8 +124,18 @@ class Cascade:
         self.ingestor.stop()
         if self._sweeper:
             self._sweeper.join(timeout=10)
-        self._launch_pool.shutdown(wait=False, cancel_futures=True)
+        self._launch_pool.shutdown(wait=True, cancel_futures=True)
         self.store.close()
+
+    def subscribe(
+        self, run_id: str, loop: asyncio.AbstractEventLoop
+    ) -> tuple[asyncio.Queue, SnapshotEvent] | None:
+        with self._lock:
+            run = self.store.get_run(run_id)
+            if run is None:
+                return None
+            snapshot = SnapshotEvent(run=run, kernels=self.store.kernel_stats_for_run(run_id))
+            return self.bus.subscribe(run_id, loop), snapshot
 
     def publish_sim(self, sim: SimSummary) -> None:
         self.bus.publish(sim.run_id, SimEvent(sim=sim))
@@ -145,24 +157,31 @@ class Cascade:
             self._launch_pool.submit(self._launch_sim, sim.id, trace_dir)
 
     def _launch_sim(self, sim_id: str, trace_dir: Path) -> None:
-        try:
-            sim = self.store.transition_sim(sim_id, SimState.launching)
-        except IllegalTransition:
-            return
-        self.publish_sim(sim)
+        with self._lock:
+            try:
+                sim = self.store.transition_sim(sim_id, SimState.launching)
+            except IllegalTransition:
+                return
+            self.publish_sim(sim)
         try:
             ref = self.launcher.launch(sim, trace_dir)
         except Exception as e:
             log.exception("launching %s failed", sim_id)
             self._fail(sim_id, f"launch: {e}")
             return
-        self.publish_sim(self.store.set_launcher_ref(sim_id, ref))
+        with self._lock:
+            sim = self.store.set_launcher_ref(sim_id, ref)
+            self.publish_sim(sim)
+        if sim.state in TERMINAL_SIM_STATES:
+            # Cancelled or finished while launching: the earlier terminate had no ref to stop.
+            self._terminate_later(sim)
 
     def _fail(self, sim_id: str, error: str) -> None:
-        try:
-            self.publish_sim(self.store.transition_sim(sim_id, SimState.failed, error=error))
-        except IllegalTransition:
-            pass
+        with self._lock:
+            try:
+                self.publish_sim(self.store.transition_sim(sim_id, SimState.failed, error=error))
+            except IllegalTransition:
+                pass
 
     def _terminate_later(self, sim: SimSummary) -> None:
         def run() -> None:
@@ -173,24 +192,33 @@ class Cascade:
 
         self._launch_pool.submit(run)
 
-    def cancel_run(self, run_id: str) -> None:
-        for sim in self.store.sims_for_run(run_id):
-            if sim.state in TERMINAL_SIM_STATES:
-                continue
-            try:
-                sim = self.store.transition_sim(sim.id, SimState.cancelled)
-            except IllegalTransition:
-                continue
+    def _end(self, sims: list[SimSummary]) -> None:
+        for sim in sims:
+            self._parsers.pop(sim.id, None)
             self.publish_sim(sim)
+
+    def cancel_run(self, run_id: str) -> None:
+        with self._lock:
+            cancelled = []
+            for sim in self.store.sims_for_run(run_id):
+                try:
+                    cancelled.append(self.store.transition_sim(sim.id, SimState.cancelled))
+                except IllegalTransition:
+                    continue
+            self._end(cancelled)
+        for sim in cancelled:
             self._terminate_later(sim)
 
     def heartbeat(self, sim_id: str, hb: Heartbeat) -> HeartbeatAck:
-        sim, changed = self.store.apply_heartbeat(sim_id, hb)
-        if changed and sim.state in TERMINAL_SIM_STATES:
-            sim = self._finish_parsing(sim)
+        with self._lock:
+            sim, changed = self.store.apply_heartbeat(sim_id, hb)
+            finished = changed and sim.state in TERMINAL_SIM_STATES
+            if finished:
+                sim = self._finish_parsing(sim)
+            if changed:
+                self.publish_sim(sim)
+        if finished:
             self._terminate_later(sim)
-        if changed:
-            self.publish_sim(sim)
         return HeartbeatAck(state=sim.state, cancel=sim.state == SimState.cancelled)
 
     def _sweep_loop(self) -> None:
@@ -201,17 +229,17 @@ class Cascade:
                 log.exception("sweep failed")
 
     def sweep(self) -> None:
-        cutoff = now() - timedelta(seconds=self.settings.heartbeat_timeout_s)
-        for sim_id in self.store.stale_sim_ids(cutoff):
-            try:
-                sim = self.store.transition_sim(sim_id, SimState.lost, error="no heartbeat")
-            except IllegalTransition:
-                continue
-            self.publish_sim(sim)
-
-    def _parser_lock(self, sim_id: str) -> threading.Lock:
-        with self._locks_lock:
-            return self._parser_locks.setdefault(sim_id, threading.Lock())
+        timeout = self.settings.heartbeat_timeout_s
+        with self._lock:
+            for sim in self.store.mark_stale_lost(now() - timedelta(seconds=timeout)):
+                self.publish_sim(sim)
+            given_up = self.store.fail_lost(
+                now() - timedelta(seconds=timeout * LOST_GIVE_UP_FACTOR),
+                error=f"no heartbeat for {timeout * LOST_GIVE_UP_FACTOR:.0f}s",
+            )
+            self._end(given_up)
+        for sim in given_up:
+            self._terminate_later(sim)
 
     def _parser(self, sim: SimSummary) -> LogParser:
         """Parsers live in memory; after a restart one is rebuilt by replaying the stored log."""
@@ -227,7 +255,7 @@ class Cascade:
         return parser
 
     def add_logs(self, sim: SimSummary, chunk: LogChunk) -> None:
-        with self._parser_lock(sim.id):
+        with self._lock:
             parser = self._parser(sim)
             if not self.store.add_log_chunk(sim.id, chunk.seq, chunk.lines):
                 return
@@ -235,19 +263,18 @@ class Cascade:
             sim, added = self.store.record_progress(
                 sim.id, stats, parser.current_kernel, parser.latest
             )
-        self.bus.publish(sim.run_id, LogEvent(sim_id=sim.id, lines=chunk.lines))
-        for stat in added:
-            self.bus.publish(sim.run_id, KernelEvent(stat=stat))
-        self.publish_sim(sim)
+            self.bus.publish(sim.run_id, LogEvent(sim_id=sim.id, lines=chunk.lines))
+            for stat in added:
+                self.bus.publish(sim.run_id, KernelEvent(stat=stat))
+            self.publish_sim(sim)
 
     def _finish_parsing(self, sim: SimSummary) -> SimSummary:
         """Closes a kernel block left open when the log ended, then forgets the parser."""
-        with self._parser_lock(sim.id):
-            parser = self._parser(sim)
-            sim, added = self.store.record_progress(
-                sim.id, parser.finish(), parser.current_kernel, parser.latest
-            )
-            self._parsers.pop(sim.id, None)
+        parser = self._parser(sim)
+        sim, added = self.store.record_progress(
+            sim.id, parser.finish(), parser.current_kernel, parser.latest
+        )
+        self._parsers.pop(sim.id, None)
         for stat in added:
             self.bus.publish(sim.run_id, KernelEvent(stat=stat))
         return sim
@@ -402,15 +429,14 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
 
     @app.get("/api/runs/{run_id}/events", dependencies=[Depends(bearer_or_query)])
     async def run_events(run_id: str, request: Request) -> StreamingResponse:
-        q = cascade.bus.subscribe(run_id)
-        run = await run_in_threadpool(store.get_run, run_id)
-        if run is None:
-            cascade.bus.unsubscribe(run_id, q)
+        subscribed = await run_in_threadpool(cascade.subscribe, run_id, asyncio.get_running_loop())
+        if subscribed is None:
             raise HTTPException(404, f"run {run_id} not found")
+        q, snapshot = subscribed
 
         async def stream():
             try:
-                yield f"data: {SnapshotEvent(run=run).model_dump_json()}\n\n"
+                yield f"data: {snapshot.model_dump_json()}\n\n"
                 while not await request.is_disconnected():
                     try:
                         event = await asyncio.wait_for(q.get(), SSE_KEEPALIVE_S)
