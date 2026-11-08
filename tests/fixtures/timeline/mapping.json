@@ -1,0 +1,142 @@
+[
+  {
+    "uid": 1,
+    "name": "nvjet_sm90_hsh_64x8_64x16_4x1_v_bz_bias_TNT",
+    "seq": 656,
+    "repeat": 0,
+    "step": 0
+  },
+  {
+    "uid": 2,
+    "name": "_ZN4vllm30reshape_and_cache_flash_kernelIttLNS_18Fp8KVCacheDataTypeE0EEEvPKT_S4_PT0_S6_PKlllllliiiPKfSA_i",
+    "seq": 657,
+    "repeat": 0,
+    "step": 0
+  },
+  {
+    "uid": 3,
+    "name": "_ZN7cutlass13device_kernelIN5flash20enable_sm90_or_laterINS1_16FlashAttnFwdSm90INS1_25CollectiveMainloopFwdSm90ILi2EN4cute5tupleIJNS5_1CILi1EEES8_S8_EEENS6_IJNS7_ILi64EEENS7_ILi192EEESA_EEELi64ENS_6half_tEfNS_4arch4Sm90ELb1ELb0ELb0ELb1ELb1ELb0ELb0ELb1ELb1ELb1ELb0ELb0ENS_10bfloat16_tELi1EEENS1_21CollectiveEpilogueFwdINS6_IJSA_SA_SB_EEES9_SD_SF_Li128ELb1ELb1ELb0ELb0ELi1EEENS1_36VarlenDynamicPersistentTileSchedulerILi64ELi192ELi128ELi128ELb0ELb1ELb1ELb1ELb0ELb1EEEEEEEEEvNT_6ParamsE",
+    "seq": 658,
+    "repeat": 0,
+    "step": 0
+  },
+  {
+    "uid": 4,
+    "name": "_ZN2at6native29vectorized_elementwise_kernelILi4ENS0_11FillFunctorIiEESt5arrayIPcLm1EEEEviT0_T1_",
+    "seq": 659,
+    "repeat": 0,
+    "step": 0
+  },
+  {
+    "uid": 5,
+    "name": "nvjet_sm90_hsh_64x8_64x16_4x1_v_bz_bias_TNT",
+    "seq": 660,
+    "repeat": 0,
+    "step": 0
+  },
+  {
+    "uid": 6,
+    "name": "nvjet_sm90_hsh_64x8_64x16_4x1_v_bz_bias_TNT",
+    "seq": 833,
+    "repeat": 0,
+    "step": 1
+  },
+  {
+    "uid": 7,
+    "name": "_ZN4vllm30reshape_and_cache_flash_kernelIttLNS_18Fp8KVCacheDataTypeE0EEEvPKT_S4_PT0_S6_PKlllllliiiPKfSA_i",
+    "seq": 834,
+    "repeat": 0,
+    "step": 1
+  },
+  {
+    "uid": 8,
+    "name": "_ZN7cutlass13device_kernelIN5flash20enable_sm90_or_laterINS1_16FlashAttnFwdSm90INS1_25CollectiveMainloopFwdSm90ILi2EN4cute5tupleIJNS5_1CILi1EEES8_S8_EEENS6_IJNS7_ILi64EEENS7_ILi192EEESA_EEELi64ENS_6half_tEfNS_4arch4Sm90ELb0ELb0ELb0ELb1ELb1ELb0ELb0ELb1ELb1ELb1ELb0ELb0ENS_10bfloat16_tELi1EEENS1_21CollectiveEpilogueFwdINS6_IJSA_SA_SB_EEES9_SD_SF_Li128ELb1ELb1ELb0ELb0ELi1EEENS1_36VarlenDynamicPersistentTileSchedulerILi64ELi192ELi128ELi128ELb0ELb1ELb1ELb0ELb0ELb1EEEEEEEEEvNT_6ParamsE",
+    "seq": 835,
+    "repeat": 0,
+    "step": 1
+  },
+  {
+    "uid": 9,
+    "name": "_ZN2at6native29vectorized_elementwise_kernelILi4ENS0_11FillFunctorIiEESt5arrayIPcLm1EEEEviT0_T1_",
+    "seq": 836,
+    "repeat": 0,
+    "step": 1
+  },
+  {
+    "uid": 10,
+    "name": "nvjet_sm90_hsh_64x8_64x16_4x1_v_bz_bias_TNT",
+    "seq": 837,
+    "repeat": 0,
+    "step": 1
+  },
+  {
+    "uid": 11,
+    "name": "nvjet_sm90_hsh_64x8_64x16_4x1_v_bz_bias_TNT",
+    "seq": 1010,
+    "repeat": 0,
+    "step": 2
+  },
+  {
+    "uid": 12,
+    "name": "_ZN4vllm30reshape_and_cache_flash_kernelIttLNS_18Fp8KVCacheDataTypeE0EEEvPKT_S4_PT0_S6_PKlllllliiiPKfSA_i",
+    "seq": 1011,
+    "repeat": 0,
+    "step": 2
+  },
+  {
+    "uid": 13,
+    "name": "_ZN7cutlass13device_kernelIN5flash20enable_sm90_or_laterINS1_16FlashAttnFwdSm90INS1_25CollectiveMainloopFwdSm90ILi2EN4cute5tupleIJNS5_1CILi1EEES8_S8_EEENS6_IJNS7_ILi64EEENS7_ILi192EEESA_EEELi64ENS_6half_tEfNS_4arch4Sm90ELb0ELb0ELb0ELb1ELb1ELb0ELb0ELb1ELb1ELb1ELb0ELb0ENS_10bfloat16_tELi1EEENS1_21CollectiveEpilogueFwdINS6_IJSA_SA_SB_EEES9_SD_SF_Li128ELb1ELb1ELb0ELb0ELi1EEENS1_36VarlenDynamicPersistentTileSchedulerILi64ELi192ELi128ELi128ELb0ELb1ELb1ELb0ELb0ELb1EEEEEEEEEvNT_6ParamsE",
+    "seq": 1012,
+    "repeat": 0,
+    "step": 2
+  },
+  {
+    "uid": 14,
+    "name": "_ZN2at6native29vectorized_elementwise_kernelILi4ENS0_11FillFunctorIiEESt5arrayIPcLm1EEEEviT0_T1_",
+    "seq": 1013,
+    "repeat": 0,
+    "step": 2
+  },
+  {
+    "uid": 15,
+    "name": "nvjet_sm90_hsh_64x8_64x16_4x1_v_bz_bias_TNT",
+    "seq": 1014,
+    "repeat": 0,
+    "step": 2
+  },
+  {
+    "uid": 16,
+    "name": "nvjet_sm90_hsh_64x8_64x16_4x1_v_bz_bias_TNT",
+    "seq": 1187,
+    "repeat": 0,
+    "step": 3
+  },
+  {
+    "uid": 17,
+    "name": "_ZN4vllm30reshape_and_cache_flash_kernelIttLNS_18Fp8KVCacheDataTypeE0EEEvPKT_S4_PT0_S6_PKlllllliiiPKfSA_i",
+    "seq": 1188,
+    "repeat": 0,
+    "step": 3
+  },
+  {
+    "uid": 18,
+    "name": "_ZN7cutlass13device_kernelIN5flash20enable_sm90_or_laterINS1_16FlashAttnFwdSm90INS1_25CollectiveMainloopFwdSm90ILi2EN4cute5tupleIJNS5_1CILi1EEES8_S8_EEENS6_IJNS7_ILi64EEENS7_ILi192EEESA_EEELi64ENS_6half_tEfNS_4arch4Sm90ELb0ELb0ELb0ELb1ELb1ELb0ELb0ELb1ELb1ELb1ELb0ELb0ENS_10bfloat16_tELi1EEENS1_21CollectiveEpilogueFwdINS6_IJSA_SA_SB_EEES9_SD_SF_Li128ELb1ELb1ELb0ELb0ELi1EEENS1_36VarlenDynamicPersistentTileSchedulerILi64ELi192ELi128ELi128ELb0ELb1ELb1ELb0ELb0ELb1EEEEEEEEEvNT_6ParamsE",
+    "seq": 1189,
+    "repeat": 0,
+    "step": 3
+  },
+  {
+    "uid": 19,
+    "name": "_ZN2at6native29vectorized_elementwise_kernelILi4ENS0_11FillFunctorIiEESt5arrayIPcLm1EEEEviT0_T1_",
+    "seq": 1190,
+    "repeat": 0,
+    "step": 3
+  },
+  {
+    "uid": 20,
+    "name": "nvjet_sm90_hsh_64x8_64x16_4x1_v_bz_bias_TNT",
+    "seq": 1191,
+    "repeat": 0,
+    "step": 3
+  }
+]
