@@ -176,12 +176,12 @@ def test_cancelling_the_sample_run_changes_nothing(app):
     assert after.json()["state"] == "succeeded"
 
 
-def test_sample_trace_refuses_new_runs(app):
+def test_sample_trace_refuses_configs_without_recorded_results(app):
     client, _ = app
-    body = {"trace_id": TRACE_ID, "entries": [{"gpu_config": "SM90_H100", "count": 1}]}
+    body = {"trace_id": TRACE_ID, "entries": [{"gpu_config": "SM80_A100", "count": 1}]}
     resp = client.post("/api/runs", json=body)
-    assert resp.status_code == 409
-    assert "sample" in resp.json()["detail"]
+    assert resp.status_code == 422
+    assert "no recorded results" in resp.json()["detail"]
     assert len(client.get("/api/runs").json()) == len(available_bundles())
 
 

@@ -58,7 +58,7 @@ from cascade.models import (
 )
 from cascade.openai_api import install_openai_routes
 from cascade.perfetto import run_trace
-from cascade.samples import seed_samples
+from cascade.samples import recorded_configs, replay_command, seed_samples
 from cascade.settings import Settings
 from cascade.stats import LogParser
 from cascade.store import IllegalTransition, Store, now
@@ -173,10 +173,12 @@ class Cascade:
                 self._fail(sim.id, f"launcher prepare: {e}")
             return
         trace_dir = self.settings.trace_dir(self.store.run_trace_id(run_id))
+        run = self.store.get_run_summary(run_id)
         for sim in pending:
-            self._launch_pool.submit(self._launch_sim, sim.id, trace_dir)
+            command = replay_command(trace_dir, sim.gpu_config) if run and run.replay else None
+            self._launch_pool.submit(self._launch_sim, sim.id, trace_dir, command)
 
-    def _launch_sim(self, sim_id: str, trace_dir: Path) -> None:
+    def _launch_sim(self, sim_id: str, trace_dir: Path, command: str | None) -> None:
         with self._lock:
             try:
                 sim = self.store.transition_sim(sim_id, SimState.launching)
@@ -184,7 +186,7 @@ class Cascade:
                 return
             self.publish_sim(sim)
         try:
-            ref = self.launcher.launch(sim, trace_dir)
+            ref = self.launcher.launch(sim, trace_dir, command)
         except Exception as e:
             log.exception("launching %s failed", sim_id)
             self._fail(sim_id, f"launch: {e}")
@@ -432,10 +434,17 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
             raise HTTPException(404, f"trace {body.trace_id} not found")
         if trace.state != TraceState.ready:
             raise HTTPException(409, f"trace {trace.id} is {trace.state}, not ready")
+        kernels_total = {e.gpu_config: trace.kernel_count for e in body.entries}
         if trace.sample:
-            raise HTTPException(
-                409, f"trace {trace.id} is a sample without its instruction traces; it can't run"
-            )
+            recorded = recorded_configs(settings.trace_dir(trace.id))
+            for entry in body.entries:
+                if entry.gpu_config not in recorded:
+                    raise HTTPException(
+                        422,
+                        f"sample trace {trace.id} has no recorded results for"
+                        f" {entry.gpu_config!r}; it replays {', '.join(recorded) or 'none'}",
+                    )
+                kernels_total[entry.gpu_config] = recorded[entry.gpu_config]
         for entry in body.entries:
             cfg = cascade.configs.get(entry.gpu_config)
             if cfg is None:
@@ -445,7 +454,7 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
                     422,
                     f"{cfg.name} is {cfg.arch} but trace {trace.id} is {trace.trace_gpu_arch}",
                 )
-        run_id = store.create_run(trace.id, body.entries, trace.kernel_count)
+        run_id = store.create_run(trace.id, body.entries, kernels_total, replay=trace.sample)
         cascade.launch_run(run_id)
         return get_run_or_404(run_id)
 

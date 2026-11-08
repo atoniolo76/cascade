@@ -11,7 +11,7 @@ import { configSeries } from "../domain/stats";
 import { LogoGlyph, LogoTile } from "../components/BrandLogo";
 import { gpuLogo, logoByKey } from "../domain/logos";
 import { initialConfigs } from "../domain/configs";
-import { SAMPLE_RUN_BLOCKED, runBlocker } from "../domain/samples";
+import { SAMPLE_REPLAY_NOTE, launchableConfigs, runBlocker } from "../domain/samples";
 import { toast } from "../lib/toast";
 import { cx } from "../components/cx";
 import { formatBytes, formatInt, plural } from "../domain/format";
@@ -27,8 +27,9 @@ export function NewRunPage() {
   const configs = useGpuConfigs();
 
   const requested = params.get("trace");
+  const launchable = traces.data?.filter((t) => runBlocker(t) === null) ?? [];
   const trace =
-    traces.data?.find((t) => t.id === requested) ?? (requested === null ? traces.data?.find((t) => runBlocker(t) === null) : undefined);
+    traces.data?.find((t) => t.id === requested) ?? (requested === null ? (launchable.find((t) => !t.sample) ?? launchable[0]) : undefined);
 
   return (
     <>
@@ -56,7 +57,7 @@ export function NewRunPage() {
 
 type Selection = Record<string, number>;
 
-function initialSelection(trace: TraceSummary | undefined, configs: GpuConfig[]): Selection {
+function initialSelection(trace: TraceSummary | undefined, configs: readonly GpuConfig[]): Selection {
   return Object.fromEntries((trace ? initialConfigs(trace, configs) : []).map((c) => [c.name, 1]));
 }
 
@@ -73,10 +74,11 @@ function RunForm({
 }) {
   const navigate = useNavigate();
   const create = useCreateRun();
-  const [selection, setSelection] = useState<Selection>(() => initialSelection(trace, configs));
+  const offered = trace ? launchableConfigs(trace, configs) : configs;
+  const [selection, setSelection] = useState<Selection>(() => initialSelection(trace, offered));
 
   const ordered = trace
-    ? configs.toSorted((a, b) => Number(b.arch === trace.trace_gpu_arch) - Number(a.arch === trace.trace_gpu_arch) || a.name.localeCompare(b.name))
+    ? offered.toSorted((a, b) => Number(b.arch === trace.trace_gpu_arch) - Number(a.arch === trace.trace_gpu_arch) || a.name.localeCompare(b.name))
     : configs;
   const entries: RunEntry[] = ordered.flatMap((c) => {
     const count = selection[c.name];
@@ -127,12 +129,11 @@ function RunForm({
                 <span className="font-mono">{trace.trace_gpu_arch}</span>
               </div>
             )}
-            {trace?.sample === true && <p className="text-[13px] text-muted">{SAMPLE_RUN_BLOCKED}</p>}
           </div>
         </Panel>
 
         <Panel className="overflow-hidden">
-          <PanelHeader icon={<Cpu {...ICON} />} title="GPU configs" subtitle={trace ? `Accel-Sim tested configs matching ${trace.trace_gpu_arch}` : "Pick a trace first"} />
+          <PanelHeader icon={<Cpu {...ICON} />} title="GPU configs" subtitle={trace ? (trace.sample ? SAMPLE_REPLAY_NOTE : `Accel-Sim tested configs matching ${trace.trace_gpu_arch}`) : "Pick a trace first"} />
           <ul className="divide-y divide-border">
             {ordered.map((config) => (
               <ConfigRow

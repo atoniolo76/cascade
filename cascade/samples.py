@@ -13,6 +13,9 @@ import gzip
 import io
 import json
 import logging
+import re
+import shlex
+import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -42,6 +45,9 @@ TRACE_FILES = (
     "traced/trace_steps.json",
     "traced/traces/kernelslist.g",
 )
+REPLAY_DIR = "replay"
+REPLAY_DELAY_S = 0.02
+_UID_RE = re.compile(r"^(launching kernel name: \S+ uid: |kernel_launch_uid = )\d+")
 
 
 class Bundle:
@@ -293,6 +299,72 @@ def _load_sim(
     return rows, outputs
 
 
+def _replay_log(bundle: Bundle, uids: list[int]) -> tuple[str, int]:
+    """One Accel-Sim log for the reference kernels, in launch order. A kernel's own log (it ran
+    alone, so its launch uid is 1) gets the tracer uid; without a log, its kernels.csv cycles
+    become a minimal stats block."""
+    rows = csv.DictReader(io.StringIO(bundle.read("sim/kernels.csv").decode()))
+    by_uid = {int(r["uid"]): r for r in rows}
+    sim_dir = bundle.root / bundle.manifest.get("sim_dir", "sim")
+    lines = []
+    for uid in uids:
+        row = by_uid[uid]
+        if any((sim_dir / f"kernel-{uid}.log{ext}").is_file() for ext in ("", ".gz")):
+            log_lines = bundle.read(f"sim/kernel-{uid}.log").decode().splitlines()
+            lines += [_UID_RE.sub(rf"\g<1>{uid}", line) for line in log_lines]
+            continue
+        lines += [
+            f"launching kernel name: {row['name']} uid: {uid} cuda_stream_id: 0",
+            f"kernel_name = {row['name']} ",
+            f"kernel_launch_uid = {uid} ",
+            f"gpu_sim_cycle = {row['cycles']}",
+        ]
+    lines.append("GPGPU-Sim: *** exit detected ***")
+    return "\n".join(lines) + "\n", len(uids)
+
+
+def write_replays(bundle: Bundle, trace_dir: Path) -> None:
+    """Writes replay/<config>/ for each recorded config that lacks one: accelsim.log, the
+    config's output files under outputs/, then replay.json last, so a partial write redoes."""
+    bundles = [Bundle(bundle.root, c) for c in bundle.manifest.get("configs", [{}])]
+    uids = sorted({int(r["uid"]) for b in bundles for r in _simulated(b)})
+    for b in bundles:
+        out = trace_dir / REPLAY_DIR / b.manifest["gpu_config"]
+        if (out / "replay.json").is_file():
+            continue
+        text, kernels = _replay_log(b, uids)
+        _write(out / "accelsim.log", text.encode())
+        for rel in b.manifest["output_files"]:
+            _write(out / "outputs" / rel.rsplit("/", 1)[-1], b.read(rel))
+        _write(out / "replay.json", json.dumps({"kernels": kernels}).encode())
+
+
+def recorded_configs(trace_dir: Path) -> dict[str, int]:
+    """The configs a sample trace can replay, with how many kernels each replays."""
+    return {
+        p.parent.name: json.loads(p.read_text())["kernels"]
+        for p in sorted((trace_dir / REPLAY_DIR).glob("*/replay.json"))
+    }
+
+
+def replay_command(trace_dir: Path, gpu_config: str) -> str:
+    out = trace_dir / REPLAY_DIR / gpu_config
+    return shlex.join(
+        [
+            sys.executable,
+            "-m",
+            "cascade.cli",
+            "worker",
+            "--replay",
+            str(out / "accelsim.log"),
+            "--replay-outputs",
+            str(out / "outputs"),
+            "--delay",
+            str(REPLAY_DELAY_S),
+        ]
+    )
+
+
 def _write(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     part = path.with_name(f".{path.name}.part")
@@ -307,10 +379,11 @@ def seed(settings: Settings, store: Store, root: Path) -> bool:
     if bundle.manifest.get("status") == "pending":
         log.info("skipping pending sample %s", root.name)
         return False
+    trace_dir = settings.trace_dir(bundle.manifest["trace_id"])
+    write_replays(bundle, trace_dir)
     if store.get_trace_summary(bundle.manifest["trace_id"]) is not None:
         return False
     sample = load(bundle)
-    trace_dir = settings.trace_dir(sample.rows.trace.id)
     for rel, data in sample.trace_files.items():
         _write(trace_dir / rel, data)
     for sim_id, outputs in sample.output_files.items():

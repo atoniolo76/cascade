@@ -25,7 +25,7 @@ class RecordingLauncher:
     def prepare(self, run_id):
         self.prepared.append(run_id)
 
-    def launch(self, sim, trace_dir):
+    def launch(self, sim, trace_dir, command=None):
         assert (trace_dir / "traces" / "kernelslist.g").is_file()
         with self.lock:
             self.launched.append(sim.id)
@@ -289,9 +289,9 @@ def test_cancel_during_launch_terminates_once_the_ref_exists(setup):
     gate = threading.Event()
     real_launch = launcher.launch
 
-    def slow_launch(sim, trace_dir):
+    def slow_launch(sim, trace_dir, command=None):
         gate.wait(5)
-        return real_launch(sim, trace_dir)
+        return real_launch(sim, trace_dir, command)
 
     launcher.launch = slow_launch
     run = client.post(
@@ -336,7 +336,7 @@ def test_restart_launches_sims_left_pending(tmp_path):
     store.register_trace("t", 6, 1)
     store.update_trace("t", state=TraceState.processing)
     store.update_trace("t", state=TraceState.ready)
-    run_id = store.create_run("t", [RunEntry(gpu_config="SM90_H100", count=2)], 6)
+    run_id = store.create_run("t", [RunEntry(gpu_config="SM90_H100", count=2)], {"SM90_H100": 6})
     store.close()
     launcher = RecordingLauncher()
     with TestClient(create_app(settings, launcher)) as client:

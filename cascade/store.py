@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS runs (
     trace_id TEXT NOT NULL REFERENCES traces(id),
     created_at TEXT NOT NULL,
     entries TEXT NOT NULL,
-    sample INTEGER NOT NULL DEFAULT 0
+    sample INTEGER NOT NULL DEFAULT 0,
+    replay INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS sims (
     id TEXT PRIMARY KEY,
@@ -125,6 +126,7 @@ ADDED_COLUMNS = (
     ("traces", "has_step_timeline", "INTEGER NOT NULL DEFAULT 0"),
     ("traces", "sample", "INTEGER NOT NULL DEFAULT 0"),
     ("runs", "sample", "INTEGER NOT NULL DEFAULT 0"),
+    ("runs", "replay", "INTEGER NOT NULL DEFAULT 0"),
 )
 
 
@@ -291,13 +293,21 @@ class Store:
         row = self._one("SELECT real_timing FROM traces WHERE id = ?", trace_id)
         return json.loads(row["real_timing"]) if row and row["real_timing"] else None
 
-    def create_run(self, trace_id: str, entries: list[RunEntry], kernels_total: int) -> str:
+    def create_run(
+        self,
+        trace_id: str,
+        entries: list[RunEntry],
+        kernels_total: dict[str, int],
+        replay: bool = False,
+    ) -> str:
+        """`kernels_total` is the kernel count each entry's gpu_config will report."""
         run_id = new_id("run")
         t = _ts(now())
         with self._tx() as db:
             db.execute(
-                "INSERT INTO runs (id, trace_id, created_at, entries) VALUES (?, ?, ?, ?)",
-                (run_id, trace_id, t, json.dumps([e.model_dump() for e in entries])),
+                "INSERT INTO runs (id, trace_id, created_at, entries, replay)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (run_id, trace_id, t, json.dumps([e.model_dump() for e in entries]), replay),
             )
             for entry in entries:
                 for replica in range(entry.count):
@@ -312,7 +322,7 @@ class Store:
                             SimState.pending,
                             t,
                             t,
-                            kernels_total,
+                            kernels_total[entry.gpu_config],
                         ),
                     )
         return run_id
@@ -349,6 +359,7 @@ class Store:
             entries=[RunEntry(**e) for e in json.loads(row["entries"])],
             sim_counts=dict(Counter(states)),
             sample=bool(row["sample"]),
+            replay=bool(row["replay"]),
         )
 
     def get_sim(self, sim_id: str) -> SimSummary | None:

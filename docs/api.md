@@ -13,7 +13,7 @@ All `/api` routes require `Authorization: Bearer $CASCADE_TOKEN`, except `GET /a
 | GET | `/api/traces` | `TraceSummary[]`, newest first |
 | GET | `/api/traces/{id}` | `TraceDetail` |
 | GET | `/api/runs` | `RunSummary[]`, newest first |
-| POST | `/api/runs` | body `RunCreate`, returns `RunDetail` (201). 409 if the trace is not `ready`, or is a sample (it has no instruction traces). 422 if a config is unknown or its arch differs from the trace's `trace_gpu_arch`. |
+| POST | `/api/runs` | body `RunCreate`, returns `RunDetail` (201). 409 if the trace is not `ready`. 422 if a config is unknown, its arch differs from the trace's `trace_gpu_arch`, or the trace is a sample with no recorded results for it. A run on a sample trace has `replay: true`: each sim runs `cascade worker --replay` on that config's recorded Accel-Sim log instead of `CASCADE_SIM_CMD`. |
 | GET | `/api/runs/{id}` | `RunDetail` |
 | POST | `/api/runs/{id}/cancel` | `RunDetail`. Moves every non-terminal sim to `cancelled` and calls `Launcher.terminate`. Idempotent. On a sample run, whose sim already `succeeded`, it changes nothing. |
 | GET | `/api/runs/{id}/events` | SSE stream of `RunEvent` as plain `data:` lines. First event is a `snapshot` with the run and every `KernelStat` so far, each with an empty `stats` map to keep it small. Full stats are in the results downloads and in live `kernel` events. |
@@ -137,8 +137,8 @@ Simulator image (the Dockerfile's `BASE_IMAGE`): the app expects the trace post-
 
 The built-in [OPT-125m H100 sample](../samples/opt125m-h100-e2e/README.md) belongs to
 `cascade-samples`. It seeds automatically at startup, with recorded SM90_H100 and SM90_H200
-simulations; no upload, instruction traces or simulator execution is needed. Sample traces
-cannot launch new runs. The native A100 sample contains its own measured baseline and recorded
+simulations; no upload, instruction traces or simulator execution is needed. A new run on a
+sample trace replays its recorded results for those configs. The native A100 sample contains its own measured baseline and recorded
 SM80_A100 simulation, not a simulation of the H100 instruction trace.
 
 To rebuild bundles from complete profiler run directories (never commit `.tracez` files):
@@ -200,7 +200,7 @@ On startup, `cascade serve` seeds each bundle under `samples/` into the workspac
 
 Today there is one, [samples/opt125m-h100-e2e](../samples/opt125m-h100-e2e/README.md): Alessio's real facebook/opt-125m run on an H100, simulated with Accel-Sim on SM90_H100. It appears as:
 
-- The trace `sample__facebook_opt-125m__h100-e2e`, `ready`, with `sample: true`. Its trace dir holds `corrected_timeline.json`, `trace_alignment.json`, `trace_steps.json` and `traces/kernelslist.g`, but no `.tracez` instruction traces, so `POST /api/runs` on it is 409.
+- The trace `sample__facebook_opt-125m__h100-e2e`, `ready`, with `sample: true`. Its trace dir holds `corrected_timeline.json`, `trace_alignment.json`, `trace_steps.json` and `traces/kernelslist.g`, but no `.tracez` instruction traces. Seeding also writes `replay/<config>/` per recorded config: `accelsim.log` (the per-kernel logs in launch order, launch uids set to the tracer's; a config with only `kernels.csv` gets one stats block per kernel), the config's output files under `outputs/`, and `replay.json` with its kernel count. `POST /api/runs` on the trace replays these, and the run has `replay: true` and `sample: false`, so it can be cancelled.
 - The run `run-sample-opt125m-h100-e2e`, `succeeded`, with `sample: true` and one SM90_H100 sim. Its kernel stats are the 93 kernels Accel-Sim simulated, parsed from their logs, in launch order, with `kernel_launch_uid` set to the tracer's uid. It has the bundle's step timeline and five output files. The trace's real timing is those 93 kernels' nsys durations, in the same order.
 
 Seeding is one SQLite transaction keyed on the trace id, so a restart never duplicates it.

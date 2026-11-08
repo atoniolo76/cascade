@@ -17,7 +17,7 @@ def store(tmp_path):
 
 
 def one_sim(store):
-    run_id = store.create_run("t1", [RunEntry(gpu_config="SM90_H100", count=1)], 3)
+    run_id = store.create_run("t1", [RunEntry(gpu_config="SM90_H100", count=1)], {"SM90_H100": 3})
     return store.sims_for_run(run_id)[0].id
 
 

@@ -144,7 +144,7 @@ class OpenAI:
                     if sim.state in (SimState.pending, SimState.launching, SimState.running):
                         return sim, False
             run_id = self.store.create_run(
-                trace.id, [RunEntry(gpu_config=cfg.name, count=1)], trace.kernel_count
+                trace.id, [RunEntry(gpu_config=cfg.name, count=1)], {cfg.name: trace.kernel_count}
             )
             self.cascade.launch_run(run_id)
             return self.store.sims_for_run(run_id)[0], False

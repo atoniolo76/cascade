@@ -54,7 +54,9 @@ def endpoint(tmp_path, monkeypatch):
 
 
 def pending(hub):
-    run_id = hub.store.create_run("trace-opt", [RunEntry(gpu_config="SM90_H100", count=1)], 6)
+    run_id = hub.store.create_run(
+        "trace-opt", [RunEntry(gpu_config="SM90_H100", count=1)], {"SM90_H100": 6}
+    )
     return hub.store.sims_for_run(run_id)[0]
 
 
@@ -125,7 +127,9 @@ def test_model_alias_selects_newest_ready_trace(endpoint):
             "suggested_sim_config": "SM90_H100",
         },
     )
-    run = hub.store.create_run("newer", [RunEntry(gpu_config="SM90_H100", count=1)], 6)
+    run = hub.store.create_run(
+        "newer", [RunEntry(gpu_config="SM90_H100", count=1)], {"SM90_H100": 6}
+    )
     sim = hub.store.sims_for_run(run)[0]
     succeed(hub, sim.id)
     result = client.post("/v1/completions", json=BODY).json()

@@ -165,6 +165,7 @@ class RunSummary(BaseModel):
     entries: list[RunEntry]
     sim_counts: dict[SimState, int]
     sample: bool
+    replay: bool = False
 
 
 class RunDetail(RunSummary):

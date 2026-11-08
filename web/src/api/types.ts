@@ -114,6 +114,8 @@ export interface RunSummary {
   sim_counts: Partial<Record<SimState, number>>;
   /** Seeded from samples/ with its recorded results. */
   sample: boolean;
+  /** Launched on a sample trace: replays its recorded Accel-Sim results instead of simulating. */
+  replay: boolean;
 }
 
 export interface RunDetail extends RunSummary {
