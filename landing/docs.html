@@ -61,7 +61,11 @@
 cd cascade
 export SAIL_API_KEY=...
 export CASCADE_TOKEN=$(openssl rand -hex 24)
-uv run python scripts/deploy_sail.py</pre></div>
+uv run --extra sail python scripts/deploy_sail.py \
+  --base-image &lt;simulator-image&gt; \
+  --sim-cmd "&lt;simulator command&gt;" \
+  --accelsim-dir &lt;path to accel-sim in that image&gt;</pre></div>
+          <p>The three flags point Cascade at the simulator image, the image with Accel-Sim and its trace post-processor built in. Without them, the app runs a stand-in simulator that replays a recorded Accel-Sim log, which is useful for trying the UI but doesn't simulate your trace.</p>
           <p>The script creates the app's sandbox and prints two URLs.</p>
           <table class="table">
             <thead><tr><th>url</th><th>use it for</th></tr></thead>
