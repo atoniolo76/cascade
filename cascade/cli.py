@@ -10,6 +10,7 @@ import uvicorn
 
 from cascade.api import create_app
 from cascade.settings import Settings
+from cascade.sim.cli import add_commands
 
 log = logging.getLogger("cascade")
 
@@ -97,5 +98,12 @@ def main() -> None:
     s.add_argument("--port", type=int, default=8000)
     s.add_argument("--s3-port", type=int, default=9000, help="port for rclone serve s3")
     s.set_defaults(func=serve)
+    add_commands(sub)
     args = p.parse_args()
-    args.func(args)
+    if args.func is serve:
+        args.func(args)
+        return
+    try:
+        args.func(args)
+    except (ValueError, KeyError, OSError) as error:
+        p.error(str(error))
