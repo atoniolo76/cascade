@@ -1,6 +1,30 @@
+<div align="center">
+
+<img src="landing/brand/mark.svg" width="72" alt="Cascade logo">
+
 # Cascade
 
-> **Trace once, simulate everywhere.** Take a single real GPU trace of an LLM workload and simulate it on many GPU configurations in parallel, so you can see how a model would run on hardware you don't have.
+**Trace once, simulate everywhere.**
+
+Take a single real GPU trace of an LLM workload and simulate it on many GPU configurations in parallel,<br>so you can see how a model would run on hardware you don't have.
+
+[![Live site](https://img.shields.io/badge/site-cascadesim.vercel.app-5b3fd6?style=flat-square)](https://cascadesim.vercel.app)
+[![Docs](https://img.shields.io/badge/docs-read-111111?style=flat-square)](https://cascadesim.vercel.app/docs/)
+[![Get started](https://img.shields.io/badge/get%20started-your%20own%20workspace-5b3fd6?style=flat-square)](https://cascadesim.vercel.app/start.html)
+[![Demo video](https://img.shields.io/badge/demo-YouTube-ff0000?style=flat-square&logo=youtube&logoColor=white)](https://youtu.be/BcbumOoj9tc)
+[![Devpost](https://img.shields.io/badge/Devpost-submission-003e54?style=flat-square&logo=devpost&logoColor=white)](https://devpost.com/software/cascade-lam0nr)
+
+<img src="docs/media/fork-per-config.gif" width="860" alt="Launching four simulators on Sail and watching them run live">
+
+</div>
+
+---
+
+## Try it
+
+- **In the browser:** open [Get started](https://cascadesim.vercel.app/start.html), name a workspace and paste a [Sail](https://sailresearch.com) API key. Your own Cascade is running in about a minute, with a sample trace and run to explore while you profile.
+- **From the CLI:** `uv run cascade deploy --workspace <name>` with `SAIL_API_KEY` set.
+- **With an agent:** paste the [setup prompt](https://cascadesim.vercel.app/docs/agents.html) into Claude Code, Codex or Cursor.
 
 ---
 
@@ -34,6 +58,8 @@ Pick the GPU configs you want (for example, an **H100** and an **H200** with two
 
 ### 3. Watch It Happen
 
+<p align="center"><img src="docs/media/timeline.gif" width="820" alt="Scrubbing the kernel timeline across configs"></p>
+
 Every sim streams its output back live:
 
 - **Tiles** fill as kernels finish
@@ -42,6 +68,8 @@ Every sim streams its output back live:
 - **Compare**: scrub through simulated time, line configs up by kernel, or lay multiple runs side by side
 
 ### 4. Read the Simulator Outputs
+
+<p align="center"><img src="docs/media/results.gif" width="820" alt="Per-kernel charts, real vs simulated error, step timing and outputs"></p>
 
 - **Per-kernel charts** show where the time goes on each GPU.
 - When the trace includes real hardware timing, Cascade shows **simulated time vs. real runtime** for each kernel, along with every config's average error.
