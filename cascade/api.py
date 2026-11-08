@@ -125,8 +125,6 @@ class Cascade:
         self._launch_pool.shutdown(wait=False, cancel_futures=True)
         self.store.close()
 
-    # Sims
-
     def publish_sim(self, sim: SimSummary) -> None:
         self.bus.publish(sim.run_id, SimEvent(sim=sim))
 
@@ -211,8 +209,6 @@ class Cascade:
                 continue
             self.publish_sim(sim)
 
-    # Logs
-
     def _parser_lock(self, sim_id: str) -> threading.Lock:
         with self._locks_lock:
             return self._parser_locks.setdefault(sim_id, threading.Lock())
@@ -255,8 +251,6 @@ class Cascade:
         for stat in added:
             self.bus.publish(sim.run_id, KernelEvent(stat=stat))
         return sim
-
-    # Results
 
     def comparison(self, run: RunDetail) -> Comparison:
         configs = list(dict.fromkeys(e.gpu_config for e in run.entries))

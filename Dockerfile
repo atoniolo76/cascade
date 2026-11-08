@@ -18,8 +18,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl unzip \
     && rm -rf /var/lib/apt/lists/*
-# rclone >= 1.7x writes PUTs and multipart uploads to a temp object and renames on success, which
-# ingest relies on (it ignores .rclone_temp_put_* files).
+# rclone 1.76 writes PUTs and multipart uploads to a temp object and renames it on success; ingest
+# relies on that and ignores .rclone_temp_put_* files. Check `rclone serve s3 --help` before changing.
 RUN arch="${TARGETARCH:-amd64}" \
     && curl -fsSL -o /tmp/rclone.zip \
         "https://downloads.rclone.org/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-${arch}.zip" \

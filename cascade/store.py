@@ -158,8 +158,6 @@ class Store:
         with self._lock:
             return self._db.execute(sql, args).fetchall()
 
-    # Traces
-
     def register_trace(self, trace_id: str, kernel_count: int, nbytes: int) -> bool:
         t = _ts(now())
         with self._tx() as db:
@@ -232,8 +230,6 @@ class Store:
         row = self._one("SELECT real_timing FROM traces WHERE id = ?", trace_id)
         return json.loads(row["real_timing"]) if row and row["real_timing"] else None
 
-    # Runs
-
     def create_run(self, trace_id: str, entries: list[RunEntry], kernels_total: int) -> str:
         run_id = new_id("run")
         t = _ts(now())
@@ -292,8 +288,6 @@ class Store:
             entries=[RunEntry(**e) for e in json.loads(row["entries"])],
             sim_counts=dict(Counter(states)),
         )
-
-    # Sims
 
     def get_sim(self, sim_id: str) -> SimSummary | None:
         row = self._one("SELECT * FROM sims WHERE id = ?", sim_id)
@@ -391,8 +385,6 @@ class Store:
             _ts(cutoff),
         )
         return [r["id"] for r in rows]
-
-    # Logs and kernel stats
 
     def add_log_chunk(self, sim_id: str, seq: int, lines: list[str]) -> bool:
         """False when this seq was already stored (a retried chunk)."""
