@@ -179,6 +179,18 @@ const traces = [
     realTiming: false,
     seed: 2,
   }),
+  makeTrace({
+    id: "20261107-110110__meta-llama_Llama-3.1-70B-Instruct__decode_step",
+    state: "ready",
+    createdAgo: 7 * HOUR,
+    model: "meta-llama/Llama-3.1-70B-Instruct",
+    layers: ["model.layers.*"],
+    sourceGpu: "NVIDIA H100 80GB HBM3",
+    kernelCount: 1000,
+    bytes: 9_412_331_008,
+    realTiming: true,
+    seed: 9,
+  }),
 ];
 for (const t of traces) t._metadata = t.state === "uploading" ? null : t._meta;
 const traceById = (id) => allTraces.find((t) => t.id === id);
@@ -285,19 +297,19 @@ function pushLog(sim, lines, live) {
   if (live) emit(sim.run_id, { type: "log", sim_id: sim.id, lines });
 }
 
-function completeKernel(sim, live) {
+function completeKernel(sim, live, quiet = false) {
   const trace = traceById(sim._traceId);
   const kernel = trace._kernels[sim.kernels_done];
-  const stat = kernelStat(sim, kernel, sim.kernels_done + 1);
+  const stat = kernelStat(sim, kernel, sim.kernels_done);
   sim._stats.push(stat);
   sim.kernels_done += 1;
   const cyc = (sim.latest.gpu_tot_sim_cycle ?? 0) + stat.gpu_sim_cycle;
   const insn = (sim.latest.gpu_tot_sim_insn ?? 0) + stat.gpu_sim_insn;
   sim.latest = { gpu_tot_sim_cycle: cyc, gpu_tot_sim_insn: insn, gpu_tot_ipc: insn / cyc, sim_rate_ips: Math.round(38_000 + rand() * 52_000) };
-  pushLog(sim, kernelLogLines(sim, kernel, stat, sim.latest), live);
+  if (!quiet) pushLog(sim, kernelLogLines(sim, kernel, stat, sim.latest), live);
   const next = trace._kernels[sim.kernels_done];
   sim.current_kernel = next ? next.name : null;
-  if (next) pushLog(sim, [`launching kernel name: ${next.name} uid: ${next.kernel_id}`, `Processing kernel ./traces/kernel-${next.kernel_id}.traceg`], live);
+  if (next && !quiet) pushLog(sim, [`launching kernel name: ${next.name} uid: ${next.kernel_id}`, `Processing kernel ./traces/kernel-${next.kernel_id}.traceg`], live);
   if (live) emit(sim.run_id, { type: "kernel", stat });
 }
 
@@ -337,13 +349,13 @@ function createRun({ trace_id, entries, createdAt, live, settle, pace = 1, launc
   return run;
 }
 
-function settleSucceeded(sim, createdAt) {
+function settleSucceeded(sim, createdAt, quiet = false) {
   const started = createdAt + 4_000;
   sim.state = "running";
   sim.started_at = iso(started);
   sim.launcher_ref = `sbx_${hex(10)}`;
   pushLog(sim, ["Accel-Sim [build 1c9cc831]", `GPGPU-Sim: Configuration options: ./gpu-simulator/gpgpu-sim/configs/tested-cfgs/${sim.gpu_config}/gpgpusim.config`], false);
-  while (sim.kernels_done < sim.kernels_total) completeKernel(sim, false);
+  while (sim.kernels_done < sim.kernels_total) completeKernel(sim, false, quiet);
   pushLog(sim, ["GPGPU-Sim: *** exit detected ***"], false);
   finish(sim, "succeeded", started + 11 * MIN, { exit_code: 0, last_heartbeat_at: iso(started + 11 * MIN) });
 }
@@ -395,6 +407,24 @@ createRun({
 });
 createRun({
   trace_id: traces[3].id,
+  entries: [{ gpu_config: "SM90_GH200", count: 2 }, { gpu_config: "SM90_H100", count: 1 }],
+  createdAt: BOOT - 40 * MIN,
+  live: false,
+  settle: settleSucceeded,
+});
+createRun({
+  trace_id: traces[5].id,
+  entries: [
+    { gpu_config: "SM90_H100", count: 16 },
+    { gpu_config: "SM90_H200", count: 16 },
+    { gpu_config: "SM90_GH200", count: 16 },
+  ],
+  createdAt: BOOT - 3 * HOUR,
+  live: false,
+  settle: (sim, at) => settleSucceeded(sim, at, true),
+});
+createRun({
+  trace_id: traces[3].id,
   entries: [{ gpu_config: "SM90_H100", count: 3 }, { gpu_config: "SM90_H200", count: 2 }],
   createdAt: BOOT,
   live: true,
@@ -431,6 +461,7 @@ function runSummary(run) {
   const { _sims, ...rest } = run;
   return { ...rest, state: runState(ss.map((s) => s.state)), sim_counts: counts };
 }
+const lightStat = ({ stats: _stats, ...k }) => ({ ...k, stats: {} });
 const runDetail = (run) => ({ ...runSummary(run), trace: traceSummary(traceById(run.trace_id)), sims: runSims(run).map(publicSim) });
 
 function tick() {
@@ -511,8 +542,8 @@ function comparison(run) {
   const ss = runSims(run);
   const rows = trace._kernels.map((k, i) => {
     const sim_ns = {};
-    for (const c of configs) sim_ns[c] = median(ss.filter((s) => s.gpu_config === c).map((s) => s._stats.find((st) => st.kernel_index === i + 1)?.sim_time_ns));
-    return { kernel_index: i + 1, kernel_name: k.name, real_ns: trace._real ? trace._real[i].duration_ns : null, sim_ns };
+    for (const c of configs) sim_ns[c] = median(ss.filter((s) => s.gpu_config === c).map((s) => s._stats[i]?.sim_time_ns));
+    return { kernel_index: i, kernel_name: k.name, real_ns: trace._real ? trace._real[i].duration_ns : null, sim_ns };
   });
   return { has_real_timing: trace.has_real_timing, configs, rows };
 }
@@ -572,7 +603,7 @@ const routes = [
     const run = runs.find((r) => r.id === id);
     if (!run) return send(res, 404, { detail: "run not found" });
     res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
-    res.write(`data: ${JSON.stringify({ type: "snapshot", run: runDetail(run), kernels: runSims(run).flatMap((s) => s._stats) })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: "snapshot", run: runDetail(run), kernels: runSims(run).flatMap((s) => s._stats.map(lightStat)) })}\n\n`);
     const set = subscribers.get(id) ?? new Set();
     set.add(res);
     subscribers.set(id, set);
@@ -585,6 +616,12 @@ const routes = [
   ["GET", /^\/api\/runs\/([^/]+)\/comparison$/, ([id], _req, res) => {
     const run = runs.find((r) => r.id === id);
     return run ? send(res, 200, comparison(run)) : send(res, 404, { detail: "run not found" });
+  }],
+  ["GET", /^\/api\/runs\/([^/]+)\/kernels$/, ([id], _req, res) => {
+    const run = runs.find((r) => r.id === id);
+    if (!run) return send(res, 404, { detail: "run not found" });
+    const ordered = runSims(run).toSorted((a, b) => a.gpu_config.localeCompare(b.gpu_config) || a.replica - b.replica);
+    return send(res, 200, ordered.flatMap((s) => s._stats.map(lightStat)));
   }],
   ["GET", /^\/api\/runs\/([^/]+)\/results$/, ([id], _req, res) => {
     const run = runs.find((r) => r.id === id);
