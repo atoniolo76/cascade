@@ -1,9 +1,180 @@
 # Corrected-host timeline simulation (offline CLI)
 
-These commands ship in the main app image alongside `cascade serve`; they do not need CUDA,
-Modal, S3, Sail, a running API, or an Accel-Sim installation. They consume previously simulated
-kernel durations, not execute Accel-Sim. No scheduler, batching, or request-level vLLM execution
-model is implemented.
+The timing-model commands ship alongside `cascade serve`; they do not need CUDA, Modal, S3,
+Sail, a running API, or an Accel-Sim installation. They consume previously simulated kernel
+durations, not execute Accel-Sim. The separate preparation helper validates an existing
+Accel-Sim installation and returns a run plan without executing it. No scheduler, batching,
+or request-level vLLM execution model is implemented.
+
+## Worker integration and automated preparation
+
+Ownership follows `docs/cascade-app-decisions.md` on `amani`: the worker owns execution,
+environment setup, heartbeats, cancellation, log streaming and posting results. This branch
+provides library functions and CLI commands only; it does not implement or modify the worker.
+
+`cascade.sim.runner.prepare_run(framework, config_name, kernelslist, run_dir)` returns a JSON-
+compatible plan with `command` (an argv list), `cwd`, `clock_mhz` and the configured launch
+latency. The run directory must be empty. It locates:
+
+- `gpu-simulator/gpgpu-sim/configs/tested-cfgs/<name>/gpgpusim.config`;
+- `gpu-simulator/configs/tested-cfgs/<name>/trace.config`;
+- each config's relative `-inter_config_file` companion.
+
+It copies those configs/companions into the run directory and keeps the configured launch
+latency unchanged. Trace paths and argv are absolute, with no shell interpolation. It does
+not build the binary or source `gpu-simulator/setup_environment.sh`: the worker must provide
+the simulator's runtime environment and execute the returned argv with the returned cwd.
+
+```bash
+cascade prepare-sim-run --framework "$CASCADE_ACCELSIM_DIR" \
+  --config-name SM90_H100 --kernelslist "$CASCADE_TRACE_DIR/traces/kernelslist.g" \
+  --run-dir /data/sim-run --output /data/run-plan.json
+```
+
+### Generate kernel_mapping.json and sim_durations.json
+
+`cascade.sim.mapping.build_mapping(stats_path, kernelslist, timeline_path, clock_mhz, ...)`
+returns `mapping`, `durations`, and kernel/GPU-time `coverage`. Input stdout must have the
+completion marker; CSV must have `uid,name,gpu_sim_cycle`. This supports fresh single-process
+launch UIDs 1..N, one per kernel entry in list order (Memcpy commands/comments are skipped).
+Logs with aggregate/concurrent kernel snapshots are rejected; generated mappings additionally
+reject missing/reordered UID/name associations.
+
+Headers are read without loading instruction bodies: plain `.trace`, `.trace.xz`, `.gz`,
+`.bz2`, and `.tracez`'s text header are supported. Required fields are kernel name/id and
+grid/block dimensions. Kernel names and numerical dimensions match exactly; legacy `NxNxN`
+geometry strings are normalized to triplets.
+
+**Identity is never inferred from shape or filename alone.** Exact matching requires either:
+
+- a unique `trace_kernel_id` in a corrected-timeline kernel, equal to the capture header ID; or
+- `--identity capture_identity.json`, a trusted capture-side list of
+  `uid/name/repeat/step/seq` records linking these artifacts. UID/name/geometry are checked,
+  and one launch UID cannot claim several exact occurrences.
+
+The current profiler's corrected timelines do not contain capture IDs. Without a capture
+link, headers/step-local seq cannot prove instruction identity even for a nominally same-run
+capture. Have the producer export IDs/the sidecar, or use the explicitly labeled fallback.
+
+Shape transfer is **opt-in** (`--allow-shape-transfer`) and requires known source phases:
+`--source-phases` takes a list `[{"uid":1,"kind":"prefill"}, ...]`. Exact identities can also
+establish phases for their source UIDs. Unknown phases are never guessed. Transfer groups use
+kind (prefill/decode), full mangled name, grid and block, take median source cycles at the
+provided/configured core clock, and apply to every matching occurrence not already identified.
+
+```bash
+cascade import-sim-durations --stats /data/sim-run/run.log \
+  --kernelslist "$CASCADE_TRACE_DIR/traces/kernelslist.g" \
+  --timeline "$CASCADE_TRACE_DIR/corrected_timeline.json" \
+  --source-phases /data/source_phases.json --allow-shape-transfer \
+  --config /data/sim-run/gpgpusim.config \
+  --mapping-output "$CASCADE_TRACE_DIR/kernel_mapping.json" \
+  --output /data/sim_durations.json
+```
+
+Use `--clock-mhz` instead of `--config` to supply a clock explicitly. No matches is an error,
+not a claim of useful coverage. The generated list preserves the agreed worker fields:
+
+```json
+[{"uid":6,"name":"gemm","repeat":1,"step":33,"seq":4,
+  "method":"shape_transfer","source_uids":[6,11,16],"source_group":5}]
+```
+
+Identity records have `method:"identity"` and a single source UID. Legacy mapping lists without
+`method` are still accepted. The importer uses the median of `source_uids` for transfer entries,
+not just the representative `uid`. Thus the worker's existing sequence remains valid:
+
+```bash
+cascade import-sim-durations --stats /data/sim-run/run.log \
+  --mapping "$CASCADE_TRACE_DIR/kernel_mapping.json" --clock-mhz 1980 \
+  --output /data/sim_durations.json
+cascade simulate "$CASCADE_TRACE_DIR/corrected_timeline.json" \
+  --durations /data/sim_durations.json --output /data/simulated_timeline.json
+cascade compare "$CASCADE_TRACE_DIR/corrected_timeline.json" /data/simulated_timeline.json \
+  --output /data/compare.json
+```
+
+The existing `import_durations(stats_path, mapping_path, clock_mhz)` API is unchanged. No API,
+worker, shared types, container configuration, or `amani` code is modified here.
+
+### Six-configuration replay in one command
+
+```bash
+cascade simulate-batch /data/corrected_timeline.json --durations /data/sim_durations.json \
+  --output results/my-run
+```
+
+Library equivalent: `cascade.sim.pipeline.run_pipeline(input_path, durations_path, output)`.
+This copies the inputs and writes measured-only and Accel-Sim modes, each with measured, mean
+and linear gaps, under `<mode>/<gap>/simulated_timeline.json` and `compare.json`. It also writes
+README tables, `run.log`, and `sanity.json`. Existing named outputs are overwritten on rerun;
+choose a separate directory to preserve earlier results. Launch subtraction defaults to 0
+(`--launch-latency-cycles` overrides only Accel-Sim modes). Sanity uses measured-only measured
+gaps, retains the 1% target and separates e2e/ITL from TTFT. Missing percentages/empty request
+sets do not count as passing. No fitted correction hides an in-step first-token stamp.
+
+### Reproduce the historical gaps-final transfer
+
+The old source phase inference is now explicit data in
+`tests/fixtures/timeline/h100_source_phases.json`, not hard-coded UID ranges in the matcher.
+Its annotations remain inferred (6-token reshape + neighboring attention sequence), not
+verified step labels. On the research VM:
+
+```bash
+SOURCE=/home/ubuntu/repos/opt125m
+FRAMEWORK=/home/ubuntu/repos/accel-sim-framework
+OUT=/data/automated-gaps-final
+cascade import-sim-durations --stats "$SOURCE/sim_H100/kernel-stats.csv" \
+  --kernelslist "$SOURCE/run/traces/kernelslist.g" \
+  --timeline results/gaps-final/corrected_timeline.json \
+  --source-phases tests/fixtures/timeline/h100_source_phases.json --allow-shape-transfer \
+  --config "$FRAMEWORK/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM90_H100/gpgpusim.config" \
+  --mapping-output "$OUT/kernel_mapping.json" --output "$OUT/sim_durations.json"
+cascade simulate-batch results/gaps-final/corrected_timeline.json \
+  --durations "$OUT/sim_durations.json" --output "$OUT"
+```
+
+This reproduces all 5,856 duration records and 10 source groups exactly. Provenance is newly
+computed from actual input/stat/header/annotation hashes rather than copied historical prose
+and a profiler SHA absent from the input metadata. All 12 timeline/compare files and sanity.json
+are byte-identical to the committed results; README/run.log intentionally become generic
+generated reports rather than historical hand-written notes/subprocess logs.
+
+### Artifacts and transport
+
+The gaps-final timing input is 7,590,537 bytes. One generated timeline is 7,885,203 bytes
+(about 1.04× input); compare.json is 42,310 bytes and mapped durations about 0.84 MB. These are
+ordinary JSON files/dicts and can be transported independently. Main can receive compact
+comparison/coverage data while full timelines remain artifacts. The worker owns posting and
+observability; no network transport or API-limit assumptions are implemented/tested here.
+
+The latest timing replays did **not** produce fresh raw Accel-Sim instruction traces. Their
+source is the earlier `opt125m/run/traces/kernelslist.g` plus every referenced `.tracez` file;
+the original raw simulator outputs remain in `opt125m/sim_H100/` (`run.log`, `kernel-stats.csv`,
+performance counters). Configs, binary and runtime environment are additional execution
+requirements. The committed timing-model outputs are separate under `results/gaps-final/`.
+
+The profiler phases artifacts live on Modal volume `accelsim-traces`, under
+`phases/gaps-final/` (mounted as `/traces/phases/gaps-final/` inside its function):
+
+```bash
+modal volume get accelsim-traces phases/gaps-final ./gaps-final
+```
+
+That phases run supplies timing/nsys artifacts, not a new NVBit instruction trace capture.
+For actual Accel-Sim execution, download the separately captured instruction-trace bundle,
+including kernelslist and every referenced file; corrected_timeline.json alone is insufficient.
+
+### Audit of remaining research-only steps (not automated here)
+
+The earlier `opt125m/aligned/align_timeline.py` and `opt125m/calib/` also contain manual
+latency sweeps and calibration/fitting, nsys SQLite API/correlation/transfer/clock analysis,
+host-driven replay with measured launch delays/proxy step boundaries, and TraceProcessor
+overlap/spill validation. These are capture-conditioned research diagnostics, not prerequisites
+of the corrected-host worker contract. They were reported separately and deliberately not
+ported into the production pipeline. Trace capture/preprocessing, clock locking, and workload
+phase labeling remain profiler responsibilities. No scheduler or causal host-feedback model
+was added.
 
 ## Inputs and schema
 

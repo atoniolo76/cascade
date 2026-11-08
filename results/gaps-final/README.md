@@ -8,6 +8,19 @@ Input SHA-256: `710f5f847f6695e624bfcdd209d916e05a64e94279c7dcef80746954d8d2580f
 
 ## Reproduce on simulator
 
+The hand-written six-run loop below now has an automated equivalent:
+
+```bash
+cascade simulate-batch results/gaps-final/corrected_timeline.json \
+  --durations results/gaps-final/sim_durations.json --output /data/gaps-final-replay
+```
+
+Automatic trace-header mapping and exact historical regeneration commands are in
+[`docs/corrected-timeline-simulation.md`](../../docs/corrected-timeline-simulation.md#reproduce-the-historical-gaps-final-transfer).
+The new generator preserves all duration records/source groups; provenance is regenerated
+from actual source hashes. All 12 timeline/compare outputs and sanity.json were checked
+byte-for-byte against these committed files. The original loop remains below for reference.
+
 From the repository root, after `uv sync` with Python 3.12:
 
 ```bash

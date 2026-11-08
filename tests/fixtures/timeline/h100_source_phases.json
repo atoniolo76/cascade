@@ -1,0 +1,102 @@
+[
+  {
+    "uid": 1,
+    "kind": "prefill",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 2,
+    "kind": "prefill",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 3,
+    "kind": "prefill",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 4,
+    "kind": "prefill",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 5,
+    "kind": "prefill",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 6,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 7,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 8,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 9,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 10,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 11,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 12,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 13,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 14,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 15,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 16,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 17,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 18,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 19,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  },
+  {
+    "uid": 20,
+    "kind": "decode",
+    "basis": "Inferred from reshape token grid and adjacent attention sequence; not verified step labels"
+  }
+]

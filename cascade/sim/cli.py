@@ -6,12 +6,10 @@ from pathlib import Path
 
 from cascade.sim.compare import compare, perfetto, table
 from cascade.sim.importer import import_durations
+from cascade.sim.mapping import build_mapping
+from cascade.sim.pipeline import run_pipeline, write_json
+from cascade.sim.runner import config_clock, prepare_run
 from cascade.sim.timeline import load_durations, load_timeline, simulate
-
-
-def write_json(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, allow_nan=False) + "\n")
 
 
 def run_simulate(args: argparse.Namespace) -> None:
@@ -42,9 +40,43 @@ def run_compare(args: argparse.Namespace) -> None:
 
 
 def run_import(args: argparse.Namespace) -> None:
-    result = import_durations(args.stats, args.mapping, args.clock_mhz)
+    clock = config_clock(args.config) if args.config else args.clock_mhz
+    if args.kernelslist:
+        if not args.timeline:
+            raise ValueError("--timeline is required with --kernelslist")
+        generated = build_mapping(
+            args.stats,
+            args.kernelslist,
+            args.timeline,
+            clock,
+            identity_path=args.identity,
+            phases_path=args.source_phases,
+            allow_shape_transfer=args.allow_shape_transfer,
+        )
+        result = generated["durations"]
+        write_json(args.mapping_output, generated["mapping"])
+        coverage = generated["coverage"]
+        print(
+            f"Coverage: {coverage['simulated_kernels']}/{coverage['kernels']} kernels; "
+            f"{coverage['gpu_time_fraction']:.2%} measured GPU time"
+        )
+    else:
+        result = import_durations(args.stats, args.mapping, clock)
     write_json(args.output, result)
     print(f"Wrote {args.output}: {len(result['kernels'])} mapped kernels")
+
+
+def run_batch(args: argparse.Namespace) -> None:
+    sanity = run_pipeline(args.input, args.durations, args.output, args.launch_latency_cycles)
+    print(json.dumps(sanity, indent=2))
+    print(f"Wrote six configurations to {args.output}")
+
+
+def run_prepare(args: argparse.Namespace) -> None:
+    plan = prepare_run(args.framework, args.config_name, args.kernelslist, args.run_dir)
+    if args.output:
+        write_json(args.output, plan)
+    print(json.dumps(plan, indent=2))
 
 
 def add_commands(sub: argparse._SubParsersAction) -> None:
@@ -77,9 +109,29 @@ def add_commands(sub: argparse._SubParsersAction) -> None:
         "import-sim-durations", help="map Accel-Sim stats to corrected kernels"
     )
     command.add_argument("--stats", required=True, type=Path, help="run.log or kernel-stats.csv")
-    command.add_argument(
-        "--mapping", required=True, type=Path, help="UID/name/seq JSON mapping list"
-    )
-    command.add_argument("--clock-mhz", required=True, type=float)
+    source = command.add_mutually_exclusive_group(required=True)
+    source.add_argument("--mapping", type=Path, help="UID/name/seq JSON mapping list")
+    source.add_argument("--kernelslist", type=Path, help="generate mapping from trace headers")
+    command.add_argument("--timeline", type=Path, help="corrected_timeline.json for generation")
+    command.add_argument("--identity", type=Path, help="same-capture UID/name/repeat/step/seq list")
+    command.add_argument("--source-phases", type=Path, help="explicit UID/kind phase annotations")
+    command.add_argument("--allow-shape-transfer", action="store_true")
+    command.add_argument("--mapping-output", type=Path, default=Path("kernel_mapping.json"))
+    clock = command.add_mutually_exclusive_group(required=True)
+    clock.add_argument("--clock-mhz", type=float)
+    clock.add_argument("--config", type=Path, help="gpgpusim.config (reads core clock)")
     command.add_argument("--output", type=Path, default=Path("sim_durations.json"))
     command.set_defaults(func=run_import)
+    command = sub.add_parser("prepare-sim-run", help="prepare configs and return worker argv/cwd")
+    command.add_argument("--framework", required=True, type=Path)
+    command.add_argument("--config-name", required=True)
+    command.add_argument("--kernelslist", required=True, type=Path)
+    command.add_argument("--run-dir", required=True, type=Path)
+    command.add_argument("--output", type=Path)
+    command.set_defaults(func=run_prepare)
+    command = sub.add_parser("simulate-batch", help="write all six timing/gap configurations")
+    command.add_argument("input", type=Path)
+    command.add_argument("--durations", required=True, type=Path)
+    command.add_argument("--output", required=True, type=Path)
+    command.add_argument("--launch-latency-cycles", type=float, default=0)
+    command.set_defaults(func=run_batch)
