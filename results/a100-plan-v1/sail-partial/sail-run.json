@@ -1,0 +1,77 @@
+{
+  "id": "run-028be7e74f8c",
+  "trace_id": "e2e-a100-plan-v1",
+  "created_at": "2026-11-08T09:18:02.284792Z",
+  "state": "failed",
+  "entries": [
+    {
+      "gpu_config": "SM80_A100",
+      "count": 1
+    }
+  ],
+  "sim_counts": {
+    "failed": 1
+  },
+  "trace": {
+    "id": "e2e-a100-plan-v1",
+    "state": "ready",
+    "error": null,
+    "created_at": "2026-11-08T09:17:50.140383Z",
+    "updated_at": "2026-11-08T09:18:01.810179Z",
+    "model": null,
+    "layers": [],
+    "source_gpu": "NVIDIA A100",
+    "trace_gpu_arch": "sm_80",
+    "suggested_sim_config": null,
+    "kernel_count": 624,
+    "bytes": 1475272932,
+    "has_real_timing": false
+  },
+  "sims": [
+    {
+      "id": "sim-3ac94b8cb10a",
+      "run_id": "run-028be7e74f8c",
+      "gpu_config": "SM80_A100",
+      "replica": 0,
+      "state": "failed",
+      "error": null,
+      "launcher_ref": "sb_0a764378-aa04-4082-ab13-a06843b1c360",
+      "created_at": "2026-11-08T09:18:02.284792Z",
+      "started_at": "2026-11-08T09:18:30.350697Z",
+      "finished_at": "2026-11-08T09:37:18.676672Z",
+      "last_heartbeat_at": "2026-11-08T09:37:18.676672Z",
+      "exit_code": 1,
+      "kernels_done": 96,
+      "kernels_total": 624,
+      "current_kernel": "_ZN2at6native27unrolled_elementwise_kernelIZZZNS0_23direct_copy_kernel_cudaERNS_18TensorIteratorBaseEENKUlvE1_clEvENKUlvE1_clEvEUliE_St5arrayIPcLm2EELi4E23TrivialOffsetCalculatorILi1EjESB_NS0_6memory12LoadWithCastILi1EEENSC_13StoreWithCastILi1EEEEEviT_T0_T2_T3_T4_T5_",
+      "latest": {
+        "gpu_tot_sim_cycle": 5793.0,
+        "gpu_tot_sim_insn": 5022.0,
+        "gpu_tot_ipc": 0.8669,
+        "sim_rate_ips": 5022.0
+      },
+      "log_tail": [
+        "",
+        "Reply_Network_injected_packets_num = 2",
+        "Reply_Network_cycles = 5793",
+        "Reply_Network_injected_packets_per_cycle =        0.0003",
+        "Reply_Network_conflicts_per_cycle =        0.0000",
+        "Reply_Network_conflicts_per_cycle_util =       0.0000",
+        "Reply_Bank_Level_Parallism =       1.0000",
+        "Reply_Network_in_buffer_full_per_cycle =       0.0000",
+        "Reply_Network_in_buffer_avg_util =       0.0000",
+        "Reply_Network_out_buffer_full_per_cycle =       0.0000",
+        "Reply_Network_out_buffer_avg_util =       0.0000",
+        "----------------------------END-of-Interconnect-DETAILS-------------------------",
+        "",
+        "",
+        "gpgpu_simulation_time = 0 days, 0 hrs, 0 min, 1 sec (1 sec)",
+        "gpgpu_simulation_rate = 5022 (inst/sec)",
+        "gpgpu_simulation_rate = 5793 (cycle/sec)",
+        "gpgpu_silicon_slowdown = 243397x",
+        "GPGPU-Sim: *** simulation thread exiting ***",
+        "GPGPU-Sim: *** exit detected ***"
+      ]
+    }
+  ]
+}

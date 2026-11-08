@@ -2,14 +2,20 @@
 
 ## Scope and evidence
 
-This analysis describes the **existing H100 `e2e-plan-v1` sample**, not a
-generic model benchmark. All measured values below are computed from:
+This analysis describes the **H100 `e2e-plan-v1` sample and native A100
+`e2e-a100-plan-v1` follow-up**, not a generic model benchmark. Unless explicitly
+marked A100, the original sections describe the H100 sample. Measured values
+are computed from:
 
 * `/home/ubuntu/runs/phases/e2e-plan-v1/`: `run.json`, `workload.json`,
   `corrected_timeline.json`, `trace_alignment.json`, phase logs/step logs,
   `sim/kernels.csv`, `sim/summary.json`, `sim_durations.json`, `sim/compare.json`.
 * Committed [hardware sweep](../results/hw-sweep/README.md): inventory,
   per-kernel/step/request CSVs, H100/H200 summaries and comparisons.
+* `/home/ubuntu/runs/phases/e2e-a100-plan-v1/`, with compressed profiling
+  evidence, authoritative complete Modal SM80 results and secondary partial
+  Sail results in
+  [results/a100-plan-v1](../results/a100-plan-v1/README.md).
 
 Absolute paths identify the collected evidence on the execution VM, not
 portable dependencies of Cascade. The hardware-sweep artifacts are committed;
@@ -18,10 +24,10 @@ the large profiling run is retained in the run store. See the
 Numbers marked **derived** are arithmetic on these artifacts; **inferred**
 means interpretation, not an additional measurement.
 
-**A100 status:** unavailable. The launch stopped before image build with
-`Token missing. Could not authenticate client.` No A100 baseline, trace,
-per-step trace timing, native SM80 simulation or comparison exists yet.
-Missing values are not zero and no H100 traces are substituted for A100 SASS.
+The initial Modal authentication failure was resolved using the supplied
+credential reference without printing credentials. Native A100 profiling
+completed successfully with vLLM 0.21.0; no H100 instruction traces are
+substituted for native A100 SASS.
 
 ## Workload and environment
 
@@ -104,8 +110,18 @@ existing `traced/traces/kernel-*.trace.xz`, `kernelslist.g` and processed
 logs. The pipeline's post-processor provides the existing compressed trace
 format; collection is a directory copy, not tar/zstd. No extraction command
 or app ingestion change is needed. The separate legacy streaming S3 path is
-unchanged. The real A100 layout and performance still require a successful
-run; the launch did not reach a GPU.
+unchanged. The native A100 run confirms this layout: 624 raw `.trace.xz`
+files and 624 processed `.tracez` files. Collection took 3.912637 seconds.
+Its actual instrumented envelopes are 625.565 seconds (prefill), and
+869.279/813.347/786.332 seconds (decode contexts 8/16/32). The trace log
+records `/tmp/cascade-trace-7r2_c41r/traced` as `TRACES_FOLDER`.
+
+These envelopes are **not faster** than the original H100 volume-backed
+sample and do not reproduce the task's earlier 52-second local-disk anecdote.
+This is not a controlled I/O comparison: GPU, native matrix kernels and
+instruction streams changed (153 decode kernels on A100 versus 178 on H100).
+The reason for the remaining instrumentation cost has not been isolated;
+neither an I/O speedup factor nor a confirmed slowdown cause is asserted.
 
 ## Real timeline anatomy
 
@@ -194,7 +210,8 @@ request predictions do not imply physical H100/H200 equivalence.
 | H100 traces / H100, original verification run | H100 | 718.709 | 93 / 712 | 0 / 0 |
 | H100 traces / H100, Sail sweep | H100 | 804.429 | 31 / 712 | 0 / 0 |
 | H100 traces / H200, Sail sweep | H100 counterfactual only | 777.060 | 31 / 712 | 0 / 0 |
-| A100 traces / SM80_A100 | unavailable: launch authentication failed | — | — | not run |
+| Native A100 / SM80_A100, complete Modal reference | A100 | 565.086 | 33 / 624 | 0 / 0 |
+| Native A100 / SM80_A100, secondary partial Sail | A100 | 1124.050 | 99 / 624 | 0 / 4 aligned timeouts (3 executions) |
 
 ## Coverage, dedup verification and context scaling
 
@@ -307,7 +324,7 @@ all 12 tested and nine deprecated config files and their SM/clock evidence.
 
 | Priority / proposal | Measured motivation | Status / qualification |
 |---|---|---|
-| 1. Local-disk trace and post-process, collect once | NVBit 1738.577 s, 65.73% of stage sum; decode envelopes 372.553–375.926 s on volume | Implemented/pushed `0b54e42`; new A100 measurement blocked by auth. Not a bundle or S3 protocol change. |
+| 1. Local-disk trace and post-process, collect once | H100 NVBit 1738.577 s, 65.73% of stage sum; decode envelopes 372.553–375.926 s on volume | Implemented/pushed `0b54e42`; A100 local-disk envelopes 786.332–869.279 s, collection 3.913 s. Different hardware/kernels: not a controlled speedup measurement. No bundle or S3 protocol change. |
 | 2. Trace one instance per distinct kernel, using NVBit kernel-range limits | 712 traced occurrences collapse to 31 header groups | Proposal only. Need a prepass/range mapping and alignment preserving omitted identities; headers are not sufficient proof of semantic identity. |
 | 3. Cache spinlock detection | Two step spans of 50.968/44.285 s plus initialization, every trace invocation | Proposal only. Cache must include tool/binary/model/input compatibility; do not disable required spinlock handling blindly. |
 | 4. CTA sampling for large kernels | Original lm_head executions 459.661/454.428/397.684 s; next slowest 46.701 s | Proposal only. Needs estimator/error validation, especially persistent scheduling and memory contention. |
@@ -324,7 +341,168 @@ sweep likewise spends 773.080 s (H100) / 745.353 s (H200) in its single
 lm_head representative, compared with total walls 804.429/777.060 s.
 These CPU wall measurements must never be confused with modeled GPU latency.
 
-## Reproduce and finish the A100 comparison
+## Native A100 follow-up
+
+The same workload completed on Modal `A100-80GB`, measured as **NVIDIA
+A100-SXM4-80GB**, with vLLM **0.21.0**, profiler checkout **`f190c99`** and
+the standalone local-disk change **`0b54e42`**. All 624 processed trace headers
+identify binary version **80**; alignment has zero unmatched tracer/timeline
+records. There are 165 kernels/prefill and 153/decode, or **14,724 steady
+kernels across 96 steps**. Native decode uses GEMV kernels where Hopper used
+`nvjet` GEMMs, and only native prefill has the split-K reductions.
+
+The shipped `SM80_A100` conversion clock is **1410 MHz**, while profile metadata
+records median SM/memory clocks of **1155/1593 MHz**. The profile clock sample
+is not a per-kernel active-clock measurement, and the shipped simulator config
+was not calibrated or rescaled. This is a separate native experiment, not
+the same Hopper instruction stream with only hardware parameters changed.
+
+### A100 profiling stages and real timeline
+
+| Stage | A100 measured wall seconds |
+|---|---:|
+| Baseline process | 123.845410 |
+| Nsight-profiled process | 29.751735 |
+| NVBit + spinlock processes | 3271.468301 |
+| Post-processing | 62.159358 |
+| Collection from `/tmp` to volume | 3.912637 |
+
+Instrumented local-step envelopes are **625.564963 / 869.278675 /
+813.347379 / 786.331915 seconds** for steps **0/2/10/26**, respectively.
+Engine-initialization log timings are baseline **89.81 s**, profiled **1.88 s**,
+spinlock passes **10.65/10.55 s**, and tracing **11.74 s**. These overlap the
+stage totals; they are not extra stages.
+
+| Kind | N | Real wall mean ms | Wall p50 ms | GPU busy mean ms | Residual host mean ms | CUDA API mean ms |
+|---|---:|---:|---:|---:|---:|---:|
+| Prefill | 3 | 7.646134 | 7.562478 | 1.083492 | 6.562642 | 1.573725 |
+| Decode | 93 | 6.872209 | 6.868027 | 0.965784 | 5.906426 | 1.441842 |
+
+Decode gap-before mean is **0.040978 ms**. Native A100 GPU busy is higher
+than H100's 0.575611-ms decode mean, yet the overall step is shorter because
+the residual host term is smaller (5.906426 versus 7.318881 ms). **Inference:**
+host/platform differences dominate this eager comparison; the shorter native
+A100 request must not be presented as higher A100 GPU throughput.
+
+### A100 real kernel mix
+
+Role assignment is **inferred** from OPT execution order (four matrix
+operations per layer plus the vocabulary projection), rather than applying
+Hopper grid heuristics to Ampere. `results/a100-plan-v1/report.py` validates
+the 49-matrix-operation layout before assigning roles.
+
+| Group | Prefill kernels/step | Decode kernels/step | Prefill summed GPU µs | Decode summed GPU µs |
+|---|---:|---:|---:|---:|
+| QKV GEMM | 12 | 12 | 102.859 | 122.520 |
+| Attention | 12 | 12 | 154.112 | 131.475 |
+| KV write | 12 | 12 | 50.870 | 41.114 |
+| Out-proj | 12 | 12 | 118.710 | 77.332 |
+| MLP up GEMM | 12 | 12 | 108.694 | 110.851 |
+| MLP down GEMM | 12 | 12 | 114.881 | 109.726 |
+| Split-K reduction | 12 | 0 | 41.643 | 0.000 |
+| lm_head | 1 | 1 | 53.355 | 52.316 |
+| Small elementwise | 51 | 51 | 139.435 | 134.005 |
+| Layer norm | 25 | 25 | 137.664 | 132.960 |
+| Other setup/index/reduction | 4 | 4 | 44.501 | 36.583 |
+
+### Authoritative complete A100 simulation: Modal SM80_A100
+
+The authoritative A100 result is the **complete Modal run** at volume
+`accelsim-traces:hw-sweep/e2e-a100-plan-v1-sm80-v1/`, also used by the Amani
+sample work. Its saved real timeline was checked byte-for-byte against the
+native A100 profiling run above. The collected evidence and regenerated
+tables are under
+[modal-complete](../results/a100-plan-v1/modal-complete/tables.md).
+No new Modal simulation was launched for this documentation update.
+
+**Mean real E2E: 222.083118 ms; mean simulated E2E: 229.580065 ms,
++3.375739% (derived ratio of means).** This is the headline A100 result,
+not the secondary partial Sail replay.
+
+| Steady repeat | Real TTFT ms | Sim TTFT ms | Real ITL mean ms | Sim ITL mean ms | Real E2E ms | Sim E2E ms |
+|---|---:|---:|---:|---:|---:|---:|
+| 1 | 8.036422 | 8.505874 | 6.915885 | 7.149514 | 222.428868 | 229.943469 |
+| 2 | 7.717434 | 8.181623 | 6.911278 | 7.142309 | 221.967065 | 229.440732 |
+| 3 | 7.698823 | 8.155001 | 6.908213 | 7.140311 | 221.853422 | 229.355994 |
+
+The complete run executed **33 representatives for 624 aligned occurrences**,
+with **zero failures/timeouts**, and **565.086033 s** orchestration wall.
+Verification was **disabled in this complete run**; its zero verification
+discrepancy field is not evidence of agreement. Provenance is **33 exact,
+591 dedup, 14,100 identical, zero interp**. All **14,724/14,724** steady kernels
+have predictions; measured GPU-time coverage is **98.2570%**. Unmodeled
+residual activity remains measured, as in the H100 replay.
+
+| Kind | Real GPU busy mean µs | Complete A100 sim GPU busy mean µs |
+|---|---:|---:|
+| Prefill | 1083.492000 | 1424.634667 |
+| Decode | 965.783720 | 1196.640921 |
+
+Step-wall MAPE is **3.394%**, GPU-busy MAPE **24.141%**, and mean absolute
+error for either is **234.303621 µs**. The unchanged eager host/gap envelope
+dilutes the GPU prediction error in wall/E2E metrics; it is not evidence of
+sub-4% GPU-model accuracy.
+
+As above, per-group error is the signed ratio of simulated and matched
+Nsight kernel means, not MAPE. These means cover the 624 aligned native A100
+occurrences, not the H100 kernels or the full 31-decode weighting.
+
+| Native A100 group | Real mean µs | Sim cycles | Sim µs | Signed error % |
+|---|---:|---:|---:|---:|
+| QKV GEMM | 9.826083 | 18271.750 | 12.958688 | +31.881 |
+| Attention | 11.428042 | 14361.750 | 10.185638 | −10.872 |
+| KV write | 3.642021 | 7570.500 | 5.369149 | +47.422 |
+| Out-proj | 7.310750 | 11558.750 | 8.197695 | +12.132 |
+| MLP up GEMM | 9.234708 | 18705.000 | 13.265957 | +43.653 |
+| MLP down GEMM | 9.279417 | 12086.250 | 8.571809 | −7.626 |
+| Split-K reduction | 3.466750 | 6375.000 | 4.521277 | +30.418 |
+| lm_head | 52.504000 | 133647.000 | 94.785106 | +80.529 |
+| Small elementwise | 2.653495 | 6071.711 | 4.306178 | +62.283 |
+| Layer norm | 5.368340 | 9436.750 | 6.692730 | +24.670 |
+| Other setup/index/reduction | 9.644063 | 13712.750 | 9.725355 | +0.843 |
+
+### Secondary Sail app experiment: partial, not the headline result
+
+The requested Sail route was also exercised: repository Dockerfile → main
+`cascade serve` sailbox with `CASCADE_LAUNCHER=sail` → `/api/runs` → checkpoint
+and simulator fork. This run used dedup, **verify_dedup=2**, eight processes
+and a **900-s per-kernel cap**. It made 99 actual executions: 96 completed,
+while three `lm_head` jobs (UIDs **5579/5885/7109**) hit the cap at
+900.125/900.129/900.149 s. Dedup expands these to four timed-out aligned
+occurrences, including UID 9557. The app run is therefore **failed**, not a
+complete simulation; orchestration wall was **1124.049524 s**.
+
+The exact CSV error is `kernel timeout`; the retained `kernel-5579.log` tail
+ends in `thread block = 719,0,0`, without a completion marker. There is no
+vLLM/NVBit failure. Full saved tails and the failed app state are under
+[sail-partial](../results/a100-plan-v1/sail-partial/tables.md).
+
+Its replay covers **14,628/14,724 kernels (99.35%)**, **92.86% measured GPU
+time**, and keeps **all 96 steady lm_head durations measured**. Partial E2E
+values are **228.577965/228.080895/227.995836 ms**. Their apparently smaller
+errors must not replace the complete Modal result: the difficult lm_head
+predictions are absent. No replacement simulation was launched.
+
+The partial Sail run does provide actual verification comparisons. Maximum
+relative disagreement is **39.378776%**, **4171 cycles**, between representative
+**5754** and UID **5759**. The shared GEMVX header group contains both inferred
+**out-projection and MLP-down** roles. Header equality therefore does not
+establish workload equality. This is distinct from the original H100
+**39.734267% indexSelectSmallIndex** discrepancy. The complete Modal run did
+not perform these verification copies; do not attribute the Sail verification
+results to that run. Its flat dedup context predictions still do not measure
+independent context scaling.
+
+All A100 Sail compute was terminated: main
+`sb_cb0b5311-8297-4575-bd5b-ece8b22d4cde` and simulator
+`sb_0a764378-aa04-4082-ab13-a06843b1c360`. Checkpoint
+`sbcp_d42f42c2-05c2-459e-b033-7e3f718c6720` was deleted; a follow-up query
+found both guests terminated and zero matching checkpoints. Only empty app
+metadata `app_01a1ba6c-6938-70c0-869e-07d050b5e00e` remains; the SDK exposes
+no app-delete operation. A transient first Sail image-build HTTP 504 fetching
+Python resolved on an unchanged retry; the exact failure log is retained.
+
+## Reproduce the A100 comparison
 
 Profiler (already includes both pushed fixes):
 
@@ -333,8 +511,8 @@ modal run accelsim_trace.py::e2e_main --gpu A100-80GB \
   --run-name e2e-a100-plan-v1 --model facebook/opt-125m \
   --prompt 'Hello, my name is' --max-tokens 32 --repeats 4 \
   --trace-steps plan --trace-repeat 1
-modal volume get accelsim-traces phases/e2e-a100-plan-v1 \
-  /home/ubuntu/runs/phases/e2e-a100-plan-v1
+modal volume get accelsim-traces /phases/e2e-a100-plan-v1 \
+  /home/ubuntu/runs/phases
 ```
 
 After a successful profile, deploy the same Sail app route as the hardware
@@ -342,18 +520,22 @@ sweep, ingest the **A100** timeline/alignment/traces with architecture `sm_80`,
 and execute `SM80_A100` with `dedup=True`, `verify_dedup=2`,
 `propagate="interp"`. Upload artifacts before the terminal heartbeat. Always
 terminate main/child sailboxes and delete the run checkpoint in cleanup.
-No new Sail resources were created for the authentication-blocked attempt.
+The committed driver saves this secondary experiment under `sail-partial`;
+it does not overwrite the authoritative complete results.
 
 Then, from the simulator checkout:
 
 ```sh
 RUN=/home/ubuntu/runs/phases/e2e-a100-plan-v1
+SIM=results/a100-plan-v1/modal-complete
+# Decompress the committed durations before passing them to the CLI.
+gzip -dk "$SIM/sim_durations.json.gz"
 uv run cascade simulate "$RUN/corrected_timeline.json" \
-  --durations "$RUN/sim_durations.json" --output "$RUN/sim/simulated_timeline.json"
+  --durations "$SIM/sim_durations.json" --output "$SIM/simulated_timeline.json"
 uv run cascade compare "$RUN/corrected_timeline.json" \
-  "$RUN/sim/simulated_timeline.json" --output "$RUN/sim/compare.json"
+  "$SIM/simulated_timeline.json" --output "$SIM/compare.json"
+uv run python results/a100-plan-v1/report.py
 ```
 
-Update this document only after the native A100 results exist. In particular,
-do not compare SM80 simulation with the real H100 baseline and call it an
-A100 accuracy result.
+Both replays compare against the real **A100** unprofiled baseline, never the
+H100 baseline. The report generator also reads the compressed committed files.

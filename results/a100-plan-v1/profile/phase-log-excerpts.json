@@ -1,0 +1,20 @@
+{
+  "baseline/baseline.log": [
+    "INFO 11-08 08:12:49 [core.py:306] init engine (profile, create kv cache, warmup model) took 89.81 s"
+  ],
+  "profiled/profiled.log": [
+    "INFO 11-08 08:13:11 [core.py:306] init engine (profile, create kv cache, warmup model) took 1.88 s"
+  ],
+  "traced/spinlock_phase0.log": [
+    "  TRACES_FOLDER:          /tmp/cascade-trace-7r2_c41r/traced/",
+    "INFO 11-08 08:13:51 [core.py:306] init engine (profile, create kv cache, warmup model) took 10.65 s"
+  ],
+  "traced/spinlock_phase1.log": [
+    "  TRACES_FOLDER:          /tmp/cascade-trace-7r2_c41r/traced/",
+    "INFO 11-08 08:14:48 [core.py:306] init engine (profile, create kv cache, warmup model) took 10.55 s"
+  ],
+  "traced/trace.log": [
+    "  TRACES_FOLDER:          /tmp/cascade-trace-7r2_c41r/traced/",
+    "INFO 11-08 08:15:47 [core.py:306] init engine (profile, create kv cache, warmup model) took 11.74 s"
+  ]
+}

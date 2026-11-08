@@ -1,0 +1,13 @@
+{
+  "sailboxes": [
+    {
+      "id": "sb_cb0b5311-8297-4575-bd5b-ece8b22d4cde",
+      "status": "terminated"
+    },
+    {
+      "id": "sb_0a764378-aa04-4082-ab13-a06843b1c360",
+      "status": "terminated"
+    }
+  ],
+  "remaining_checkpoints": 0
+}

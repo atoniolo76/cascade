@@ -1,0 +1,18 @@
+{
+  "app_name": "cascade-a100-plan-v1",
+  "created_sailboxes": [
+    "sb_cb0b5311-8297-4575-bd5b-ece8b22d4cde",
+    "sb_0a764378-aa04-4082-ab13-a06843b1c360"
+  ],
+  "terminated_sailboxes": [
+    "sb_cb0b5311-8297-4575-bd5b-ece8b22d4cde",
+    "sb_0a764378-aa04-4082-ab13-a06843b1c360"
+  ],
+  "deleted_checkpoints": [
+    "sbcp_d42f42c2-05c2-459e-b033-7e3f718c6720"
+  ],
+  "main_sailbox_id": "sb_cb0b5311-8297-4575-bd5b-ece8b22d4cde",
+  "app_id": "app_01a1ba6c-6938-70c0-869e-07d050b5e00e",
+  "app_url": "https://sb-cb0b5311-8297-4575-bd5b-ece8b22d4cde-8000.sail.box",
+  "run_id": "run-028be7e74f8c"
+}

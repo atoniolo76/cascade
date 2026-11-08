@@ -1,0 +1,39 @@
+creating sailbox 'cascade-a100-plan-v1-main' in app 'cascade-a100-plan-v1' (builds the image if needed)
+ Traceback (most recent call last):
+  File "/home/ubuntu/repos/cascade-sim/scripts/deploy_sail.py", line 98, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/ubuntu/repos/cascade-sim/scripts/deploy_sail.py", line 62, in main
+    box = sail.Sailbox.create(
+          ^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/repos/cascade-sim/.venv/lib/python3.12/site-packages/sail/_aio.py", line 117, in __call__
+    return self._sync(*self._prefix, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/repos/cascade-sim/.venv/lib/python3.12/site-packages/sail/sailbox.py", line 1135, in create
+    image = image._ensure_built(timeout=image_build_timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/repos/cascade-sim/.venv/lib/python3.12/site-packages/sail/image.py", line 376, in _ensure_built
+    return self._build(timeout, for_create=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/repos/cascade-sim/.venv/lib/python3.12/site-packages/sail/image.py", line 322, in _build
+    ) = CoreClient.get().build_spec_to_ready(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sail.errors.ImageBuildError: image build failed: build buildx_customer_image: customer dockerfile build failed
+> [stage-1  4/13] RUN uv python install 3.12:
+error: Failed to install cpython-3.12.12-linux-x86_64-gnu
+  Caused by: Request failed after 3 retries
+  Caused by: Failed to download https://github.com/astral-sh/python-build-standalone/releases/download/20260203/cpython-3.12.12%2B20260203-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz
+  Caused by: HTTP status server error (504 Gateway Timeout) for url (https://github.com/astral-sh/python-build-standalone/releases/download/20260203/cpython-3.12.12%2B20260203-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz)
+
+ERROR: failed to solve: process "/bin/sh -c uv python install 3.12" did not complete successfully: exit code: 1
+
+Sail cleanup: {'app_name': 'cascade-a100-plan-v1', 'created_sailboxes': [], 'terminated_sailboxes': [], 'deleted_checkpoints': []}
+Traceback (most recent call last):
+  File "/home/ubuntu/repos/cascade-sim/results/a100-plan-v1/drive_sail.py", line 143, in <module>
+    main()
+  File "/home/ubuntu/repos/cascade-sim/results/a100-plan-v1/drive_sail.py", line 32, in main
+    deployment = subprocess.run(
+                 ^^^^^^^^^^^^^^^
+  File "/home/ubuntu/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/home/ubuntu/repos/cascade-sim/.venv/bin/python', '/home/ubuntu/repos/cascade-sim/scripts/deploy_sail.py', '--app', 'cascade-a100-plan-v1', '--name', 'cascade-a100-plan-v1-main', '--base-image', 'nvidia/cuda:12.9.0-devel-ubuntu22.04', '--accelsim-dir', '/opt/accel-sim-framework', '--disk-gib', '64', '--sim-cmd', '/app/.venv/bin/python /app/scripts/a100_worker.py']' returned non-zero exit status 1.
