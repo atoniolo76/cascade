@@ -61,11 +61,14 @@ function RailDivider() {
 
 function WorkspaceName() {
   const workspace = useHealth().data?.workspace;
+  useEffect(() => {
+    if (workspace != null) document.title = `${workspace} · Cascade`;
+  }, [workspace]);
   if (workspace == null) return null;
   return (
     <span
       title={`Workspace: ${workspace}`}
-      className="max-w-[40vw] truncate rounded-[8px] bg-surface px-2 py-1 font-mono text-[11px] leading-4 text-muted ring-1 ring-border md:-mt-3 md:mb-3 md:max-w-[60px] md:px-1.5"
+      className="hidden max-w-[96px] shrink-0 truncate rounded-[8px] bg-surface px-2 py-1 text-center font-mono text-[11px] leading-4 text-muted ring-1 ring-border sm:block md:-mt-3 md:mb-3 md:line-clamp-2 md:max-w-[64px] md:px-1 md:whitespace-normal md:[overflow-wrap:anywhere]"
     >
       {workspace}
     </span>
