@@ -44,5 +44,7 @@ The run directory is the interface: `run.json`, `corrected_timeline.json`,
 simulator consumes them and writes `sim_durations.json` and `sim/`.
 The profiler does not build or execute the CPU simulator.
 
+See the [OPT-125m sample analysis](docs/sample-analysis-opt125m.md) for a worked end-to-end example.
+
 See the [run-directory contract](docs/run-dir-contract.md) for ownership, schemas,
 identity/units, compatibility rules, real examples, and end-to-end commands.

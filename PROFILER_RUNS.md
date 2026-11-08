@@ -1,5 +1,7 @@
 # Profiler runs for sim-to-real calibration
 
+Worked example: [OPT-125m sample analysis](docs/sample-analysis-opt125m.md) (e2e-plan-v1 on H100, per-stage cost, accuracy, dedup, H100/H200 sweep, optimization list).
+
 The [profiler → simulator run-directory contract](docs/run-dir-contract.md)
 defines required handoff files, schemas, identity/units and compatibility rules.
 
