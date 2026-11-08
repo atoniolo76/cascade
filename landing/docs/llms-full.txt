@@ -19,6 +19,8 @@ Diagram: The profiler uploads to the app's S3 endpoint. The app forks one simula
 - **Cascade app.** One Sail sandbox that receives traces over S3, gets them ready to simulate, launches runs, and shows everything in a web UI and an HTTP API.
 - **Simulators.** Each simulator is a fork of the app's sandbox, so it starts with the trace already on disk. It runs Accel-Sim against one GPU config and reports progress back to the app.
 
+> Every workspace includes a sample run. Profiling a workload takes about 30 minutes, so each app opens with a finished one marked Sample: Alessio's facebook/opt-125m trace from an H100 and its Accel-Sim run on `SM90_H100`, with real step timing to compare against. Its results are real, recorded before your workspace existed, and you can't rerun it because its 415 MB of instruction traces aren't bundled. See [samples/opt125m-h100-e2e](https://github.com/atoniolo76/cascade/tree/amani/samples/opt125m-h100-e2e). Set `CASCADE_SAMPLES=false` to start without it.
+
 ## Where to go next
 
 - [Get started](../start.html): Create your own Cascade app on Sail from the browser with a workspace name and a Sail API key. No clone.
@@ -375,7 +377,7 @@ Create a run. Creates a run and starts launching its sims in the background. Eac
 - Body: `RunCreate`.
 - Returns: `201` with a `RunDetail`.
 - `404`: `trace_id` names no trace.
-- `409`: The trace is not `ready`.
+- `409`: The trace is not `ready`, or is a sample, which has no instruction traces.
 - `422`: An entry names an unknown `gpu_config`, or a config whose `arch` differs from the trace's `trace_gpu_arch`.
 - `422`: The body fails validation: `entries` is empty, or a `count` is outside 1 to 64.
 
@@ -395,7 +397,7 @@ Get a run. Returns the run, its trace, and every sim with its state, progress, l
 
 ### POST /api/runs/{run_id}/cancel
 
-Cancel a run. Moves every sim that has not finished to `cancelled` and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets `cancel: true`. Calling it again changes nothing, so it is safe to retry.
+Cancel a run. Moves every sim that has not finished to `cancelled` and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets `cancel: true`. Calling it again changes nothing, so it is safe to retry. On a sample run it changes nothing either, since its sim already `succeeded`.
 
 - Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
 - Returns: `200` with the `RunDetail` after cancelling.
@@ -561,6 +563,7 @@ One kernel launch from the trace's stats_ctx_* file (original hardware).
 - `bytes` (`int`): Bytes on disk under the trace dir.
 - `has_real_timing` (`bool`): True when the trace has real per-kernel timings (`real_timing.json`). The profiler does not write them yet.
 - `has_step_timeline` (`bool`): corrected_timeline.json + kernel_mapping.json are in the trace dir.
+- `sample` (`bool`): True for the sample trace that `cascade serve` seeds from `samples/` (see Introduction), unless `CASCADE_SAMPLES` is false. It is `ready` but has no instruction traces, so it can't start a run.
 
 ### TraceDetail
 
@@ -587,6 +590,7 @@ Every field of `TraceSummary`, plus these.
 - `state` (`RunState`): Derived from the sims. See `RunState`.
 - `entries` (`list[RunEntry]`): The entries the run was created with.
 - `sim_counts` (`dict[SimState, int]`): How many sims are in each state. States with no sims are left out.
+- `sample` (`bool`): True for the sample run seeded with the sample trace. Its results were recorded when the run was made, not in this workspace, and cancelling it changes nothing.
 
 ### RunDetail
 
@@ -953,6 +957,7 @@ The sandbox has auto-sleep turned off, so the app keeps running while sims repor
 | `CASCADE_HEARTBEAT_TIMEOUT_S` | `60` | Seconds without a heartbeat before a sim becomes `lost`. After 10 times this, a `lost` sim becomes `failed`. |
 | `CASCADE_RUN_S3` | `true` | Whether `cascade serve` starts `rclone serve s3` next to the app. Set `false` to run the S3 endpoint yourself. |
 | `CASCADE_WORKSPACE` | none | The workspace's name. `/api/health` returns it and the web UI shows it in the rail. `cascade deploy` and the Get started page set it. |
+| `CASCADE_SAMPLES` | `true` | Whether `cascade serve` seeds the bundled sample trace and run (`samples/`) into the workspace on startup. Set `false` to start empty. A sample already seeded stays. |
 | `CASCADE_PUBLIC_URL` | `http://127.0.0.1:8000` | The URL sims use to reach the app. Each sim gets it as `CASCADE_MAIN_URL`. |
 | `CASCADE_S3_PREFIX` | `accelsim-traces` | The key prefix traces live under. Each trace is `<prefix>/<run_name>/`. |
 | `CASCADE_S3_PUBLIC_URL` | none | The S3 endpoint the profiler uploads to. `/api/health` returns it as `s3_endpoint` and the UI fills it into the send-a-trace command. `cascade deploy` sets it; a local `cascade serve` derives it from `CASCADE_PUBLIC_URL`'s host and `--s3-port`. |
@@ -1381,6 +1386,7 @@ If the app restarts during post-processing, the trace stays `processing` and the
 | `kernels` | The rows of `traces/stats_ctx_*`, or `stats.csv` from older tracers. |
 | `has_real_timing` | Whether `real_timing.json`, or the file `metadata.json` names in `real_timing`, holds a list of rows with integer `kernel_id`s. |
 | `has_step_timeline` | Whether the trace directory holds both `corrected_timeline.json` and `kernel_mapping.json`. The app rechecks on every scan, so it can turn true after the trace is `ready`. See [Step timing](simulator.html#step-timing). |
+| `sample` | True only for the sample trace `cascade serve` seeds from `samples/` (see [Introduction](index.html)). It is `ready` but has no instruction traces, so it can't start a run. |
 
 ## Disk space
 
@@ -1414,7 +1420,7 @@ curl -X POST "$CASCADE_URL/api/runs" \
 
 The app checks the request before creating anything.
 
-- The trace must exist (`404`) and be `ready` (`409`).
+- The trace must exist (`404`), be `ready`, and not be a sample (`409`).
 - Every `gpu_config` must be one [List GPU configs](api-runs.html#list-gpu-configs) returns, with the trace's architecture (`422`).
 - `entries` can't be empty and every `count` is 1 to 64 (`422`).
 
@@ -1814,7 +1820,8 @@ Response · 200 OK · application/json:
 {
   "ok": true,
   "auth": true,
-  "workspace": "acme-lab"
+  "workspace": "acme-lab",
+  "s3_endpoint": "http://127.0.0.1:9020"
 }
 ```
 
@@ -1874,33 +1881,57 @@ Response · 200 OK · application/json:
     "id": "demo-failed",
     "state": "failed",
     "error": "profiler reported status 'failed' in metadata.json",
-    "created_at": "2026-11-08T06:56:46.380681Z",
-    "updated_at": "2026-11-08T06:56:46.381335Z",
+    "created_at": "2026-11-08T08:59:02.590922Z",
+    "updated_at": "2026-11-08T08:59:02.592166Z",
     "model": null,
     "layers": [],
     "source_gpu": null,
     "trace_gpu_arch": "sm_86",
     "suggested_sim_config": null,
     "kernel_count": 0,
-    "bytes": 31660291,
+    "bytes": 16650759,
     "has_real_timing": false,
-    "has_step_timeline": false
+    "has_step_timeline": false,
+    "sample": false
   },
   {
     "id": "demo",
     "state": "ready",
     "error": null,
-    "created_at": "2026-11-08T06:56:46.379301Z",
-    "updated_at": "2026-11-08T06:56:46.381567Z",
+    "created_at": "2026-11-08T08:59:02.587743Z",
+    "updated_at": "2026-11-08T08:59:02.592073Z",
     "model": null,
     "layers": [],
     "source_gpu": null,
     "trace_gpu_arch": "sm_86",
     "suggested_sim_config": "SM86_RTX3070",
-    "kernel_count": 4,
-    "bytes": 31899901,
+    "kernel_count": 20,
+    "bytes": 16890250,
     "has_real_timing": false,
-    "has_step_timeline": true
+    "has_step_timeline": true,
+    "sample": false
+  },
+  {
+    "id": "sample__facebook_opt-125m__h100-e2e",
+    "state": "ready",
+    "error": null,
+    "created_at": "2026-11-08T06:19:57.515017Z",
+    "updated_at": "2026-11-08T06:19:57.515017Z",
+    "model": "facebook/opt-125m",
+    "layers": [
+      "step 0 (prefill)",
+      "step 2 (decode)",
+      "step 10 (decode)",
+      "step 26 (decode)"
+    ],
+    "source_gpu": "NVIDIA H100 80GB HBM3",
+    "trace_gpu_arch": "sm_90",
+    "suggested_sim_config": "SM90_H100",
+    "kernel_count": 712,
+    "bytes": 13065268,
+    "has_real_timing": true,
+    "has_step_timeline": true,
+    "sample": true
   }
 ]
 ```
@@ -1960,69 +1991,39 @@ Response · 200 OK · application/json:
   "id": "demo",
   "state": "ready",
   "error": null,
-  "created_at": "2026-11-08T06:56:46.379301Z",
-  "updated_at": "2026-11-08T06:56:46.381567Z",
+  "created_at": "2026-11-08T08:59:02.587743Z",
+  "updated_at": "2026-11-08T08:59:02.592073Z",
   "model": null,
   "layers": [],
   "source_gpu": null,
   "trace_gpu_arch": "sm_86",
   "suggested_sim_config": "SM86_RTX3070",
-  "kernel_count": 4,
-  "bytes": 31899901,
+  "kernel_count": 20,
+  "bytes": 16890250,
   "has_real_timing": false,
   "has_step_timeline": true,
+  "sample": false,
   "metadata": {
     "status": "ok",
     "files": [
       {
-        "key": "accelsim-traces/demo/corrected_timeline.json",
-        "bytes": 238744
+        "key": "accelsim-traces/demo/configs/config_hopper_islip.icnt",
+        "bytes": 1352
       },
       {
-        "key": "accelsim-traces/demo/kernel_mapping.json",
-        "bytes": 699
+        "key": "accelsim-traces/demo/configs/gpgpusim.config",
+        "bytes": 6028
       },
       {
-        "key": "accelsim-traces/demo/trace.log",
-        "bytes": 55
+        "key": "accelsim-traces/demo/configs/trace.config",
+        "bytes": 1085
       }
-      /* 7 more items trimmed */
+      /* 24 more items trimmed */
     ],
     "trace_gpu_arch": "sm_86",
     "suggested_sim_config": "SM86_RTX3070"
   },
-  "kernels": [
-    {
-      "kernel_id": 3,
-      "name": "_Z6euclidPcffPfiii",
-      "grid": [
-        938,
-        1,
-        1
-      ],
-      "block": [
-        16,
-        1,
-        1
-      ],
-      "instructions": 161428
-    },
-    {
-      "kernel_id": 4,
-      "name": "_Z6euclidPcffPfiii",
-      "grid": [
-        938,
-        1,
-        1
-      ],
-      "block": [
-        16,
-        1,
-        1
-      ],
-      "instructions": 161308
-    }
-  ]
+  "kernels": []
 }
 ```
 
@@ -2146,7 +2147,7 @@ Each [RunEntry](types.html#runentry) has these fields.
 |---|---|
 | [`401`](errors.html#e401) | The `Authorization` header is missing, is not `Bearer <token>`, or the token is wrong. |
 | [`404`](errors.html#e404) | `trace_id` names no trace. |
-| [`409`](errors.html#e409) | The trace is not `ready`. |
+| [`409`](errors.html#e409) | The trace is not `ready`, or is a sample, which has no instruction traces. |
 | [`422`](errors.html#e422) | An entry names an unknown `gpu_config`, or a config whose `arch` differs from the trace's `trace_gpu_arch`. |
 | [`422`](errors.html#e422) | The body fails validation: `entries` is empty, or a `count` is outside 1 to 64. |
 
@@ -2183,9 +2184,9 @@ Response · 201 Created · application/json:
 
 ```json
 {
-  "id": "run-a5c5ba6e0ac7",
+  "id": "run-210d75c008c4",
   "trace_id": "demo",
-  "created_at": "2026-11-08T06:56:46.579503Z",
+  "created_at": "2026-11-08T08:59:03.024065Z",
   "state": "active",
   "entries": [
     {
@@ -2196,38 +2197,40 @@ Response · 201 Created · application/json:
   "sim_counts": {
     "pending": 2
   },
+  "sample": false,
   "trace": {
     "id": "demo",
     "state": "ready",
     "error": null,
-    "created_at": "2026-11-08T06:56:46.379301Z",
-    "updated_at": "2026-11-08T06:56:46.381567Z",
+    "created_at": "2026-11-08T08:59:02.587743Z",
+    "updated_at": "2026-11-08T08:59:02.592073Z",
     "model": null,
     "layers": [],
     "source_gpu": null,
     "trace_gpu_arch": "sm_86",
     "suggested_sim_config": "SM86_RTX3070",
-    "kernel_count": 4,
-    "bytes": 31899901,
+    "kernel_count": 20,
+    "bytes": 16890250,
     "has_real_timing": false,
-    "has_step_timeline": true
+    "has_step_timeline": true,
+    "sample": false
   },
   "sims": [
     {
-      "id": "sim-4bc665cf326e",
-      "run_id": "run-a5c5ba6e0ac7",
+      "id": "sim-1047ddbdf5b1",
+      "run_id": "run-210d75c008c4",
       "gpu_config": "SM86_RTX3070",
       "replica": 0,
       "state": "pending",
       "error": null,
       "launcher_ref": null,
-      "created_at": "2026-11-08T06:56:46.579503Z",
+      "created_at": "2026-11-08T08:59:03.024065Z",
       "started_at": null,
       "finished_at": null,
       "last_heartbeat_at": null,
       "exit_code": null,
       "kernels_done": 0,
-      "kernels_total": 4,
+      "kernels_total": 20,
       "current_kernel": null,
       "latest": {
         "gpu_tot_sim_cycle": null,
@@ -2238,20 +2241,20 @@ Response · 201 Created · application/json:
       "log_tail": []
     },
     {
-      "id": "sim-09e225316002",
-      "run_id": "run-a5c5ba6e0ac7",
+      "id": "sim-e8f63b6b3bed",
+      "run_id": "run-210d75c008c4",
       "gpu_config": "SM86_RTX3070",
       "replica": 1,
       "state": "pending",
       "error": null,
       "launcher_ref": null,
-      "created_at": "2026-11-08T06:56:46.579503Z",
+      "created_at": "2026-11-08T08:59:03.024065Z",
       "started_at": null,
       "finished_at": null,
       "last_heartbeat_at": null,
       "exit_code": null,
       "kernels_done": 0,
-      "kernels_total": 4,
+      "kernels_total": 20,
       "current_kernel": null,
       "latest": {
         "gpu_tot_sim_cycle": null,
@@ -2350,9 +2353,9 @@ Response · 200 OK · application/json:
 ```json
 [
   {
-    "id": "run-a5c5ba6e0ac7",
+    "id": "run-210d75c008c4",
     "trace_id": "demo",
-    "created_at": "2026-11-08T06:56:46.579503Z",
+    "created_at": "2026-11-08T08:59:03.024065Z",
     "state": "succeeded",
     "entries": [
       {
@@ -2362,7 +2365,24 @@ Response · 200 OK · application/json:
     ],
     "sim_counts": {
       "succeeded": 2
-    }
+    },
+    "sample": false
+  },
+  {
+    "id": "run-sample-opt125m-h100-e2e",
+    "trace_id": "sample__facebook_opt-125m__h100-e2e",
+    "created_at": "2026-11-08T06:50:10Z",
+    "state": "succeeded",
+    "entries": [
+      {
+        "gpu_config": "SM90_H100",
+        "count": 1
+      }
+    ],
+    "sim_counts": {
+      "succeeded": 1
+    },
+    "sample": true
   }
 ]
 ```
@@ -2393,7 +2413,7 @@ Returns the run, its trace, and every sim with its state, progress, latest metri
 ### Example
 
 ```bash
-curl "$CASCADE_URL/api/runs/run-a5c5ba6e0ac7" \
+curl "$CASCADE_URL/api/runs/run-210d75c008c4" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -2403,13 +2423,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7", headers=headers)
+resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4", headers=headers)
 resp.raise_for_status()
 print(resp.json())
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7`, {
+const resp = await fetch(`${CASCADE_URL}/api/runs/run-210d75c008c4`, {
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
 console.log(await resp.json());
@@ -2419,9 +2439,9 @@ Response · 200 OK · application/json:
 
 ```json
 {
-  "id": "run-a5c5ba6e0ac7",
+  "id": "run-210d75c008c4",
   "trace_id": "demo",
-  "created_at": "2026-11-08T06:56:46.579503Z",
+  "created_at": "2026-11-08T08:59:03.024065Z",
   "state": "succeeded",
   "entries": [
     {
@@ -2432,38 +2452,40 @@ Response · 200 OK · application/json:
   "sim_counts": {
     "succeeded": 2
   },
+  "sample": false,
   "trace": {
     "id": "demo",
     "state": "ready",
     "error": null,
-    "created_at": "2026-11-08T06:56:46.379301Z",
-    "updated_at": "2026-11-08T06:56:46.381567Z",
+    "created_at": "2026-11-08T08:59:02.587743Z",
+    "updated_at": "2026-11-08T08:59:02.592073Z",
     "model": null,
     "layers": [],
     "source_gpu": null,
     "trace_gpu_arch": "sm_86",
     "suggested_sim_config": "SM86_RTX3070",
-    "kernel_count": 4,
-    "bytes": 31899901,
+    "kernel_count": 20,
+    "bytes": 16890250,
     "has_real_timing": false,
-    "has_step_timeline": true
+    "has_step_timeline": true,
+    "sample": false
   },
   "sims": [
     {
-      "id": "sim-4bc665cf326e",
-      "run_id": "run-a5c5ba6e0ac7",
+      "id": "sim-1047ddbdf5b1",
+      "run_id": "run-210d75c008c4",
       "gpu_config": "SM86_RTX3070",
       "replica": 0,
       "state": "succeeded",
       "error": null,
-      "launcher_ref": "41125",
-      "created_at": "2026-11-08T06:56:46.579503Z",
-      "started_at": "2026-11-08T06:56:46.816803Z",
-      "finished_at": "2026-11-08T06:56:49.699025Z",
-      "last_heartbeat_at": "2026-11-08T06:56:49.699025Z",
+      "launcher_ref": "64418",
+      "created_at": "2026-11-08T08:59:03.024065Z",
+      "started_at": "2026-11-08T08:59:03.224424Z",
+      "finished_at": "2026-11-08T08:59:06.130355Z",
+      "last_heartbeat_at": "2026-11-08T08:59:06.130355Z",
       "exit_code": 0,
       "kernels_done": 6,
-      "kernels_total": 4,
+      "kernels_total": 20,
       "current_kernel": "_Z10dot_kernelIdEvPKT_S2_PS0_i",
       "latest": {
         "gpu_tot_sim_cycle": 76713.0,
@@ -2479,20 +2501,20 @@ Response · 200 OK · application/json:
       ]
     },
     {
-      "id": "sim-09e225316002",
-      "run_id": "run-a5c5ba6e0ac7",
+      "id": "sim-e8f63b6b3bed",
+      "run_id": "run-210d75c008c4",
       "gpu_config": "SM86_RTX3070",
       "replica": 1,
       "state": "succeeded",
       "error": null,
-      "launcher_ref": "41126",
-      "created_at": "2026-11-08T06:56:46.579503Z",
-      "started_at": "2026-11-08T06:56:46.817058Z",
-      "finished_at": "2026-11-08T06:56:49.715117Z",
-      "last_heartbeat_at": "2026-11-08T06:56:49.715117Z",
+      "launcher_ref": "64419",
+      "created_at": "2026-11-08T08:59:03.024065Z",
+      "started_at": "2026-11-08T08:59:03.224173Z",
+      "finished_at": "2026-11-08T08:59:06.164567Z",
+      "last_heartbeat_at": "2026-11-08T08:59:06.164567Z",
       "exit_code": 0,
       "kernels_done": 6,
-      "kernels_total": 4,
+      "kernels_total": 20,
       "current_kernel": "_Z10dot_kernelIdEvPKT_S2_PS0_i",
       "latest": {
         "gpu_tot_sim_cycle": 76713.0,
@@ -2523,7 +2545,7 @@ Response · 200 OK · application/json:
 
 `POST /api/runs/{run_id}/cancel` (bearer token)
 
-Moves every sim that has not finished to `cancelled` and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets `cancel: true`. Calling it again changes nothing, so it is safe to retry.
+Moves every sim that has not finished to `cancelled` and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets `cancel: true`. Calling it again changes nothing, so it is safe to retry. On a sample run it changes nothing either, since its sim already `succeeded`.
 
 ### Path parameters
 
@@ -2545,7 +2567,7 @@ Moves every sim that has not finished to `cancelled` and asks the launcher to st
 ### Example
 
 ```bash
-curl -X POST "$CASCADE_URL/api/runs/run-5c68b1040436/cancel" \
+curl -X POST "$CASCADE_URL/api/runs/run-b42541e17665/cancel" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -2555,13 +2577,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.post(f"{os.environ['CASCADE_URL']}/api/runs/run-5c68b1040436/cancel", headers=headers)
+resp = httpx.post(f"{os.environ['CASCADE_URL']}/api/runs/run-b42541e17665/cancel", headers=headers)
 resp.raise_for_status()
 print(resp.json())
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/runs/run-5c68b1040436/cancel`, {
+const resp = await fetch(`${CASCADE_URL}/api/runs/run-b42541e17665/cancel`, {
   method: "POST",
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
@@ -2572,9 +2594,9 @@ Response · 200 OK · application/json:
 
 ```json
 {
-  "id": "run-5c68b1040436",
+  "id": "run-b42541e17665",
   "trace_id": "demo",
-  "created_at": "2026-11-08T06:56:50.220386Z",
+  "created_at": "2026-11-08T08:59:06.669870Z",
   "state": "cancelled",
   "entries": [
     {
@@ -2585,38 +2607,40 @@ Response · 200 OK · application/json:
   "sim_counts": {
     "cancelled": 1
   },
+  "sample": false,
   "trace": {
     "id": "demo",
     "state": "ready",
     "error": null,
-    "created_at": "2026-11-08T06:56:46.379301Z",
-    "updated_at": "2026-11-08T06:56:46.381567Z",
+    "created_at": "2026-11-08T08:59:02.587743Z",
+    "updated_at": "2026-11-08T08:59:02.592073Z",
     "model": null,
     "layers": [],
     "source_gpu": null,
     "trace_gpu_arch": "sm_86",
     "suggested_sim_config": "SM86_RTX3070",
-    "kernel_count": 4,
-    "bytes": 31899901,
+    "kernel_count": 20,
+    "bytes": 16890250,
     "has_real_timing": false,
-    "has_step_timeline": true
+    "has_step_timeline": true,
+    "sample": false
   },
   "sims": [
     {
-      "id": "sim-48c07a8a5767",
-      "run_id": "run-5c68b1040436",
+      "id": "sim-57c51b464fc9",
+      "run_id": "run-b42541e17665",
       "gpu_config": "SM86_RTX3070",
       "replica": 0,
       "state": "cancelled",
       "error": null,
-      "launcher_ref": "41228",
-      "created_at": "2026-11-08T06:56:50.220386Z",
+      "launcher_ref": "64556",
+      "created_at": "2026-11-08T08:59:06.669870Z",
       "started_at": null,
-      "finished_at": "2026-11-08T06:56:50.223595Z",
+      "finished_at": "2026-11-08T08:59:06.673285Z",
       "last_heartbeat_at": null,
       "exit_code": null,
       "kernels_done": 0,
-      "kernels_total": 4,
+      "kernels_total": 20,
       "current_kernel": null,
       "latest": {
         "gpu_tot_sim_cycle": null,
@@ -2656,7 +2680,7 @@ Lines up kernels by order. Row `i` holds the `i`th kernel the sims finished and 
 ### Example
 
 ```bash
-curl "$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/comparison" \
+curl "$CASCADE_URL/api/runs/run-210d75c008c4/comparison" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -2666,13 +2690,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/comparison", headers=headers)
+resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/comparison", headers=headers)
 resp.raise_for_status()
 print(resp.json())
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/comparison`, {
+const resp = await fetch(`${CASCADE_URL}/api/runs/run-210d75c008c4/comparison`, {
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
 console.log(await resp.json());
@@ -2742,7 +2766,7 @@ Returns a [`KernelStat`](types.html#kernelstat) for every kernel every sim in th
 ### Example
 
 ```bash
-curl "$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/kernels" \
+curl "$CASCADE_URL/api/runs/run-210d75c008c4/kernels" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -2752,13 +2776,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/kernels", headers=headers)
+resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/kernels", headers=headers)
 resp.raise_for_status()
 print(resp.json())
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/kernels`, {
+const resp = await fetch(`${CASCADE_URL}/api/runs/run-210d75c008c4/kernels`, {
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
 console.log(await resp.json());
@@ -2769,7 +2793,7 @@ Response · 200 OK · application/json:
 ```json
 [
   {
-    "sim_id": "sim-4bc665cf326e",
+    "sim_id": "sim-1047ddbdf5b1",
     "kernel_index": 0,
     "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
     "kernel_launch_uid": 1,
@@ -2780,7 +2804,7 @@ Response · 200 OK · application/json:
     "stats": {}
   },
   {
-    "sim_id": "sim-4bc665cf326e",
+    "sim_id": "sim-1047ddbdf5b1",
     "kernel_index": 1,
     "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
     "kernel_launch_uid": 2,
@@ -2791,7 +2815,7 @@ Response · 200 OK · application/json:
     "stats": {}
   },
   {
-    "sim_id": "sim-4bc665cf326e",
+    "sim_id": "sim-1047ddbdf5b1",
     "kernel_index": 2,
     "kernel_name": "_Z10mul_kernelIdEvPT_PKS0_",
     "kernel_launch_uid": 3,
@@ -2831,7 +2855,7 @@ Returns a [`SimStepTimeline`](types.html#simsteptimeline) for every sim in the r
 ### Example
 
 ```bash
-curl "$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/step-timelines" \
+curl "$CASCADE_URL/api/runs/run-210d75c008c4/step-timelines" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -2841,13 +2865,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/step-timelines", headers=headers)
+resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/step-timelines", headers=headers)
 resp.raise_for_status()
 print(resp.json())
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/step-timelines`, {
+const resp = await fetch(`${CASCADE_URL}/api/runs/run-210d75c008c4/step-timelines`, {
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
 console.log(await resp.json());
@@ -2858,7 +2882,7 @@ Response · 200 OK · application/json:
 ```json
 [
   {
-    "sim_id": "sim-4bc665cf326e",
+    "sim_id": "sim-1047ddbdf5b1",
     "gpu_config": "SM86_RTX3070",
     "replica": 0,
     "simulated": {
@@ -3002,7 +3026,7 @@ Response · 200 OK · application/json:
               /* 2 more items trimmed */
             ]
           },
-          "request_assumption": "one request per repeat; arrival + pre/steps/inter-step gaps/post",
+          "request_assumption": "one request per repeat; queued (or arrival) + pre/steps/inter-step gaps/post",
           "gap_model": "measured",
           "gap_fit": {}
         },
@@ -3120,7 +3144,7 @@ Response · 200 OK · application/json:
     }
   },
   {
-    "sim_id": "sim-09e225316002",
+    "sim_id": "sim-e8f63b6b3bed",
     "gpu_config": "SM86_RTX3070",
     "replica": 1,
     "simulated": {
@@ -3264,7 +3288,7 @@ Response · 200 OK · application/json:
               /* 2 more items trimmed */
             ]
           },
-          "request_assumption": "one request per repeat; arrival + pre/steps/inter-step gaps/post",
+          "request_assumption": "one request per repeat; queued (or arrival) + pre/steps/inter-step gaps/post",
           "gap_model": "measured",
           "gap_fit": {}
         },
@@ -3410,7 +3434,7 @@ Returns everything about a run as one JSON download, with `Content-Disposition: 
 ### Example
 
 ```bash
-curl -OJ "$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/results" \
+curl -OJ "$CASCADE_URL/api/runs/run-210d75c008c4/results" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -3420,13 +3444,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/results", headers=headers)
+resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/results", headers=headers)
 resp.raise_for_status()
-open("run-a5c5ba6e0ac7-results.json", "wb").write(resp.content)
+open("run-210d75c008c4-results.json", "wb").write(resp.content)
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/results`, {
+const resp = await fetch(`${CASCADE_URL}/api/runs/run-210d75c008c4/results`, {
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
 const data = await resp.json();
@@ -3437,9 +3461,9 @@ Response · 200 OK · application/json:
 ```json
 {
   "run": {
-    "id": "run-a5c5ba6e0ac7",
+    "id": "run-210d75c008c4",
     "trace_id": "demo",
-    "created_at": "2026-11-08T06:56:46.579503Z",
+    "created_at": "2026-11-08T08:59:03.024065Z",
     "state": "succeeded",
     "entries": [
       {
@@ -3449,89 +3473,60 @@ Response · 200 OK · application/json:
     ],
     "sim_counts": {
       "succeeded": 2
-    }
+    },
+    "sample": false
   },
   "trace": {
     "id": "demo",
     "state": "ready",
     "error": null,
-    "created_at": "2026-11-08T06:56:46.379301Z",
-    "updated_at": "2026-11-08T06:56:46.381567Z",
+    "created_at": "2026-11-08T08:59:02.587743Z",
+    "updated_at": "2026-11-08T08:59:02.592073Z",
     "model": null,
     "layers": [],
     "source_gpu": null,
     "trace_gpu_arch": "sm_86",
     "suggested_sim_config": "SM86_RTX3070",
-    "kernel_count": 4,
-    "bytes": 31899901,
+    "kernel_count": 20,
+    "bytes": 16890250,
     "has_real_timing": false,
     "has_step_timeline": true,
+    "sample": false,
     "metadata": {
       "status": "ok",
       "files": [
         {
-          "key": "accelsim-traces/demo/corrected_timeline.json",
-          "bytes": 238744
+          "key": "accelsim-traces/demo/configs/config_hopper_islip.icnt",
+          "bytes": 1352
         },
         {
-          "key": "accelsim-traces/demo/kernel_mapping.json",
-          "bytes": 699
+          "key": "accelsim-traces/demo/configs/gpgpusim.config",
+          "bytes": 6028
         }
-        /* 8 more items trimmed */
+        /* 25 more items trimmed */
       ],
       "trace_gpu_arch": "sm_86",
       "suggested_sim_config": "SM86_RTX3070"
     },
-    "kernels": [
-      {
-        "kernel_id": 3,
-        "name": "_Z6euclidPcffPfiii",
-        "grid": [
-          938,
-          1,
-          1
-        ],
-        "block": [
-          16,
-          1,
-          1
-        ],
-        "instructions": 161428
-      },
-      {
-        "kernel_id": 4,
-        "name": "_Z6euclidPcffPfiii",
-        "grid": [
-          938,
-          1,
-          1
-        ],
-        "block": [
-          16,
-          1,
-          1
-        ],
-        "instructions": 161308
-      }
-    ]
+    "kernels": []
   },
   "sims": [
     {
       "sim": {
-        "id": "sim-4bc665cf326e",
-        "run_id": "run-a5c5ba6e0ac7",
+        "id": "sim-1047ddbdf5b1",
+        "run_id": "run-210d75c008c4",
         "gpu_config": "SM86_RTX3070",
         "replica": 0,
         "state": "succeeded",
         "error": null,
-        "launcher_ref": "41125",
-        "created_at": "2026-11-08T06:56:46.579503Z",
-        "started_at": "2026-11-08T06:56:46.816803Z",
-        "finished_at": "2026-11-08T06:56:49.699025Z",
-        "last_heartbeat_at": "2026-11-08T06:56:49.699025Z",
+        "launcher_ref": "64418",
+        "created_at": "2026-11-08T08:59:03.024065Z",
+        "started_at": "2026-11-08T08:59:03.224424Z",
+        "finished_at": "2026-11-08T08:59:06.130355Z",
+        "last_heartbeat_at": "2026-11-08T08:59:06.130355Z",
         "exit_code": 0,
         "kernels_done": 6,
-        "kernels_total": 4,
+        "kernels_total": 20,
         "current_kernel": "_Z10dot_kernelIdEvPKT_S2_PS0_i",
         "latest": {
           "gpu_tot_sim_cycle": 76713.0,
@@ -3554,7 +3549,7 @@ Response · 200 OK · application/json:
       },
       "kernels": [
         {
-          "sim_id": "sim-4bc665cf326e",
+          "sim_id": "sim-1047ddbdf5b1",
           "kernel_index": 0,
           "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
           "kernel_launch_uid": 1,
@@ -3571,7 +3566,7 @@ Response · 200 OK · application/json:
           }
         },
         {
-          "sim_id": "sim-4bc665cf326e",
+          "sim_id": "sim-1047ddbdf5b1",
           "kernel_index": 1,
           "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
           "kernel_launch_uid": 2,
@@ -3598,20 +3593,20 @@ Response · 200 OK · application/json:
     },
     {
       "sim": {
-        "id": "sim-09e225316002",
-        "run_id": "run-a5c5ba6e0ac7",
+        "id": "sim-e8f63b6b3bed",
+        "run_id": "run-210d75c008c4",
         "gpu_config": "SM86_RTX3070",
         "replica": 1,
         "state": "succeeded",
         "error": null,
-        "launcher_ref": "41126",
-        "created_at": "2026-11-08T06:56:46.579503Z",
-        "started_at": "2026-11-08T06:56:46.817058Z",
-        "finished_at": "2026-11-08T06:56:49.715117Z",
-        "last_heartbeat_at": "2026-11-08T06:56:49.715117Z",
+        "launcher_ref": "64419",
+        "created_at": "2026-11-08T08:59:03.024065Z",
+        "started_at": "2026-11-08T08:59:03.224173Z",
+        "finished_at": "2026-11-08T08:59:06.164567Z",
+        "last_heartbeat_at": "2026-11-08T08:59:06.164567Z",
         "exit_code": 0,
         "kernels_done": 6,
-        "kernels_total": 4,
+        "kernels_total": 20,
         "current_kernel": "_Z10dot_kernelIdEvPKT_S2_PS0_i",
         "latest": {
           "gpu_tot_sim_cycle": 76713.0,
@@ -3634,7 +3629,7 @@ Response · 200 OK · application/json:
       },
       "kernels": [
         {
-          "sim_id": "sim-09e225316002",
+          "sim_id": "sim-e8f63b6b3bed",
           "kernel_index": 0,
           "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
           "kernel_launch_uid": 1,
@@ -3651,7 +3646,7 @@ Response · 200 OK · application/json:
           }
         },
         {
-          "sim_id": "sim-09e225316002",
+          "sim_id": "sim-e8f63b6b3bed",
           "kernel_index": 1,
           "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
           "kernel_launch_uid": 2,
@@ -3731,7 +3726,7 @@ Returns one sim's results as a JSON download named `<sim_id>-results.json`. `tot
 ### Example
 
 ```bash
-curl -OJ "$CASCADE_URL/api/sims/sim-4bc665cf326e/results" \
+curl -OJ "$CASCADE_URL/api/sims/sim-1047ddbdf5b1/results" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -3741,13 +3736,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/sims/sim-4bc665cf326e/results", headers=headers)
+resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/sims/sim-1047ddbdf5b1/results", headers=headers)
 resp.raise_for_status()
-open("sim-4bc665cf326e-results.json", "wb").write(resp.content)
+open("sim-1047ddbdf5b1-results.json", "wb").write(resp.content)
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/sims/sim-4bc665cf326e/results`, {
+const resp = await fetch(`${CASCADE_URL}/api/sims/sim-1047ddbdf5b1/results`, {
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
 const data = await resp.json();
@@ -3758,20 +3753,20 @@ Response · 200 OK · application/json:
 ```json
 {
   "sim": {
-    "id": "sim-4bc665cf326e",
-    "run_id": "run-a5c5ba6e0ac7",
+    "id": "sim-1047ddbdf5b1",
+    "run_id": "run-210d75c008c4",
     "gpu_config": "SM86_RTX3070",
     "replica": 0,
     "state": "succeeded",
     "error": null,
-    "launcher_ref": "41125",
-    "created_at": "2026-11-08T06:56:46.579503Z",
-    "started_at": "2026-11-08T06:56:46.816803Z",
-    "finished_at": "2026-11-08T06:56:49.699025Z",
-    "last_heartbeat_at": "2026-11-08T06:56:49.699025Z",
+    "launcher_ref": "64418",
+    "created_at": "2026-11-08T08:59:03.024065Z",
+    "started_at": "2026-11-08T08:59:03.224424Z",
+    "finished_at": "2026-11-08T08:59:06.130355Z",
+    "last_heartbeat_at": "2026-11-08T08:59:06.130355Z",
     "exit_code": 0,
     "kernels_done": 6,
-    "kernels_total": 4,
+    "kernels_total": 20,
     "current_kernel": "_Z10dot_kernelIdEvPKT_S2_PS0_i",
     "latest": {
       "gpu_tot_sim_cycle": 76713.0,
@@ -3794,7 +3789,7 @@ Response · 200 OK · application/json:
   },
   "kernels": [
     {
-      "sim_id": "sim-4bc665cf326e",
+      "sim_id": "sim-1047ddbdf5b1",
       "kernel_index": 0,
       "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
       "kernel_launch_uid": 1,
@@ -3811,7 +3806,7 @@ Response · 200 OK · application/json:
       }
     },
     {
-      "sim_id": "sim-4bc665cf326e",
+      "sim_id": "sim-1047ddbdf5b1",
       "kernel_index": 1,
       "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
       "kernel_launch_uid": 2,
@@ -3864,7 +3859,7 @@ Streams every line the simulator sent, in `seq` order, as `text/plain` named `<s
 ### Example
 
 ```bash
-curl -OJ "$CASCADE_URL/api/sims/sim-4bc665cf326e/log" \
+curl -OJ "$CASCADE_URL/api/sims/sim-1047ddbdf5b1/log" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -3874,13 +3869,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/sims/sim-4bc665cf326e/log", headers=headers)
+resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/sims/sim-1047ddbdf5b1/log", headers=headers)
 resp.raise_for_status()
-open("sim-4bc665cf326e.log", "wb").write(resp.content)
+open("sim-1047ddbdf5b1.log", "wb").write(resp.content)
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/sims/sim-4bc665cf326e/log`, {
+const resp = await fetch(`${CASCADE_URL}/api/sims/sim-1047ddbdf5b1/log`, {
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
 const text = await resp.text();
@@ -3930,7 +3925,7 @@ Lists the files every sim in the run uploaded, ordered by config, replica, then 
 ### Example
 
 ```bash
-curl "$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/files" \
+curl "$CASCADE_URL/api/runs/run-210d75c008c4/files" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -3940,13 +3935,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/files", headers=headers)
+resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/files", headers=headers)
 resp.raise_for_status()
 print(resp.json())
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/files`, {
+const resp = await fetch(`${CASCADE_URL}/api/runs/run-210d75c008c4/files`, {
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
 console.log(await resp.json());
@@ -3960,8 +3955,8 @@ Response · 200 OK · application/json:
     "name": "accelsim.log.gz",
     "size": 37105,
     "content_type": "application/gzip",
-    "created_at": "2026-11-08T06:56:49.695907Z",
-    "sim_id": "sim-4bc665cf326e",
+    "created_at": "2026-11-08T08:59:06.128163Z",
+    "sim_id": "sim-1047ddbdf5b1",
     "gpu_config": "SM86_RTX3070",
     "replica": 0
   },
@@ -3969,8 +3964,8 @@ Response · 200 OK · application/json:
     "name": "exit-status.txt",
     "size": 2,
     "content_type": "text/plain",
-    "created_at": "2026-11-08T06:56:49.683590Z",
-    "sim_id": "sim-4bc665cf326e",
+    "created_at": "2026-11-08T08:59:06.120587Z",
+    "sim_id": "sim-1047ddbdf5b1",
     "gpu_config": "SM86_RTX3070",
     "replica": 0
   },
@@ -3978,8 +3973,8 @@ Response · 200 OK · application/json:
     "name": "gpgpu_inst_stats.txt",
     "size": 133,
     "content_type": "text/plain",
-    "created_at": "2026-11-08T06:56:49.685148Z",
-    "sim_id": "sim-4bc665cf326e",
+    "created_at": "2026-11-08T08:59:06.121677Z",
+    "sim_id": "sim-1047ddbdf5b1",
     "gpu_config": "SM86_RTX3070",
     "replica": 0
   },
@@ -3987,8 +3982,8 @@ Response · 200 OK · application/json:
     "name": "kernel-stats.csv",
     "size": 3829,
     "content_type": "text/csv",
-    "created_at": "2026-11-08T06:56:49.686511Z",
-    "sim_id": "sim-4bc665cf326e",
+    "created_at": "2026-11-08T08:59:06.122701Z",
+    "sim_id": "sim-1047ddbdf5b1",
     "gpu_config": "SM86_RTX3070",
     "replica": 0
   }
@@ -4022,7 +4017,7 @@ Builds a Chrome trace JSON from the run's parsed kernel stats and returns it wit
 ### Example
 
 ```bash
-curl -OJ "$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/perfetto" \
+curl -OJ "$CASCADE_URL/api/runs/run-210d75c008c4/perfetto" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -4032,13 +4027,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/perfetto", headers=headers)
+resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/perfetto", headers=headers)
 resp.raise_for_status()
-open("run-a5c5ba6e0ac7-perfetto.json", "wb").write(resp.content)
+open("run-210d75c008c4-perfetto.json", "wb").write(resp.content)
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/perfetto`, {
+const resp = await fetch(`${CASCADE_URL}/api/runs/run-210d75c008c4/perfetto`, {
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
 const data = await resp.json();
@@ -4070,7 +4065,7 @@ Response · 200 OK · application/json:
       "pid": 1,
       "name": "thread_name",
       "args": {
-        "name": "replica 0 · sim-4bc665cf326e"
+        "name": "replica 0 · sim-1047ddbdf5b1"
       },
       "tid": 1
     },
@@ -4127,7 +4122,7 @@ Response · 200 OK · application/json:
   ],
   "displayTimeUnit": "ns",
   "otherData": {
-    "run_id": "run-a5c5ba6e0ac7",
+    "run_id": "run-210d75c008c4",
     "trace_id": "demo",
     "time_axis": "simulated time, microseconds; each sim's kernels laid end to end",
     "slice_duration": "sim_time_ns = gpu_sim_cycle / core clock (MHz) * 1000",
@@ -4162,7 +4157,7 @@ Lists one sim's uploaded files, sorted by name. The list is empty until the simu
 ### Example
 
 ```bash
-curl "$CASCADE_URL/api/sims/sim-4bc665cf326e/files" \
+curl "$CASCADE_URL/api/sims/sim-1047ddbdf5b1/files" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -4172,13 +4167,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/sims/sim-4bc665cf326e/files", headers=headers)
+resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/sims/sim-1047ddbdf5b1/files", headers=headers)
 resp.raise_for_status()
 print(resp.json())
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/sims/sim-4bc665cf326e/files`, {
+const resp = await fetch(`${CASCADE_URL}/api/sims/sim-1047ddbdf5b1/files`, {
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
 console.log(await resp.json());
@@ -4192,37 +4187,37 @@ Response · 200 OK · application/json:
     "name": "accelsim.log.gz",
     "size": 37105,
     "content_type": "application/gzip",
-    "created_at": "2026-11-08T06:56:49.695907Z"
+    "created_at": "2026-11-08T08:59:06.128163Z"
   },
   {
     "name": "exit-status.txt",
     "size": 2,
     "content_type": "text/plain",
-    "created_at": "2026-11-08T06:56:49.683590Z"
+    "created_at": "2026-11-08T08:59:06.120587Z"
   },
   {
     "name": "gpgpu_inst_stats.txt",
     "size": 133,
     "content_type": "text/plain",
-    "created_at": "2026-11-08T06:56:49.685148Z"
+    "created_at": "2026-11-08T08:59:06.121677Z"
   },
   {
     "name": "kernel-stats.csv",
     "size": 3829,
     "content_type": "text/csv",
-    "created_at": "2026-11-08T06:56:49.686511Z"
+    "created_at": "2026-11-08T08:59:06.122701Z"
   },
   {
     "name": "opt125m_H100_perfetto.json.gz",
     "size": 104763,
     "content_type": "application/gzip",
-    "created_at": "2026-11-08T06:56:49.688351Z"
+    "created_at": "2026-11-08T08:59:06.123623Z"
   },
   {
     "name": "perf_counter.csv.gz",
     "size": 474373,
     "content_type": "application/gzip",
-    "created_at": "2026-11-08T06:56:49.691380Z"
+    "created_at": "2026-11-08T08:59:06.124946Z"
   }
 ]
 ```
@@ -4254,7 +4249,7 @@ Returns the file as a download named `name`, with the file's `content_type`. A `
 ### Example
 
 ```bash
-curl -OJ "$CASCADE_URL/api/sims/sim-4bc665cf326e/files/kernel-stats.csv" \
+curl -OJ "$CASCADE_URL/api/sims/sim-1047ddbdf5b1/files/kernel-stats.csv" \
   -H "Authorization: Bearer $CASCADE_TOKEN"
 ```
 
@@ -4264,13 +4259,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/sims/sim-4bc665cf326e/files/kernel-stats.csv", headers=headers)
+resp = httpx.get(f"{os.environ['CASCADE_URL']}/api/sims/sim-1047ddbdf5b1/files/kernel-stats.csv", headers=headers)
 resp.raise_for_status()
 open("kernel-stats.csv", "wb").write(resp.content)
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/sims/sim-4bc665cf326e/files/kernel-stats.csv`, {
+const resp = await fetch(`${CASCADE_URL}/api/sims/sim-1047ddbdf5b1/files/kernel-stats.csv`, {
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}` },
 });
 const text = await resp.text();
@@ -4298,7 +4293,7 @@ uid,name,gpu_sim_cycle,gpu_sim_insn,ipc
 
 ```json
 {
-  "detail": "sim sim-4bc665cf326e has no file 'nope.txt'"
+  "detail": "sim sim-1047ddbdf5b1 has no file 'nope.txt'"
 }
 ```
 
@@ -4342,7 +4337,7 @@ Opens a `text/event-stream`. The first event is always a `snapshot`. After that 
 
 ```bash
 curl -N -H "Authorization: Bearer $CASCADE_TOKEN" \
-  "$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/events"
+  "$CASCADE_URL/api/runs/run-210d75c008c4/events"
 ```
 
 ```python
@@ -4352,7 +4347,7 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-url = f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/events"
+url = f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/events"
 with httpx.stream("GET", url, headers=headers, timeout=None) as resp:
     for line in resp.iter_lines():
         if line.startswith("data: "):
@@ -4362,7 +4357,7 @@ with httpx.stream("GET", url, headers=headers, timeout=None) as resp:
 
 ```javascript
 // EventSource cannot send headers, so pass the token as a query parameter.
-const url = `${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/events?token=${encodeURIComponent(CASCADE_TOKEN)}`;
+const url = `${CASCADE_URL}/api/runs/run-210d75c008c4/events?token=${encodeURIComponent(CASCADE_TOKEN)}`;
 const events = new EventSource(url);
 events.onmessage = (msg) => {
   const event = JSON.parse(msg.data);
@@ -4398,9 +4393,9 @@ data: snapshot event:
 {
   "type": "snapshot",
   "run": {
-    "id": "run-a5c5ba6e0ac7",
+    "id": "run-210d75c008c4",
     "trace_id": "demo",
-    "created_at": "2026-11-08T06:56:46.579503Z",
+    "created_at": "2026-11-08T08:59:03.024065Z",
     "state": "active",
     "entries": [
       {
@@ -4411,38 +4406,40 @@ data: snapshot event:
     "sim_counts": {
       "launching": 2
     },
+    "sample": false,
     "trace": {
       "id": "demo",
       "state": "ready",
       "error": null,
-      "created_at": "2026-11-08T06:56:46.379301Z",
-      "updated_at": "2026-11-08T06:56:46.381567Z",
+      "created_at": "2026-11-08T08:59:02.587743Z",
+      "updated_at": "2026-11-08T08:59:02.592073Z",
       "model": null,
       "layers": [],
       "source_gpu": null,
       "trace_gpu_arch": "sm_86",
       "suggested_sim_config": "SM86_RTX3070",
-      "kernel_count": 4,
-      "bytes": 31899901,
+      "kernel_count": 20,
+      "bytes": 16890250,
       "has_real_timing": false,
-      "has_step_timeline": true
+      "has_step_timeline": true,
+      "sample": false
     },
     "sims": [
       {
-        "id": "sim-4bc665cf326e",
-        "run_id": "run-a5c5ba6e0ac7",
+        "id": "sim-1047ddbdf5b1",
+        "run_id": "run-210d75c008c4",
         "gpu_config": "SM86_RTX3070",
         "replica": 0,
         "state": "launching",
         "error": null,
-        "launcher_ref": "41125",
-        "created_at": "2026-11-08T06:56:46.579503Z",
+        "launcher_ref": "64418",
+        "created_at": "2026-11-08T08:59:03.024065Z",
         "started_at": null,
         "finished_at": null,
         "last_heartbeat_at": null,
         "exit_code": null,
         "kernels_done": 0,
-        "kernels_total": 4,
+        "kernels_total": 20,
         "current_kernel": null,
         "latest": {
           "gpu_tot_sim_cycle": null,
@@ -4453,20 +4450,20 @@ data: snapshot event:
         "log_tail": []
       },
       {
-        "id": "sim-09e225316002",
-        "run_id": "run-a5c5ba6e0ac7",
+        "id": "sim-e8f63b6b3bed",
+        "run_id": "run-210d75c008c4",
         "gpu_config": "SM86_RTX3070",
         "replica": 1,
         "state": "launching",
         "error": null,
-        "launcher_ref": "41126",
-        "created_at": "2026-11-08T06:56:46.579503Z",
+        "launcher_ref": "64419",
+        "created_at": "2026-11-08T08:59:03.024065Z",
         "started_at": null,
         "finished_at": null,
         "last_heartbeat_at": null,
         "exit_code": null,
         "kernels_done": 0,
-        "kernels_total": 4,
+        "kernels_total": 20,
         "current_kernel": null,
         "latest": {
           "gpu_tot_sim_cycle": null,
@@ -4492,20 +4489,20 @@ data: sim event:
 {
   "type": "sim",
   "sim": {
-    "id": "sim-4bc665cf326e",
-    "run_id": "run-a5c5ba6e0ac7",
+    "id": "sim-e8f63b6b3bed",
+    "run_id": "run-210d75c008c4",
     "gpu_config": "SM86_RTX3070",
-    "replica": 0,
+    "replica": 1,
     "state": "running",
     "error": null,
-    "launcher_ref": "41125",
-    "created_at": "2026-11-08T06:56:46.579503Z",
-    "started_at": "2026-11-08T06:56:46.816803Z",
+    "launcher_ref": "64419",
+    "created_at": "2026-11-08T08:59:03.024065Z",
+    "started_at": "2026-11-08T08:59:03.224173Z",
     "finished_at": null,
-    "last_heartbeat_at": "2026-11-08T06:56:46.816803Z",
+    "last_heartbeat_at": "2026-11-08T08:59:03.224173Z",
     "exit_code": null,
     "kernels_done": 0,
-    "kernels_total": 4,
+    "kernels_total": 20,
     "current_kernel": null,
     "latest": {
       "gpu_tot_sim_cycle": null,
@@ -4526,20 +4523,20 @@ data: sim event, sim finished:
 {
   "type": "sim",
   "sim": {
-    "id": "sim-4bc665cf326e",
-    "run_id": "run-a5c5ba6e0ac7",
+    "id": "sim-1047ddbdf5b1",
+    "run_id": "run-210d75c008c4",
     "gpu_config": "SM86_RTX3070",
     "replica": 0,
     "state": "succeeded",
     "error": null,
-    "launcher_ref": "41125",
-    "created_at": "2026-11-08T06:56:46.579503Z",
-    "started_at": "2026-11-08T06:56:46.816803Z",
-    "finished_at": "2026-11-08T06:56:49.699025Z",
-    "last_heartbeat_at": "2026-11-08T06:56:49.699025Z",
+    "launcher_ref": "64418",
+    "created_at": "2026-11-08T08:59:03.024065Z",
+    "started_at": "2026-11-08T08:59:03.224424Z",
+    "finished_at": "2026-11-08T08:59:06.130355Z",
+    "last_heartbeat_at": "2026-11-08T08:59:06.130355Z",
     "exit_code": 0,
     "kernels_done": 6,
-    "kernels_total": 4,
+    "kernels_total": 20,
     "current_kernel": "_Z10dot_kernelIdEvPKT_S2_PS0_i",
     "latest": {
       "gpu_tot_sim_cycle": 76713.0,
@@ -4566,7 +4563,7 @@ data: log event:
 ```
 {
   "type": "log",
-  "sim_id": "sim-09e225316002",
+  "sim_id": "sim-e8f63b6b3bed",
   "lines": [
     "GPGPU-Sim version 4.2.0 (build gpgpu-sim_git-commit-13c67115070dc2f0876254a790d0238073ca364a-modified_590.0) configured with AccelWattch.",
     "",
@@ -4586,7 +4583,7 @@ data: kernel event:
 {
   "type": "kernel",
   "stat": {
-    "sim_id": "sim-4bc665cf326e",
+    "sim_id": "sim-1047ddbdf5b1",
     "kernel_index": 0,
     "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
     "kernel_launch_uid": 1,
@@ -4658,7 +4655,7 @@ JSON, [Heartbeat](types.html#heartbeat).
 ### Example
 
 ```bash
-curl -X POST "$CASCADE_URL/api/sims/sim-4bc665cf326e/heartbeat" \
+curl -X POST "$CASCADE_URL/api/sims/sim-1047ddbdf5b1/heartbeat" \
   -H "Authorization: Bearer $CASCADE_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"state": "running"}'
@@ -4670,13 +4667,13 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.post(f"{os.environ['CASCADE_URL']}/api/sims/sim-4bc665cf326e/heartbeat", headers=headers, json={"state": "running"})
+resp = httpx.post(f"{os.environ['CASCADE_URL']}/api/sims/sim-1047ddbdf5b1/heartbeat", headers=headers, json={"state": "running"})
 resp.raise_for_status()
 print(resp.json())
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/sims/sim-4bc665cf326e/heartbeat`, {
+const resp = await fetch(`${CASCADE_URL}/api/sims/sim-1047ddbdf5b1/heartbeat`, {
   method: "POST",
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}`, "Content-Type": "application/json" },
   body: JSON.stringify({"state": "running"}),
@@ -4746,7 +4743,7 @@ JSON, [LogChunk](types.html#logchunk).
 ### Example
 
 ```bash
-curl -X POST "$CASCADE_URL/api/sims/sim-4bc665cf326e/logs" \
+curl -X POST "$CASCADE_URL/api/sims/sim-1047ddbdf5b1/logs" \
   -H "Authorization: Bearer $CASCADE_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"seq": 0, "lines": ["replayed line"]}'
@@ -4758,12 +4755,12 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.post(f"{os.environ['CASCADE_URL']}/api/sims/sim-4bc665cf326e/logs", headers=headers, json={"seq": 0, "lines": ["replayed line"]})
+resp = httpx.post(f"{os.environ['CASCADE_URL']}/api/sims/sim-1047ddbdf5b1/logs", headers=headers, json={"seq": 0, "lines": ["replayed line"]})
 resp.raise_for_status()
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/sims/sim-4bc665cf326e/logs`, {
+const resp = await fetch(`${CASCADE_URL}/api/sims/sim-1047ddbdf5b1/logs`, {
   method: "POST",
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}`, "Content-Type": "application/json" },
   body: JSON.stringify({"seq": 0, "lines": ["replayed line"]}),
@@ -4812,7 +4809,7 @@ JSON, [StepTimelineUpload](types.html#steptimelineupload).
 ### Example
 
 ```bash
-curl -X POST "$CASCADE_URL/api/sims/sim-48c07a8a5767/step-timeline" \
+curl -X POST "$CASCADE_URL/api/sims/sim-57c51b464fc9/step-timeline" \
   -H "Authorization: Bearer $CASCADE_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"simulated": {"meta": {"run_name": "empty"}, "steps": [], "requests": [], "summary": {"simulation": {"host_model": "scaled-gaps", "host_fit": {}, "coverage": {"kernels": 0, "simulated_kernels": 0, "kernel_fraction": 0, "gpu_time_fraction": 0, "measured_gpu_ns": 0.0, "covered_measured_gpu_ns": 0.0, "unmodeled_gpu_ns": 0.0, "steps": []}, "request_assumption": "one request per repeat; queue + prefill/decode walls"}, "per_kind": {}}}, "compare": {"steps": [], "requests": [], "summary": {"wall_ns": {"count": 0, "mean_error": null, "mean_abs_error": null, "p50_abs_error": null, "p95_abs_error": null, "mean_error_pct": null, "mean_abs_error_pct": null, "p50_abs_error_pct": null, "p95_abs_error_pct": null}, "gpu_busy_ns": {"count": 0, "mean_error": null, "mean_abs_error": null, "p50_abs_error": null, "p95_abs_error": null, "mean_error_pct": null, "mean_abs_error_pct": null, "p50_abs_error_pct": null, "p95_abs_error_pct": null}}}}'
@@ -4824,12 +4821,12 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}"}
-resp = httpx.post(f"{os.environ['CASCADE_URL']}/api/sims/sim-48c07a8a5767/step-timeline", headers=headers, json={"simulated": {"meta": {"run_name": "empty"}, "steps": [], "requests": [], "summary": {"simulation": {"host_model": "scaled-gaps", "host_fit": {}, "coverage": {"kernels": 0, "simulated_kernels": 0, "kernel_fraction": 0, "gpu_time_fraction": 0, "measured_gpu_ns": 0.0, "covered_measured_gpu_ns": 0.0, "unmodeled_gpu_ns": 0.0, "steps": []}, "request_assumption": "one request per repeat; queue + prefill/decode walls"}, "per_kind": {}}}, "compare": {"steps": [], "requests": [], "summary": {"wall_ns": {"count": 0, "mean_error": None, "mean_abs_error": None, "p50_abs_error": None, "p95_abs_error": None, "mean_error_pct": None, "mean_abs_error_pct": None, "p50_abs_error_pct": None, "p95_abs_error_pct": None}, "gpu_busy_ns": {"count": 0, "mean_error": None, "mean_abs_error": None, "p50_abs_error": None, "p95_abs_error": None, "mean_error_pct": None, "mean_abs_error_pct": None, "p50_abs_error_pct": None, "p95_abs_error_pct": None}}}})
+resp = httpx.post(f"{os.environ['CASCADE_URL']}/api/sims/sim-57c51b464fc9/step-timeline", headers=headers, json={"simulated": {"meta": {"run_name": "empty"}, "steps": [], "requests": [], "summary": {"simulation": {"host_model": "scaled-gaps", "host_fit": {}, "coverage": {"kernels": 0, "simulated_kernels": 0, "kernel_fraction": 0, "gpu_time_fraction": 0, "measured_gpu_ns": 0.0, "covered_measured_gpu_ns": 0.0, "unmodeled_gpu_ns": 0.0, "steps": []}, "request_assumption": "one request per repeat; queue + prefill/decode walls"}, "per_kind": {}}}, "compare": {"steps": [], "requests": [], "summary": {"wall_ns": {"count": 0, "mean_error": None, "mean_abs_error": None, "p50_abs_error": None, "p95_abs_error": None, "mean_error_pct": None, "mean_abs_error_pct": None, "p50_abs_error_pct": None, "p95_abs_error_pct": None}, "gpu_busy_ns": {"count": 0, "mean_error": None, "mean_abs_error": None, "p50_abs_error": None, "p95_abs_error": None, "mean_error_pct": None, "mean_abs_error_pct": None, "p50_abs_error_pct": None, "p95_abs_error_pct": None}}}})
 resp.raise_for_status()
 ```
 
 ```javascript
-const resp = await fetch(`${CASCADE_URL}/api/sims/sim-48c07a8a5767/step-timeline`, {
+const resp = await fetch(`${CASCADE_URL}/api/sims/sim-57c51b464fc9/step-timeline`, {
   method: "POST",
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}`, "Content-Type": "application/json" },
   body: JSON.stringify({"simulated": {"meta": {"run_name": "empty"}, "steps": [], "requests": [], "summary": {"simulation": {"host_model": "scaled-gaps", "host_fit": {}, "coverage": {"kernels": 0, "simulated_kernels": 0, "kernel_fraction": 0, "gpu_time_fraction": 0, "measured_gpu_ns": 0.0, "covered_measured_gpu_ns": 0.0, "unmodeled_gpu_ns": 0.0, "steps": []}, "request_assumption": "one request per repeat; queue + prefill/decode walls"}, "per_kind": {}}}, "compare": {"steps": [], "requests": [], "summary": {"wall_ns": {"count": 0, "mean_error": null, "mean_abs_error": null, "p50_abs_error": null, "p95_abs_error": null, "mean_error_pct": null, "mean_abs_error_pct": null, "p50_abs_error_pct": null, "p95_abs_error_pct": null}, "gpu_busy_ns": {"count": 0, "mean_error": null, "mean_abs_error": null, "p50_abs_error": null, "p95_abs_error": null, "mean_error_pct": null, "mean_abs_error_pct": null, "p50_abs_error_pct": null, "p95_abs_error_pct": null}}}}),
@@ -4876,7 +4873,7 @@ The file's raw bytes, sent as `Content-Type: application/octet-stream`. Not JSON
 ### Example
 
 ```bash
-curl -X PUT "$CASCADE_URL/api/sims/sim-48c07a8a5767/files/kernel-stats.csv" \
+curl -X PUT "$CASCADE_URL/api/sims/sim-57c51b464fc9/files/kernel-stats.csv" \
   -H "Authorization: Bearer $CASCADE_TOKEN" \
   -H "Content-Type: application/octet-stream" \
   --data-binary @kernel-stats.csv
@@ -4888,7 +4885,7 @@ import os
 import httpx
 
 headers = {"Authorization": f"Bearer {os.environ['CASCADE_TOKEN']}", "Content-Type": "application/octet-stream"}
-resp = httpx.put(f"{os.environ['CASCADE_URL']}/api/sims/sim-48c07a8a5767/files/kernel-stats.csv", headers=headers, content=open("kernel-stats.csv", "rb").read())
+resp = httpx.put(f"{os.environ['CASCADE_URL']}/api/sims/sim-57c51b464fc9/files/kernel-stats.csv", headers=headers, content=open("kernel-stats.csv", "rb").read())
 resp.raise_for_status()
 print(resp.json())
 ```
@@ -4896,7 +4893,7 @@ print(resp.json())
 ```javascript
 import { readFile } from "node:fs/promises";
 
-const resp = await fetch(`${CASCADE_URL}/api/sims/sim-48c07a8a5767/files/kernel-stats.csv`, {
+const resp = await fetch(`${CASCADE_URL}/api/sims/sim-57c51b464fc9/files/kernel-stats.csv`, {
   method: "PUT",
   headers: { Authorization: `Bearer ${CASCADE_TOKEN}`, "Content-Type": "application/octet-stream" },
   body: await readFile("kernel-stats.csv"),
@@ -4911,7 +4908,7 @@ Response · 200 OK · application/json:
   "name": "kernel-stats.csv",
   "size": 3829,
   "content_type": "text/csv",
-  "created_at": "2026-11-08T06:56:50.236353Z"
+  "created_at": "2026-11-08T08:59:06.686299Z"
 }
 ```
 
@@ -5021,6 +5018,7 @@ One kernel launch from the trace's stats_ctx_* file (original hardware).
 | `bytes` | `int` | Bytes on disk under the trace dir. |
 | `has_real_timing` | `bool` | True when the trace has real per-kernel timings (`real_timing.json`). The profiler does not write them yet. |
 | `has_step_timeline` | `bool` | corrected_timeline.json + kernel_mapping.json are in the trace dir. |
+| `sample` | `bool` | True for the sample trace that `cascade serve` seeds from `samples/` (see [Introduction](index.html)), unless `CASCADE_SAMPLES` is false. It is `ready` but has no instruction traces, so it can't start a run. |
 
 ### `TraceDetail`
 
@@ -5057,6 +5055,7 @@ Every field of [TraceSummary](types.html#tracesummary), plus these.
 | `state` | `RunState` | Derived from the sims. See [`RunState`](types.html#runstate). |
 | `entries` | `list[RunEntry]` | The entries the run was created with. |
 | `sim_counts` | `dict[SimState, int]` | How many sims are in each state. States with no sims are left out. |
+| `sample` | `bool` | True for the sample run seeded with the sample trace. Its results were recorded when the run was made, not in this workspace, and cancelling it changes nothing. |
 
 ### `RunDetail`
 
@@ -5333,7 +5332,7 @@ Response · 404 Not Found · application/json:
 
 ## 409 Conflict
 
-Only [Create a run](api-runs.html#create-run) returns `409`, when the trace exists but isn't `ready`. Wait for it to finish processing, or check its `error` if it `failed`.
+Only [Create a run](api-runs.html#create-run) returns `409`, when the trace exists but isn't `ready`, or is the bundled sample, which can't be simulated again. Wait for it to finish processing, or check its `error` if it `failed`.
 
 Response · 409 Conflict · application/json:
 

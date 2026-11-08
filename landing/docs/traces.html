@@ -67,6 +67,7 @@
 <tr><td><code>kernels</code></td><td>The rows of <code>traces/stats_ctx_*</code>, or <code>stats.csv</code> from older tracers.</td></tr>
 <tr><td><code>has_real_timing</code></td><td>Whether <code>real_timing.json</code>, or the file <code>metadata.json</code> names in <code>real_timing</code>, holds a list of rows with integer <code>kernel_id</code>s.</td></tr>
 <tr><td><code>has_step_timeline</code></td><td>Whether the trace directory holds both <code>corrected_timeline.json</code> and <code>kernel_mapping.json</code>. The app rechecks on every scan, so it can turn true after the trace is <code>ready</code>. See <a href="simulator.html#step-timing">Step timing</a>.</td></tr>
+<tr><td><code>sample</code></td><td>True only for the sample trace <code>cascade serve</code> seeds from <code>samples/</code> (see <a href="index.html">Introduction</a>). It is <code>ready</code> but has no instruction traces, so it can't start a run.</td></tr>
 </tbody></table></div>
 
 <h2 id="disk-space">Disk space<a class="anchor" href="#disk-space" aria-label="Link to this section">#</a></h2>

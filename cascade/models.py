@@ -95,7 +95,7 @@ class TraceSummary(BaseModel):
     bytes: int  # bytes on disk under the trace dir
     has_real_timing: bool
     has_step_timeline: bool  # corrected_timeline.json + kernel_mapping.json are in the trace dir
-    sample: bool  # seeded from samples/ at startup; it has no instruction traces to simulate
+    sample: bool
 
 
 class TraceDetail(TraceSummary):
@@ -161,7 +161,7 @@ class RunSummary(BaseModel):
     state: RunState
     entries: list[RunEntry]
     sim_counts: dict[SimState, int]
-    sample: bool  # seeded from samples/ with its recorded results
+    sample: bool
 
 
 class RunDetail(RunSummary):

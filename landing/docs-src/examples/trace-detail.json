@@ -10,70 +10,40 @@
     "id": "demo",
     "state": "ready",
     "error": null,
-    "created_at": "2026-11-08T06:56:46.379301Z",
-    "updated_at": "2026-11-08T06:56:46.381567Z",
+    "created_at": "2026-11-08T08:59:02.587743Z",
+    "updated_at": "2026-11-08T08:59:02.592073Z",
     "model": null,
     "layers": [],
     "source_gpu": null,
     "trace_gpu_arch": "sm_86",
     "suggested_sim_config": "SM86_RTX3070",
-    "kernel_count": 4,
-    "bytes": 31899901,
+    "kernel_count": 20,
+    "bytes": 16890250,
     "has_real_timing": false,
     "has_step_timeline": true,
+    "sample": false,
     "metadata": {
       "status": "ok",
       "files": [
         {
-          "key": "accelsim-traces/demo/corrected_timeline.json",
-          "bytes": 238744
+          "key": "accelsim-traces/demo/configs/config_hopper_islip.icnt",
+          "bytes": 1352
         },
         {
-          "key": "accelsim-traces/demo/kernel_mapping.json",
-          "bytes": 699
+          "key": "accelsim-traces/demo/configs/gpgpusim.config",
+          "bytes": 6028
         },
         {
-          "key": "accelsim-traces/demo/trace.log",
-          "bytes": 55
+          "key": "accelsim-traces/demo/configs/trace.config",
+          "bytes": 1085
         },
         {
-          "$trimmed": "7 more items"
+          "$trimmed": "24 more items"
         }
       ],
       "trace_gpu_arch": "sm_86",
       "suggested_sim_config": "SM86_RTX3070"
     },
-    "kernels": [
-      {
-        "kernel_id": 3,
-        "name": "_Z6euclidPcffPfiii",
-        "grid": [
-          938,
-          1,
-          1
-        ],
-        "block": [
-          16,
-          1,
-          1
-        ],
-        "instructions": 161428
-      },
-      {
-        "kernel_id": 4,
-        "name": "_Z6euclidPcffPfiii",
-        "grid": [
-          938,
-          1,
-          1
-        ],
-        "block": [
-          16,
-          1,
-          1
-        ],
-        "instructions": 161308
-      }
-    ]
+    "kernels": []
   }
 }
