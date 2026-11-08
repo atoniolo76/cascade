@@ -456,6 +456,7 @@ Every field of `TraceSummary`, plus these.
 - `entries` (`list[RunEntry]`): The entries the run was created with.
 - `sim_counts` (`dict[SimState, int]`): How many sims are in each state. States with no sims are left out.
 - `sample` (`bool`): True for the sample run seeded with the sample trace. Its results were recorded when the run was made, not in this workspace, and cancelling it changes nothing.
+- `replay` (`bool`): Replays a sample's recorded Accel-Sim results.
 
 ### RunDetail
 
