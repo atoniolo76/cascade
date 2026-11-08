@@ -55,5 +55,9 @@ Decision:
 ## Trace upload
 
 - ~~Provisional: `POST /api/traces` multipart `.tar.gz`.~~ Superseded 2026-11-07: Alessio's profiler uploads through an S3-compatible endpoint, and the app saves the object to local disk.
-- So the main app must expose an S3-compatible endpoint. The implementation is still being decided (see below).
+- The main app runs MinIO in the same container, with its data dir on local disk (e.g. `/data/minio`).
+- MinIO gets its own exposed port (9000) and its own `sail.box` URL. It is not proxied under a FastAPI path, because SigV4 signs the host and path and proxying breaks that.
+- Profiler auth uses MinIO access/secret keys (`CASCADE_S3_ACCESS_KEY` / `CASCADE_S3_SECRET_KEY`), not the bearer token.
+- MinIO sends a bucket notification webhook to FastAPI (`POST /internal/minio-events`) on object-created. FastAPI then registers the trace and reads its metadata.
+- Because MinIO's data dir is on local disk, the run checkpoint carries the trace into every sim fork. Sims run with `restore_memory=False`, so MinIO does not run in sims.
 - Still to confirm with Alessio: bucket and key layout, what the object is (single archive vs. many files), and how the app knows an upload is complete.
