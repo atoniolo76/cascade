@@ -36,7 +36,8 @@ Sail facts (from docs.sailresearch.com, checked 2026-11-07):
 - `child.exec(cmd, background=True, env={...})` starts the simulator detached and passes per-sim env.
 - `sb.expose(port, allowlist=None)` returns a public HTTPS URL on `sail.box`. Ports are not inherited by forks. An app-name allowlist entry admits only sailboxes in that Sail app.
 - No GPU parameter; 1–8 vCPUs. Accel-Sim is a CPU simulator, so this is fine.
-- Unverified: how a sailbox learns its own id (needed to checkpoint itself), and the SDK `fork()` method (its API page 404s). Check against the SDK before relying on them.
+- ~~Unverified: how a sailbox learns its own id.~~ Verified on live Sail 2026-11-07 (run run-28e9db36f03f): the main sailbox checkpoints itself (`guest.current_sailbox_id()`), forks start from that checkpoint, and both sims went pending → running in about 6 s and reported back over the public URL. Finished forks are terminated automatically. The run checkpoint stays until its TTL (7 days by default).
+- The main sailbox carries `SAIL_API_KEY` in its env, because it creates checkpoints and forks.
 
 Decision:
 
