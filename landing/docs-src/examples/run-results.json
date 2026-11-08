@@ -1,16 +1,16 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/runs/run-f9ef217a2c3c/results",
+    "path": "/api/runs/run-a5c5ba6e0ac7/results",
     "body": null
   },
   "status": 200,
   "content_type": "application/json",
   "body": {
     "run": {
-      "id": "run-f9ef217a2c3c",
+      "id": "run-a5c5ba6e0ac7",
       "trace_id": "demo",
-      "created_at": "2026-11-08T06:47:50.713346Z",
+      "created_at": "2026-11-08T06:56:46.579503Z",
       "state": "succeeded",
       "entries": [
         {
@@ -26,8 +26,8 @@
       "id": "demo",
       "state": "ready",
       "error": null,
-      "created_at": "2026-11-08T06:47:50.546830Z",
-      "updated_at": "2026-11-08T06:47:50.553261Z",
+      "created_at": "2026-11-08T06:56:46.379301Z",
+      "updated_at": "2026-11-08T06:56:46.381567Z",
       "model": null,
       "layers": [],
       "source_gpu": null,
@@ -91,17 +91,17 @@
     "sims": [
       {
         "sim": {
-          "id": "sim-060fbd075b71",
-          "run_id": "run-f9ef217a2c3c",
+          "id": "sim-4bc665cf326e",
+          "run_id": "run-a5c5ba6e0ac7",
           "gpu_config": "SM86_RTX3070",
           "replica": 0,
           "state": "succeeded",
           "error": null,
-          "launcher_ref": "23693",
-          "created_at": "2026-11-08T06:47:50.713346Z",
-          "started_at": "2026-11-08T06:47:50.893471Z",
-          "finished_at": "2026-11-08T06:47:53.839074Z",
-          "last_heartbeat_at": "2026-11-08T06:47:53.839074Z",
+          "launcher_ref": "41125",
+          "created_at": "2026-11-08T06:56:46.579503Z",
+          "started_at": "2026-11-08T06:56:46.816803Z",
+          "finished_at": "2026-11-08T06:56:49.699025Z",
+          "last_heartbeat_at": "2026-11-08T06:56:49.699025Z",
           "exit_code": 0,
           "kernels_done": 6,
           "kernels_total": 4,
@@ -129,7 +129,7 @@
         },
         "kernels": [
           {
-            "sim_id": "sim-060fbd075b71",
+            "sim_id": "sim-4bc665cf326e",
             "kernel_index": 0,
             "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
             "kernel_launch_uid": 1,
@@ -146,7 +146,7 @@
             }
           },
           {
-            "sim_id": "sim-060fbd075b71",
+            "sim_id": "sim-4bc665cf326e",
             "kernel_index": 1,
             "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
             "kernel_launch_uid": 2,
@@ -175,17 +175,17 @@
       },
       {
         "sim": {
-          "id": "sim-23e61dc8c90e",
-          "run_id": "run-f9ef217a2c3c",
+          "id": "sim-09e225316002",
+          "run_id": "run-a5c5ba6e0ac7",
           "gpu_config": "SM86_RTX3070",
           "replica": 1,
           "state": "succeeded",
           "error": null,
-          "launcher_ref": "23694",
-          "created_at": "2026-11-08T06:47:50.713346Z",
-          "started_at": "2026-11-08T06:47:50.893626Z",
-          "finished_at": "2026-11-08T06:47:53.834736Z",
-          "last_heartbeat_at": "2026-11-08T06:47:53.834736Z",
+          "launcher_ref": "41126",
+          "created_at": "2026-11-08T06:56:46.579503Z",
+          "started_at": "2026-11-08T06:56:46.817058Z",
+          "finished_at": "2026-11-08T06:56:49.715117Z",
+          "last_heartbeat_at": "2026-11-08T06:56:49.715117Z",
           "exit_code": 0,
           "kernels_done": 6,
           "kernels_total": 4,
@@ -213,7 +213,7 @@
         },
         "kernels": [
           {
-            "sim_id": "sim-23e61dc8c90e",
+            "sim_id": "sim-09e225316002",
             "kernel_index": 0,
             "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
             "kernel_launch_uid": 1,
@@ -230,7 +230,7 @@
             }
           },
           {
-            "sim_id": "sim-23e61dc8c90e",
+            "sim_id": "sim-09e225316002",
             "kernel_index": 1,
             "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
             "kernel_launch_uid": 2,
@@ -286,5 +286,5 @@
       ]
     }
   },
-  "filename": "run-f9ef217a2c3c-results.json"
+  "filename": "run-a5c5ba6e0ac7-results.json"
 }

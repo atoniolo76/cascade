@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "PUT",
-    "path": "/api/sims/sim-f917948c0d2f/files/big.bin",
+    "path": "/api/sims/sim-48c07a8a5767/files/big.bin",
     "body": null,
     "file": "big.bin"
   },

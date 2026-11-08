@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/sims/sim-060fbd075b71/logs",
+    "path": "/api/sims/sim-4bc665cf326e/logs",
     "body": {
       "seq": 0,
       "lines": [

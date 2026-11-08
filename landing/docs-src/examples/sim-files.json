@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/sims/sim-060fbd075b71/files",
+    "path": "/api/sims/sim-4bc665cf326e/files",
     "body": null
   },
   "status": 200,
@@ -11,37 +11,37 @@
       "name": "accelsim.log.gz",
       "size": 37105,
       "content_type": "application/gzip",
-      "created_at": "2026-11-08T06:47:53.804058Z"
+      "created_at": "2026-11-08T06:56:49.695907Z"
     },
     {
       "name": "exit-status.txt",
       "size": 2,
       "content_type": "text/plain",
-      "created_at": "2026-11-08T06:47:53.791135Z"
+      "created_at": "2026-11-08T06:56:49.683590Z"
     },
     {
       "name": "gpgpu_inst_stats.txt",
       "size": 133,
       "content_type": "text/plain",
-      "created_at": "2026-11-08T06:47:53.792849Z"
+      "created_at": "2026-11-08T06:56:49.685148Z"
     },
     {
       "name": "kernel-stats.csv",
       "size": 3829,
       "content_type": "text/csv",
-      "created_at": "2026-11-08T06:47:53.794331Z"
+      "created_at": "2026-11-08T06:56:49.686511Z"
     },
     {
       "name": "opt125m_H100_perfetto.json.gz",
       "size": 104763,
       "content_type": "application/gzip",
-      "created_at": "2026-11-08T06:47:53.796197Z"
+      "created_at": "2026-11-08T06:56:49.688351Z"
     },
     {
       "name": "perf_counter.csv.gz",
       "size": 474373,
       "content_type": "application/gzip",
-      "created_at": "2026-11-08T06:47:53.799328Z"
+      "created_at": "2026-11-08T06:56:49.691380Z"
     }
   ]
 }

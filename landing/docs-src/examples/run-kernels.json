@@ -1,14 +1,14 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/runs/run-f9ef217a2c3c/kernels",
+    "path": "/api/runs/run-a5c5ba6e0ac7/kernels",
     "body": null
   },
   "status": 200,
   "content_type": "application/json",
   "body": [
     {
-      "sim_id": "sim-060fbd075b71",
+      "sim_id": "sim-4bc665cf326e",
       "kernel_index": 0,
       "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
       "kernel_launch_uid": 1,
@@ -19,7 +19,7 @@
       "stats": {}
     },
     {
-      "sim_id": "sim-060fbd075b71",
+      "sim_id": "sim-4bc665cf326e",
       "kernel_index": 1,
       "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
       "kernel_launch_uid": 2,
@@ -30,7 +30,7 @@
       "stats": {}
     },
     {
-      "sim_id": "sim-060fbd075b71",
+      "sim_id": "sim-4bc665cf326e",
       "kernel_index": 2,
       "kernel_name": "_Z10mul_kernelIdEvPT_PKS0_",
       "kernel_launch_uid": 3,

@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/sims/sim-f917948c0d2f/step-timeline",
+    "path": "/api/sims/sim-48c07a8a5767/step-timeline",
     "body": {
       "simulated": {
         "meta": {

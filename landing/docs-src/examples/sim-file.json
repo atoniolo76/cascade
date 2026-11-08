@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/sims/sim-060fbd075b71/files/kernel-stats.csv",
+    "path": "/api/sims/sim-4bc665cf326e/files/kernel-stats.csv",
     "body": null
   },
   "status": 200,
