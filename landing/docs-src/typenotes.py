@@ -24,6 +24,8 @@ MODEL_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "SimResults",
             "RunResults",
             "SimStepTimeline",
+            "SimFile",
+            "RunFile",
         ),
     ),
     ("Simulator calls", ("Heartbeat", "HeartbeatAck", "LogChunk", "StepTimelineUpload")),
@@ -142,6 +144,10 @@ FIELD_NOTES: dict[str, str] = {
     "SimStepTimeline.replica": "The sim's replica.",
     "SimStepTimeline.simulated": "As sent in `StepTimelineUpload.simulated`.",
     "SimStepTimeline.compare": "As sent in `StepTimelineUpload.compare`.",
+    "SimFile.content_type": "From the name: `text/csv` for `.csv`, `text/plain` for `.txt` and `.log`, `application/json` for `.json`, `application/gzip` for `.gz`, and otherwise a guess, falling back to `application/octet-stream`.",
+    "RunFile.sim_id": "The sim that uploaded the file.",
+    "RunFile.gpu_config": "The sim's config.",
+    "RunFile.replica": "The sim's replica.",
     "SnapshotEvent.run": "The run as it is at connect time.",
     "SimEvent.sim": "The sim after a change: state, heartbeat, progress or metrics.",
     "LogEvent.sim_id": "The sim the lines came from.",
@@ -169,7 +175,7 @@ SETTINGS_NOTES: dict[str, tuple[str | None, str]] = {
     ),
     "CASCADE_DATA_DIR": (
         None,
-        "Where the app keeps `cascade.db`, the S3 bucket directory `s3/`, and scratch files in `work/`.",
+        "Where the app keeps `cascade.db`, the S3 bucket directory `s3/`, sims' output files in `files/`, and scratch files in `work/`.",
     ),
     "CASCADE_PUBLIC_URL": (
         None,

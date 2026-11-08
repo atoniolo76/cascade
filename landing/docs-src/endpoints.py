@@ -7,6 +7,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from cascade.models import FILE_MAX_BYTES, SIM_FILES_MAX_BYTES
+
 
 @dataclass(frozen=True)
 class Param:
@@ -21,7 +23,7 @@ class Param:
 class Endpoint:
     key: str
     page: str
-    method: Literal["GET", "POST"]
+    method: Literal["GET", "POST", "PUT"]
     path: str
     title: str
     summary: str
@@ -32,6 +34,7 @@ class Endpoint:
     kind: Literal["json", "sse", "download"] = "json"
     params: tuple[Param, ...] = ()
     body: str | None = None
+    raw_body: bool = False
     nested: tuple[str, ...] = ()
     errors: tuple[tuple[int, str], ...] = ()
     more_examples: tuple[tuple[str, str], ...] = ()
@@ -48,6 +51,12 @@ SIM_ID = Param(
     "str",
     "path",
     "The sim's `id`, such as `sim-6b4c91e71437`. Find it in `RunDetail.sims`.",
+)
+FILE_NAME = Param(
+    "name",
+    "str",
+    "path",
+    "The file's name, such as `kernel-stats.csv`. Letters, digits, `.`, `_` and `-`, 1 to 128 characters, and not `.` or `..`.",
 )
 TRACE_ID = Param("trace_id", "str", "path", "The trace's `id`, which is the profiler's run name.")
 
@@ -254,6 +263,64 @@ ENDPOINTS: tuple[Endpoint, ...] = (
         errors=(UNAUTHORIZED, (404, "No sim has this id.")),
     ),
     Endpoint(
+        key="list-run-files",
+        page="api-runs",
+        method="GET",
+        path="/api/runs/{run_id}/files",
+        title="List a run's output files",
+        summary="Every output file the run's sims uploaded.",
+        doc="Lists the files every sim in the run uploaded, ordered by config, replica, then name. Each `RunFile` names its sim, so one call covers the run. `cascade worker` uploads a sim's files just before its final heartbeat, so the list grows as sims finish. Fetch one with [Download an output file](#get-sim-file).",
+        returns="`200` with a list of `RunFile`.",
+        example="run-files",
+        params=(RUN_ID,),
+        errors=(UNAUTHORIZED, (404, "No run has this id.")),
+    ),
+    Endpoint(
+        key="get-run-perfetto",
+        page="api-runs",
+        method="GET",
+        path="/api/runs/{run_id}/perfetto",
+        title="Download a Perfetto trace",
+        summary="The run's simulated kernels as a Chrome trace JSON for ui.perfetto.dev.",
+        doc='Builds a Chrome trace JSON from the run\'s parsed kernel stats and returns it with `Content-Disposition: attachment; filename="<run_id>-perfetto.json"`. Each config is a process, each replica is a thread in it, and each finished kernel is one slice. The app builds it from the stats it parsed, so every run has one, whether or not the simulator wrote its own. [Reading results](reading-results.html#the-perfetto-trace) describes the layout.',
+        returns="`200` with a Chrome trace JSON object: `traceEvents`, `displayTimeUnit` and `otherData`.",
+        example="run-perfetto",
+        kind="download",
+        params=(RUN_ID,),
+        errors=(UNAUTHORIZED, (404, "No run has this id.")),
+    ),
+    Endpoint(
+        key="list-sim-files",
+        page="api-runs",
+        method="GET",
+        path="/api/sims/{sim_id}/files",
+        title="List a sim's output files",
+        summary="The output files one sim uploaded.",
+        doc="Lists one sim's uploaded files, sorted by name. The list is empty until the simulator uploads something.",
+        returns="`200` with a list of `SimFile`.",
+        example="sim-files",
+        params=(SIM_ID,),
+        errors=(UNAUTHORIZED, (404, "No sim has this id.")),
+    ),
+    Endpoint(
+        key="get-sim-file",
+        page="api-runs",
+        method="GET",
+        path="/api/sims/{sim_id}/files/{name}",
+        title="Download an output file",
+        summary="One output file, as the sim uploaded it.",
+        doc="Returns the file as a download named `name`, with the file's `content_type`. A `.gz` file comes back as `application/gzip` with no `Content-Encoding`, so it stays compressed.",
+        returns="`200` with the file's bytes.",
+        example="sim-file",
+        kind="download",
+        params=(SIM_ID, FILE_NAME),
+        errors=(
+            UNAUTHORIZED,
+            (404, "No sim has this id, or the sim has no file with this name."),
+        ),
+        more_examples=(("404 response, no such file", "error-404-file"),),
+    ),
+    Endpoint(
         key="run-events",
         page="api-events",
         method="GET",
@@ -337,6 +404,36 @@ ENDPOINTS: tuple[Endpoint, ...] = (
                 422,
                 "`simulated` lacks a `steps` list or a `summary` object, or `compare` is neither an object nor `null`.",
             ),
+        ),
+    ),
+    Endpoint(
+        key="put-sim-file",
+        page="api-simulator",
+        method="PUT",
+        path="/api/sims/{sim_id}/files/{name}",
+        title="Upload an output file",
+        summary="Store one of the simulator's output files.",
+        doc="Stores the request body as the sim's file `name`, in `$CASCADE_DATA_DIR/files/<sim_id>/`. Putting the same name again replaces the file, so a retry is safe. `cascade worker` uploads every file the simulator wrote, then its own log as `accelsim.log.gz`, before its final heartbeat.",
+        returns="`200` with the stored `SimFile`.",
+        example="file-put",
+        params=(SIM_ID, FILE_NAME),
+        raw_body=True,
+        errors=(
+            UNAUTHORIZED,
+            (404, "No sim has this id."),
+            (413, f"The file is over {FILE_MAX_BYTES >> 20} MiB."),
+            (
+                413,
+                f"The sim's files would pass {SIM_FILES_MAX_BYTES >> 20} MiB in all. The file a put replaces doesn't count.",
+            ),
+            (
+                422,
+                "`name` has a character other than letters, digits, `.`, `_` and `-`, is over 128 characters, or is `.` or `..`.",
+            ),
+        ),
+        more_examples=(
+            ("413 response, file too big", "error-413-file"),
+            ("422 response, bad name", "error-422-file-name"),
         ),
     ),
 )

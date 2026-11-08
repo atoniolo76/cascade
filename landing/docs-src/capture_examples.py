@@ -1,6 +1,16 @@
-"""Recapture with: start `cascade serve` on :8020/:9020 with `cascade worker --replay` as the sim
-(see the Quickstart page), then `uv run python landing/docs-src/capture_examples.py <processed
-trace dir>`. The `demo` trace also gets the step-timing fixtures, so its sims post step timing.
+"""Recapture from the repo root. Start the Quickstart's app on :8020/:9020 with an empty data dir,
+its sims replaying the recorded OPT-125m outputs as well, so every sim has output files:
+
+    CASCADE_TOKEN=dev-token CASCADE_DATA_DIR=<empty dir> \
+    CASCADE_PUBLIC_URL=http://127.0.0.1:8020 \
+    CASCADE_ACCELSIM_DIR=$PWD/tests/fixtures/accelsim \
+    CASCADE_SIM_CMD="$PWD/.venv/bin/cascade worker \
+      --replay $PWD/tests/fixtures/logs/babelstream_sm86_rtx3070.log \
+      --replay-outputs $PWD/results/20261108-021007-opt125m-h100-accelsim/outputs" \
+    uv run cascade serve --port 8020 --s3-port 9020
+
+Then run `uv run python landing/docs-src/capture_examples.py <processed trace dir>`. The `demo`
+trace also gets the step-timing fixtures, so its sims post step timing.
 
 Drives a running Cascade server through every route and saves each real response, trimmed, to
 landing/docs-src/examples/. Trimmed spots hold {"$trimmed": "..."}, which build.py renders as a
@@ -11,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -21,11 +32,14 @@ from pathlib import Path
 
 import httpx
 
+from cascade.models import FILE_MAX_BYTES
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 OUT = HERE / "examples"
 CONFIG = "SM86_RTX3070"
 TIMELINE = ROOT / "tests" / "fixtures" / "timeline"
+OUTPUTS = ROOT / "results" / "20261108-021007-opt125m-h100-accelsim" / "outputs"
 
 
 def trim(value, *, items: int = 3, keys: int = 6, tail: int = 3, dict_keys=("stats", "metadata")):
@@ -61,9 +75,16 @@ class Recorder:
     def get(self, path: str):
         return self.client.get(path, headers=self.auth)
 
-    def snap(self, name: str, method: str, path: str, *, auth: bool = True, body=None, **trim_kw):
-        """Sends one request, saves it as examples/<name>.json, and returns the response."""
-        resp = self.client.request(method, path, headers=self.auth if auth else {}, json=body)
+    def snap(
+        self, name: str, method: str, path: str, *, auth=True, body=None, upload=None, **trim_kw
+    ):
+        """Sends one request, saves it as examples/<name>.json, and returns the response.
+        `upload` is (file name, bytes or byte iterator), sent as the raw body."""
+        headers = dict(self.auth) if auth else {}
+        file, content = upload or (None, None)
+        if upload:
+            headers["Content-Type"] = "application/octet-stream"
+        resp = self.client.request(method, path, headers=headers, json=body, content=content)
         ctype = resp.headers.get("content-type", "")
         if resp.status_code == 204:
             payload = None
@@ -74,15 +95,19 @@ class Recorder:
             payload = "\n".join(lines[:12])
             if len(lines) > 12:
                 payload += f"\n$trimmed {len(lines) - 12} more lines"
-        save(
-            name,
-            {
-                "request": {"method": method, "path": path, "body": body},
-                "status": resp.status_code,
-                "content_type": ctype.split(";")[0] if ctype else None,
-                "body": payload,
-            },
-        )
+        request = {"method": method, "path": path, "body": body}
+        if file:
+            request["file"] = file
+        record = {
+            "request": request,
+            "status": resp.status_code,
+            "content_type": ctype.split(";")[0] if ctype else None,
+            "body": payload,
+        }
+        attachment = re.search(r'filename="([^"]+)"', resp.headers.get("content-disposition", ""))
+        if attachment:
+            record["filename"] = attachment.group(1)
+        save(name, record)
         return resp
 
 
@@ -199,10 +224,16 @@ def main() -> int:
     rec.snap("runs-list", "GET", "/api/runs")
     rec.snap("run-detail", "GET", f"/api/runs/{run_id}")
     rec.snap("comparison", "GET", f"/api/runs/{run_id}/comparison")
+    rec.snap("run-kernels", "GET", f"/api/runs/{run_id}/kernels")
     rec.snap("run-step-timelines", "GET", f"/api/runs/{run_id}/step-timelines", items=2, keys=4)
     rec.snap("run-results", "GET", f"/api/runs/{run_id}/results", items=2, keys=4)
     rec.snap("sim-results", "GET", f"/api/sims/{sim_id}/results", items=2, keys=4)
     rec.snap("sim-log", "GET", f"/api/sims/{sim_id}/log")
+    rec.snap("run-files", "GET", f"/api/runs/{run_id}/files", items=4)
+    rec.snap("sim-files", "GET", f"/api/sims/{sim_id}/files", items=8)
+    rec.snap("sim-file", "GET", f"/api/sims/{sim_id}/files/kernel-stats.csv")
+    rec.snap("error-404-file", "GET", f"/api/sims/{sim_id}/files/nope.txt")
+    rec.snap("run-perfetto", "GET", f"/api/runs/{run_id}/perfetto", items=6)
     rec.snap("error-404-run", "GET", "/api/runs/run-000000000000")
     rec.snap("error-404-route", "GET", "/api/nope", auth=False)
 
@@ -218,6 +249,13 @@ def main() -> int:
     rec.snap("error-404-sim", "POST", "/api/sims/sim-000000000000/heartbeat", body=running)
     path = f"/api/sims/{cancelled}/step-timeline"
     rec.snap("step-timeline-post", "POST", path, body=empty_step_timing())
+
+    files = f"/api/sims/{cancelled}/files"
+    csv = (OUTPUTS / "kernel-stats.csv").read_bytes()
+    rec.snap("file-put", "PUT", f"{files}/kernel-stats.csv", upload=("kernel-stats.csv", csv))
+    over = iter([b"\0" * (1 << 20)] * (FILE_MAX_BYTES >> 20) + [b"\0"])
+    rec.snap("error-413-file", "PUT", f"{files}/big.bin", upload=("big.bin", over))
+    rec.snap("error-422-file-name", "PUT", f"{files}/my%20file.txt", upload=("my file.txt", b"x"))
     shutil.rmtree(tmp)
     return 0
 

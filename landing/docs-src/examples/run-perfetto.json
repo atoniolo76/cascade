@@ -1,0 +1,99 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/runs/run-a5c5ba6e0ac7/perfetto",
+    "body": null
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "body": {
+    "traceEvents": [
+      {
+        "ph": "M",
+        "pid": 1,
+        "name": "process_name",
+        "args": {
+          "name": "SM86_RTX3070 · Accel-Sim simulated GPU"
+        }
+      },
+      {
+        "ph": "M",
+        "pid": 1,
+        "name": "process_sort_index",
+        "args": {
+          "sort_index": 1
+        }
+      },
+      {
+        "ph": "M",
+        "pid": 1,
+        "name": "thread_name",
+        "args": {
+          "name": "replica 0 · sim-4bc665cf326e"
+        },
+        "tid": 1
+      },
+      {
+        "ph": "M",
+        "pid": 1,
+        "name": "thread_sort_index",
+        "args": {
+          "sort_index": 1
+        },
+        "tid": 1
+      },
+      {
+        "ph": "X",
+        "pid": 1,
+        "tid": 1,
+        "cat": "kernel",
+        "name": "k1 init_kernel",
+        "ts": 0.0,
+        "dur": 5.454,
+        "args": {
+          "kernel_index": 0,
+          "uid": 1,
+          "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
+          "gpu_sim_cycle": 6174,
+          "gpu_sim_insn": 19456,
+          "ipc": 3.1513,
+          "sim_time_ns": 5454.063604240282,
+          "start_cycle": 0,
+          "end_cycle": 6174
+        }
+      },
+      {
+        "ph": "X",
+        "pid": 1,
+        "tid": 1,
+        "cat": "kernel",
+        "name": "k2 copy_kernel",
+        "ts": 5.454,
+        "dur": 5.232,
+        "args": {
+          "kernel_index": 1,
+          "uid": 2,
+          "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
+          "gpu_sim_cycle": 5923,
+          "gpu_sim_insn": 11264,
+          "ipc": 1.9017,
+          "sim_time_ns": 5232.332155477032,
+          "start_cycle": 6174,
+          "end_cycle": 12097
+        }
+      },
+      {
+        "$trimmed": "12 more items"
+      }
+    ],
+    "displayTimeUnit": "ns",
+    "otherData": {
+      "run_id": "run-a5c5ba6e0ac7",
+      "trace_id": "demo",
+      "time_axis": "simulated time, microseconds; each sim's kernels laid end to end",
+      "slice_duration": "sim_time_ns = gpu_sim_cycle / core clock (MHz) * 1000",
+      "kernel_scope": "sequential kernels, each including the configured launch latency; excludes host time and memcpy"
+    }
+  },
+  "filename": "run-a5c5ba6e0ac7-perfetto.json"
+}

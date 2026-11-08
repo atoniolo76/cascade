@@ -15,9 +15,9 @@
   "status": 201,
   "content_type": "application/json",
   "body": {
-    "id": "run-9f56e171af08",
+    "id": "run-a5c5ba6e0ac7",
     "trace_id": "demo",
-    "created_at": "2026-11-08T05:20:35.174845Z",
+    "created_at": "2026-11-08T06:56:46.579503Z",
     "state": "active",
     "entries": [
       {
@@ -32,8 +32,8 @@
       "id": "demo",
       "state": "ready",
       "error": null,
-      "created_at": "2026-11-08T05:20:35.068777Z",
-      "updated_at": "2026-11-08T05:20:35.073498Z",
+      "created_at": "2026-11-08T06:56:46.379301Z",
+      "updated_at": "2026-11-08T06:56:46.381567Z",
       "model": null,
       "layers": [],
       "source_gpu": null,
@@ -46,14 +46,14 @@
     },
     "sims": [
       {
-        "id": "sim-6b4c91e71437",
-        "run_id": "run-9f56e171af08",
+        "id": "sim-4bc665cf326e",
+        "run_id": "run-a5c5ba6e0ac7",
         "gpu_config": "SM86_RTX3070",
         "replica": 0,
         "state": "pending",
         "error": null,
         "launcher_ref": null,
-        "created_at": "2026-11-08T05:20:35.174845Z",
+        "created_at": "2026-11-08T06:56:46.579503Z",
         "started_at": null,
         "finished_at": null,
         "last_heartbeat_at": null,
@@ -70,14 +70,14 @@
         "log_tail": []
       },
       {
-        "id": "sim-70f1ae5fc7c6",
-        "run_id": "run-9f56e171af08",
+        "id": "sim-09e225316002",
+        "run_id": "run-a5c5ba6e0ac7",
         "gpu_config": "SM86_RTX3070",
         "replica": 1,
         "state": "pending",
         "error": null,
         "launcher_ref": null,
-        "created_at": "2026-11-08T05:20:35.174845Z",
+        "created_at": "2026-11-08T06:56:46.579503Z",
         "started_at": null,
         "finished_at": null,
         "last_heartbeat_at": null,

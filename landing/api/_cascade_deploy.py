@@ -32,6 +32,7 @@ PID_FILE = "/data/cascade-serve.pid"
 SERVE_LOG = "/data/cascade-serve.log"
 STAND_IN_SIM_CMD = (
     "/app/.venv/bin/cascade worker --replay /app/tests/fixtures/logs/opt125m_sm90_h100.log"
+    " --replay-outputs /app/results/20261108-021007-opt125m-h100-accelsim/outputs"
 )
 STAND_IN_ACCELSIM_DIR = "/app/tests/fixtures/accelsim"
 

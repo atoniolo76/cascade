@@ -50,12 +50,13 @@
 </li>
 <li>Send <code>POST /api/sims/{id}/heartbeat</code> with <code>{"state": "running"}</code> right away, and again every few seconds. If the reply has <code>"cancel": true</code>, stop and exit.</li>
 <li>Send your output as <code>POST /api/sims/{id}/logs</code> with <code>{"seq": n, "lines": [...]}</code>, counting <code>seq</code> up from 0. Send Accel-Sim's stdout as it is. The app parses the per-kernel stats out of it.</li>
-<li>Finish with one heartbeat of <code>succeeded</code> or <code>failed</code>, with your <code>exit_code</code>, and an <code>error</code> if you failed.</li>
+<li>Optionally, upload the files your simulator wrote with <code>PUT /api/sims/{id}/files/{name}</code>, one file per call, with the raw bytes as the body. They show up under the run's <strong>Outputs</strong>.</li>
+<li>Finish with one heartbeat of <code>succeeded</code> or <code>failed</code>, with your <code>exit_code</code>, and an <code>error</code> if you failed. Send every log chunk and file before it.</li>
 </ol>
-<p><a href="api-simulator.html">Simulator endpoints</a> has the full request and response for both calls.</p>
+<p><a href="api-simulator.html">Simulator endpoints</a> has the full request and response for each call.</p>
 
 <h2 id="retries-are-safe">Retries are safe<a class="anchor" href="#retries-are-safe" aria-label="Link to this section">#</a></h2>
-<p>Both calls are safe to repeat, so retry any <code>5xx</code> or network error with backoff. The app ignores a log chunk whose <code>seq</code> it already has, and a heartbeat that repeats the current state only refreshes the heartbeat time. Don't retry a <code>4xx</code>. It means the token or the body is wrong, or the sim doesn't exist.</p>
+<p>Every call is safe to repeat, so retry any <code>5xx</code> or network error with backoff. The app ignores a log chunk whose <code>seq</code> it already has, a heartbeat that repeats the current state only refreshes the heartbeat time, and a file put again replaces the earlier one. Don't retry a <code>4xx</code>. It means the token, the body or the file name is wrong, the file is too big, or the sim doesn't exist.</p>
 <p>Keep heartbeats going while you wait on retries. After 60 seconds of silence the sim shows as <code>lost</code>, and after 600 seconds it fails and the app stops its sandbox.</p>
 
 <h2 id="the-built-in-worker">The built-in worker<a class="anchor" href="#the-built-in-worker" aria-label="Link to this section">#</a></h2>
@@ -65,8 +66,18 @@
 <li>It keeps the full log in that directory as <code>accelsim.log</code>.</li>
 <li>If the binary, a config or <code>kernelslist.g</code> is missing, it sends a <code>failed</code> heartbeat with exit code 2 and an error that names the missing path.</li>
 <li>It sends a chunk every 200 lines or 0.5 seconds, a heartbeat every 5 seconds, and every chunk before its final heartbeat.</li>
-<li><code>cascade worker --replay &lt;log&gt;</code> replays a recorded Accel-Sim log instead of running Accel-Sim. <code>--delay</code> sets the pause every 200 lines, 0.05 seconds by default. This is the stand-in simulator.</li>
+<li>After the simulator exits, succeeded or failed, it uploads its <a href="#output-files">output files</a>, then sends the final heartbeat.</li>
+<li><code>cascade worker --replay &lt;log&gt;</code> replays a recorded Accel-Sim log instead of running Accel-Sim. <code>--delay</code> sets the pause every 200 lines, 0.05 seconds by default. <code>--replay-outputs &lt;dir&gt;</code> copies the directory's files, except <code>run.log</code> and <code>setup.log</code>, into the run directory as if Accel-Sim wrote them, so they upload like real output. This is the stand-in simulator. A default deploy replays a recorded OPT-125m run and its outputs.</li>
 </ul>
+
+<h2 id="output-files">Output files<a class="anchor" href="#output-files" aria-label="Link to this section">#</a></h2>
+<p>Before it starts the simulator, <code>cascade worker</code> notes every file in its run directory, which is the copied configs. After the simulator exits, it uploads each regular file in that directory that the simulator created or changed, in name order, and then its own log as <code>accelsim.log.gz</code>. It skips symlinks and subdirectories. A cancelled sim uploads nothing.</p>
+<ul>
+<li>A text file over 1 MiB is gzipped as it uploads and stored as <code>&lt;name&gt;.gz</code>.</li>
+<li>The app keeps up to 64 MiB per file and 256 MiB per sim. The worker skips a file over a limit, and a name the app would refuse, with one log line each.</li>
+<li>A failed upload is retried like every other call. If it still fails, the worker writes a log line, and the sim's state doesn't change.</li>
+</ul>
+<p>A custom simulator uploads with the same call. <a href="api-simulator.html#put-sim-file">Upload an output file</a> has the name rules and errors.</p>
 
 <h2 id="step-timing">Step timing<a class="anchor" href="#step-timing" aria-label="Link to this section">#</a></h2>
 <p>A trace can carry two more files next to <code>metadata.json</code>. When both are there, the trace's <code>has_step_timeline</code> is true. The app checks on every scan, so they can arrive after the trace is ready.</p>
@@ -174,12 +185,12 @@ cancelled = threading.Event()
 <p>Pin the simulator to the version the profiler traced with. The profiler at <code>b348d7d</code> builds the tracer from Accel-Sim commit <code>7ba54ded</code>. The app's notes name Accel-Sim tag <code>v2.0.1</code> for the simulator.</p>
 
 <h2 id="where-output-goes">Where output goes<a class="anchor" href="#where-output-goes" aria-label="Link to this section">#</a></h2>
-<p>Anything your command prints to stdout or stderr is also saved to <code>$CASCADE_DATA_DIR/work/sims/&lt;sim id&gt;.out</code> on the sim's disk. Only what you send to <code>/logs</code> reaches the app, and only that gets parsed.</p>
+<p>Anything your command prints to stdout or stderr is also saved to <code>$CASCADE_DATA_DIR/work/sims/&lt;sim id&gt;.out</code> on the sim's disk. Only what you send to <code>/logs</code> and <code>/files</code> reaches the app, and only the log gets parsed. On Sail, the sim's disk is gone when its fork ends, so upload any file you want to keep.</p>
 
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="reading-results.html"><span>Previous</span>Reading results</a><a class="next" href="api.html"><span>Next</span>Overview and auth</a></nav>
     <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#the-contract">The contract</a></li><li class="l2"><a href="#retries-are-safe">Retries are safe</a></li><li class="l2"><a href="#the-built-in-worker">The built-in worker</a></li><li class="l2"><a href="#step-timing">Step timing</a></li><li class="l2"><a href="#a-complete-client">A complete client</a></li><li class="l2"><a href="#what-the-image-needs">What the image needs</a></li><li class="l2"><a href="#where-output-goes">Where output goes</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#the-contract">The contract</a></li><li class="l2"><a href="#retries-are-safe">Retries are safe</a></li><li class="l2"><a href="#the-built-in-worker">The built-in worker</a></li><li class="l2"><a href="#output-files">Output files</a></li><li class="l2"><a href="#step-timing">Step timing</a></li><li class="l2"><a href="#a-complete-client">A complete client</a></li><li class="l2"><a href="#what-the-image-needs">What the image needs</a></li><li class="l2"><a href="#where-output-goes">Where output goes</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">

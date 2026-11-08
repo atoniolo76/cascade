@@ -1,6 +1,6 @@
 <!--
 title: Reading results
-description: What Cascade's run screen, metrics, comparison panel and results downloads mean, and where each number comes from in Accel-Sim's output.
+description: What Cascade's run screen, metrics, comparison panel, output files, Perfetto trace and downloads mean, and where each number comes from in Accel-Sim's output.
 -->
 <p class="lede">Every number Cascade shows comes from Accel-Sim's own output. Sims send raw stdout, and the app parses one stats block per finished kernel out of it.</p>
 
@@ -26,11 +26,31 @@ sim_time_ns = gpu_sim_cycle / core_clock_mhz * 1000
 <p>When a trace has real timings from the original GPU, row `i` also shows the `i`th real kernel by `kernel_id`, and the panel shows each config's relative error per kernel and its mean absolute error over all kernels. The app reads them from `real_timing.json` in the trace, or the file `metadata.json` names in `real_timing`, as a list of `{kernel_id, kernel_name, duration_ns, grid, block}`.</p>
 <div class="note"><p>The profiler doesn't capture real timings yet. Until it does, `has_real_timing` is false, `real_ns` is `null` on every row, and the panel shows simulated time only.</p></div>
 
+<h2>Outputs</h2>
+<p>A simulator can upload the files it writes. `cascade worker` uploads every file Accel-Sim created or changed in its run directory, such as `kernel-stats.csv`, `gpgpu_inst_stats.txt` and `exit-status.txt`, and then its own log as `accelsim.log.gz`. It does this when the simulator exits, succeeded or failed, before the final heartbeat. A cancelled sim uploads nothing.</p>
+<p>The run screen's **Outputs** card groups the files by config, then by replica, with each file's size. Select a sim card, and its panel lists the same sim's files under **Files**. Every file has a download button. A `.csv`, `.txt` or `.log` file up to 16 MiB, gzipped or not, also has a preview button that shows its first 200 lines.</p>
+<p>The card has two more buttons. **Perfetto JSON** downloads the run's [Perfetto trace](#the-perfetto-trace). **Open in Perfetto** opens ui.perfetto.dev in a new tab and hands it the same trace, so there is no file to save and open. Both stay disabled until a sim has finished a kernel.</p>
+<p>In the examples on these pages, each sim's output files come from a recorded OPT-125m run on `SM90_H100`, which the stand-in copies in with `--replay-outputs`. They don't match the BabelStream log the sim replays.</p>
+
+<h2>The Perfetto trace</h2>
+<p>The app builds the trace from the kernel stats it parsed, so every run has one, whether or not the simulator wrote its own. It is a Chrome trace JSON file.</p>
+<ul>
+<li>Each config is one process, named `<config> · Accel-Sim simulated GPU`.</li>
+<li>Each replica is one thread in its config's process, named `replica <n> · <sim id>`.</li>
+<li>Each finished kernel is one slice, named `k<uid> <readable name>`, such as `k2 copy_kernel`. The readable name is the one the run screen shows.</li>
+<li>A sim's slices are laid end to end in kernel order. A slice lasts the kernel's `sim_time_ns`, and the time axis is simulated microseconds. A kernel without `sim_time_ns` is left out.</li>
+<li>Each slice's args hold `kernel_name` as recorded, `kernel_index`, `uid`, `gpu_sim_cycle`, `gpu_sim_insn`, `ipc` and `sim_time_ns`. `start_cycle` and `end_cycle` count the sim's cycles before and after the kernel.</li>
+<li>When the trace has real timing, one more process, `Real hardware · <source_gpu>`, holds the measured kernels the same way.</li>
+</ul>
+<p>Each slice includes the config's launch latency. Laying kernels end to end leaves out host time, copies and any overlap between kernels.</p>
+
 <h2>Downloads</h2>
 <div class="table-wrap"><table class="table"><thead><tr><th>download</th><th>where</th><th>contents</th></tr></thead><tbody>
 <tr><td>Run results</td><td>**Download results** on the run screen, or [the API](api-runs.html#get-run-results)</td><td>One `RunResults` JSON file: the run, the trace, every sim's per-kernel stats, and the comparison.</td></tr>
 <tr><td>Sim results</td><td>**Results** on a sim card, or [the API](api-runs.html#get-sim-results)</td><td>One `SimResults` file: the sim, its config, its kernels and its totals.</td></tr>
 <tr><td>Log</td><td>**Log** on a sim card, or [the API](api-runs.html#get-sim-log)</td><td>The sim's full raw output, as plain text.</td></tr>
+<tr><td>Output file</td><td>The **Outputs** card, **Files** in a sim's panel, or [the API](api-runs.html#get-sim-file)</td><td>One file as the sim uploaded it. A `.gz` file stays compressed.</td></tr>
+<tr><td>Perfetto JSON</td><td>**Perfetto JSON** on the **Outputs** card, or [the API](api-runs.html#get-run-perfetto)</td><td>The run's simulated kernels as a Chrome trace JSON, named `<run_id>-perfetto.json`.</td></tr>
 </tbody></table></div>
 <p>Each kernel in a results file has a `stats` map with every `key = value` line in its Accel-Sim block, about 950 keys and 30 KB per kernel. Numbers are parsed as floats, and anything else stays a string. The live run screen leaves `stats` out to stay small. Use the downloads for it.</p>
 

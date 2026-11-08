@@ -1,5 +1,6 @@
 """`cascade worker` in real mode, with a stub standing in for Accel-Sim's accel-sim.out."""
 
+import gzip
 import json
 import os
 import shutil
@@ -28,6 +29,14 @@ if mode == "hang":
     print("GPGPU-Sim: started", flush=True)
     time.sleep(600)
 sys.stdout.write(Path({log!r}).read_text())
+Path("kernel-stats.csv").write_text("uid,name\\n1,k\\n")
+Path("gpgpu_inst_stats.txt").write_text("".join(f"line {{i}}\\n" for i in range(200_000)))
+Path("blob.bin").write_bytes(bytes(range(256)) * 8192)
+Path("bad name.txt").write_text("x")
+Path("trace.config").write_text("rewritten by the simulator\\n")
+Path("sub").mkdir()
+Path("sub", "nested.txt").write_text("x")
+Path("link.txt").symlink_to("kernel-stats.csv")
 sys.exit(3 if mode == "crash" else 0)
 """
 
@@ -99,14 +108,48 @@ def test_real_mode_runs_accel_sim_on_the_trace_in_a_fresh_run_dir(app, accelsim,
     assert (run_dir / "accelsim.log").read_text().startswith(BABELSTREAM_LOG.read_text())
 
 
+def sim_files(client, sim_id) -> dict[str, bytes]:
+    names = [f["name"] for f in client.get(f"/api/sims/{sim_id}/files").json()]
+    return {n: client.get(f"/api/sims/{sim_id}/files/{n}").content for n in names}
+
+
+def test_uploads_the_files_accel_sim_wrote_and_not_the_copied_configs(app, accelsim, tmp_path):
+    with app() as (client, _, settings):
+        ready_trace(client, settings)
+        run = finished_run(client, launch(client, "trace-rtx", CONFIG)["id"])
+        sim = run["sims"][0]
+        files = sim_files(client, sim["id"])
+        log = client.get(f"/api/sims/{sim['id']}/log").text
+    run_dir = tmp_path / "tmp" / "cascade-worker" / sim["id"]
+    assert sorted(files) == [
+        "accelsim.log.gz",
+        "blob.bin",
+        "gpgpu_inst_stats.txt.gz",
+        "kernel-stats.csv",
+        "trace.config",
+    ]
+    assert files["kernel-stats.csv"] == b"uid,name\n1,k\n"
+    assert files["blob.bin"] == (run_dir / "blob.bin").read_bytes()
+    big = (run_dir / "gpgpu_inst_stats.txt").read_bytes()
+    assert len(big) > 1 << 20 and gzip.decompress(files["gpgpu_inst_stats.txt.gz"]) == big
+    assert files["trace.config"] == b"rewritten by the simulator\n"
+    assert (
+        gzip.decompress(files["accelsim.log.gz"]).decode().startswith(BABELSTREAM_LOG.read_text())
+    )
+    assert "cascade worker: skipped output bad name.txt: its name is not allowed" in log
+    assert sim["state"] == "succeeded"
+
+
 def test_nonzero_exit_fails_the_sim_with_its_code(app, accelsim):
     (accelsim / "gpu-simulator/bin/release/mode").write_text("crash")
     with app() as (client, _, settings):
         ready_trace(client, settings)
         run = finished_run(client, launch(client, "trace-rtx", CONFIG)["id"])
+        uploaded = [f["name"] for f in client.get(f"/api/runs/{run['id']}/files").json()]
     sim = run["sims"][0]
     assert (sim["state"], sim["exit_code"], sim["error"]) == ("failed", 3, "accel-sim exited 3")
     assert sim["kernels_done"] == 6
+    assert "kernel-stats.csv" in uploaded and "accelsim.log.gz" in uploaded
 
 
 def test_missing_binary_fails_with_a_clear_error(app, accelsim):

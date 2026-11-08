@@ -1,15 +1,15 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/runs/run-e6313d0efcd7/cancel",
+    "path": "/api/runs/run-5c68b1040436/cancel",
     "body": null
   },
   "status": 200,
   "content_type": "application/json",
   "body": {
-    "id": "run-e6313d0efcd7",
+    "id": "run-5c68b1040436",
     "trace_id": "demo",
-    "created_at": "2026-11-08T05:20:38.756018Z",
+    "created_at": "2026-11-08T06:56:50.220386Z",
     "state": "cancelled",
     "entries": [
       {
@@ -24,8 +24,8 @@
       "id": "demo",
       "state": "ready",
       "error": null,
-      "created_at": "2026-11-08T05:20:35.068777Z",
-      "updated_at": "2026-11-08T05:20:35.073498Z",
+      "created_at": "2026-11-08T06:56:46.379301Z",
+      "updated_at": "2026-11-08T06:56:46.381567Z",
       "model": null,
       "layers": [],
       "source_gpu": null,
@@ -38,16 +38,16 @@
     },
     "sims": [
       {
-        "id": "sim-4027617ca959",
-        "run_id": "run-e6313d0efcd7",
+        "id": "sim-48c07a8a5767",
+        "run_id": "run-5c68b1040436",
         "gpu_config": "SM86_RTX3070",
         "replica": 0,
         "state": "cancelled",
         "error": null,
-        "launcher_ref": "60381",
-        "created_at": "2026-11-08T05:20:38.756018Z",
+        "launcher_ref": "41228",
+        "created_at": "2026-11-08T06:56:50.220386Z",
         "started_at": null,
-        "finished_at": "2026-11-08T05:20:38.759576Z",
+        "finished_at": "2026-11-08T06:56:50.223595Z",
         "last_heartbeat_at": null,
         "exit_code": null,
         "kernels_done": 0,

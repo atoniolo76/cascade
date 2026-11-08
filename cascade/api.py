@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import mimetypes
+import re
 import secrets
 import statistics
 import threading
+import uuid
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -22,6 +26,9 @@ from cascade.gpu_configs import GpuConfigRegistry
 from cascade.ingest import Ingestor
 from cascade.launcher import Launcher, make_launcher
 from cascade.models import (
+    FILE_MAX_BYTES,
+    FILE_NAME_PATTERN,
+    SIM_FILES_MAX_BYTES,
     TERMINAL_SIM_STATES,
     Comparison,
     ComparisonRow,
@@ -34,9 +41,11 @@ from cascade.models import (
     LogEvent,
     RunCreate,
     RunDetail,
+    RunFile,
     RunResults,
     RunSummary,
     SimEvent,
+    SimFile,
     SimResults,
     SimState,
     SimStepTimeline,
@@ -47,6 +56,7 @@ from cascade.models import (
     TraceState,
     TraceSummary,
 )
+from cascade.perfetto import run_trace
 from cascade.settings import Settings
 from cascade.stats import LogParser
 from cascade.store import IllegalTransition, Store, now
@@ -58,6 +68,13 @@ SWEEP_S = 5.0
 SSE_KEEPALIVE_S = 15.0
 SSE_QUEUE_MAX = 2000
 LOST_GIVE_UP_FACTOR = 10
+CONTENT_TYPES = {
+    ".csv": "text/csv",
+    ".txt": "text/plain",
+    ".log": "text/plain",
+    ".json": "application/json",
+    ".gz": "application/gzip",
+}
 
 
 class Bus:
@@ -336,6 +353,11 @@ def _attachment(model: BaseModel, filename: str) -> Response:
     )
 
 
+def content_type(name: str) -> str:
+    known = CONTENT_TYPES.get(Path(name).suffix.lower())
+    return known or mimetypes.guess_type(name, strict=False)[0] or "application/octet-stream"
+
+
 def create_app(settings: Settings | None = None, launcher: Launcher | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     cascade = Cascade(settings, launcher)
@@ -524,6 +546,81 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
         get_sim_or_404(sim_id)
         store.set_step_timeline(sim_id, body)
         return Response(status_code=204)
+
+    files_lock = threading.Lock()
+
+    def file_path(sim_id: str, name: str) -> Path:
+        return settings.files_root / sim_id / name
+
+    def too_big(size: int, others: int) -> HTTPException | None:
+        if size > FILE_MAX_BYTES:
+            return HTTPException(413, f"file is over the {FILE_MAX_BYTES >> 20} MiB per-file limit")
+        if others + size > SIM_FILES_MAX_BYTES:
+            return HTTPException(
+                413, f"sim's files would pass the {SIM_FILES_MAX_BYTES >> 20} MiB total limit"
+            )
+        return None
+
+    def commit_file(sim_id: str, name: str, part: Path, size: int) -> SimFile:
+        with files_lock:
+            if error := too_big(size, store.files_bytes(sim_id, name)):
+                raise error
+            dest = file_path(sim_id, name)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            part.replace(dest)
+            return store.put_file(sim_id, name, size, content_type(name))
+
+    @app.put("/api/sims/{sim_id}/files/{name}", dependencies=auth)
+    async def put_file(sim_id: str, name: str, request: Request) -> SimFile:
+        if not re.fullmatch(FILE_NAME_PATTERN, name):
+            raise HTTPException(422, f"file name {name!r} must match {FILE_NAME_PATTERN}")
+        await run_in_threadpool(get_sim_or_404, sim_id)
+        others = await run_in_threadpool(store.files_bytes, sim_id, name)
+        part = settings.files_root / ".parts" / uuid.uuid4().hex
+        part.parent.mkdir(parents=True, exist_ok=True)
+        size, error = 0, None
+        try:
+            with part.open("wb") as f:
+                # Reads the whole body even past a limit, so the client gets the 413 instead of
+                # a reset connection mid-upload.
+                async for chunk in request.stream():
+                    size += len(chunk)
+                    error = error or too_big(size, others)
+                    if error is None:
+                        f.write(chunk)
+            if error is not None:
+                raise error
+            return await run_in_threadpool(commit_file, sim_id, name, part, size)
+        finally:
+            part.unlink(missing_ok=True)
+
+    @app.get("/api/sims/{sim_id}/files", dependencies=auth)
+    def sim_files(sim_id: str) -> list[SimFile]:
+        get_sim_or_404(sim_id)
+        return store.sim_files(sim_id)
+
+    @app.get("/api/sims/{sim_id}/files/{name}", dependencies=auth)
+    def get_file(sim_id: str, name: str) -> FileResponse:
+        get_sim_or_404(sim_id)
+        file = store.get_file(sim_id, name)
+        if file is None:
+            raise HTTPException(404, f"sim {sim_id} has no file {name!r}")
+        return FileResponse(file_path(sim_id, name), media_type=file.content_type, filename=name)
+
+    @app.get("/api/runs/{run_id}/files", dependencies=auth)
+    def run_files(run_id: str) -> list[RunFile]:
+        get_run_or_404(run_id)
+        return store.run_files(run_id)
+
+    @app.get("/api/runs/{run_id}/perfetto", dependencies=auth)
+    def run_perfetto(run_id: str) -> Response:
+        run = get_run_or_404(run_id)
+        trace = run_trace(run, cascade.light_kernels(run_id), store.real_timing(run.trace_id))
+        return Response(
+            json.dumps(trace, allow_nan=False),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{run_id}-perfetto.json"'},
+        )
 
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
     def api_not_found(path: str) -> JSONResponse:

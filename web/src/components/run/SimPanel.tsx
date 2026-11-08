@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Download, FileText, RefreshCw, X } from "lucide-react";
 import { apiText, downloadFile } from "../../api/client";
+import { useSimFiles } from "../../api/queries";
 import type { SimState, SimSummary } from "../../api/types";
-import { formatAge, formatCompact, formatDuration, formatExact, formatInt, formatPercent, ms } from "../../domain/format";
+import { formatAge, formatBytes, formatCompact, formatDuration, formatExact, formatInt, formatPercent, ms, plural } from "../../domain/format";
 import { linesReceivedSince, type SimLog } from "../../domain/runLive";
 import { OVER_HINT, kernelProgress } from "../../domain/stats";
 import { SIM_STATE } from "../../domain/status";
@@ -10,6 +11,7 @@ import { useNow } from "../../hooks/useNow";
 import { BlockMeter, Status } from "../meters";
 import { Button, CopyButton, ErrorNote, IconButton, Skeleton, Swatch } from "../ui";
 import { ICON } from "../styles";
+import { FileRows } from "./Files";
 import { LogLines } from "./LogLines";
 import { LogoTile } from "../BrandLogo";
 import { gpuLogo, logoByKey } from "../../domain/logos";
@@ -170,8 +172,34 @@ export function SimPanel({
           )}
         </div>
 
+        <SimFiles key={`files-${sim.id}`} sim={sim} />
         <SimLogView key={sim.id} sim={sim} log={log} />
       </aside>
+    </div>
+  );
+}
+
+function SimFiles({ sim }: { sim: SimSummary }) {
+  const terminal = SIM_STATE[sim.state].terminal;
+  const files = useSimFiles(sim.id, { live: !terminal });
+  const list = files.data ?? [];
+  const note =
+    files.data === undefined
+      ? files.isError
+        ? "Couldn't load the file list"
+        : "Loading…"
+      : list.length > 0
+        ? `${plural(list.length, "file")} · ${formatBytes(list.reduce((n, f) => n + f.size, 0))}`
+        : terminal
+          ? "None uploaded"
+          : "Uploaded when the sim finishes";
+  return (
+    <div className="border-b border-border px-5 py-2">
+      <div className="flex h-6 items-center gap-2 text-[12px]">
+        <span className="font-medium text-fg-2">Files</span>
+        <span className="truncate text-muted tabular-nums">{note}</span>
+      </div>
+      {list.length > 0 && <FileRows simId={sim.id} files={list} className="max-h-[132px] overflow-y-auto overscroll-contain" />}
     </div>
   );
 }

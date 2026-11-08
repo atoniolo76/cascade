@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reading results · Cascade docs</title>
-<meta name="description" content="What Cascade&#x27;s run screen, metrics, comparison panel and results downloads mean, and where each number comes from in Accel-Sim&#x27;s output.">
+<meta name="description" content="What Cascade&#x27;s run screen, metrics, comparison panel, output files, Perfetto trace and downloads mean, and where each number comes from in Accel-Sim&#x27;s output.">
 <meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -55,11 +55,31 @@
 <p>When a trace has real timings from the original GPU, row <code>i</code> also shows the <code>i</code>th real kernel by <code>kernel_id</code>, and the panel shows each config's relative error per kernel and its mean absolute error over all kernels. The app reads them from <code>real_timing.json</code> in the trace, or the file <code>metadata.json</code> names in <code>real_timing</code>, as a list of <code>{kernel_id, kernel_name, duration_ns, grid, block}</code>.</p>
 <div class="note"><p>The profiler doesn't capture real timings yet. Until it does, <code>has_real_timing</code> is false, <code>real_ns</code> is <code>null</code> on every row, and the panel shows simulated time only.</p></div>
 
+<h2 id="outputs">Outputs<a class="anchor" href="#outputs" aria-label="Link to this section">#</a></h2>
+<p>A simulator can upload the files it writes. <code>cascade worker</code> uploads every file Accel-Sim created or changed in its run directory, such as <code>kernel-stats.csv</code>, <code>gpgpu_inst_stats.txt</code> and <code>exit-status.txt</code>, and then its own log as <code>accelsim.log.gz</code>. It does this when the simulator exits, succeeded or failed, before the final heartbeat. A cancelled sim uploads nothing.</p>
+<p>The run screen's <strong>Outputs</strong> card groups the files by config, then by replica, with each file's size. Select a sim card, and its panel lists the same sim's files under <strong>Files</strong>. Every file has a download button. A <code>.csv</code>, <code>.txt</code> or <code>.log</code> file up to 16 MiB, gzipped or not, also has a preview button that shows its first 200 lines.</p>
+<p>The card has two more buttons. <strong>Perfetto JSON</strong> downloads the run's <a href="#the-perfetto-trace">Perfetto trace</a>. <strong>Open in Perfetto</strong> opens ui.perfetto.dev in a new tab and hands it the same trace, so there is no file to save and open. Both stay disabled until a sim has finished a kernel.</p>
+<p>In the examples on these pages, each sim's output files come from a recorded OPT-125m run on <code>SM90_H100</code>, which the stand-in copies in with <code>--replay-outputs</code>. They don't match the BabelStream log the sim replays.</p>
+
+<h2 id="the-perfetto-trace">The Perfetto trace<a class="anchor" href="#the-perfetto-trace" aria-label="Link to this section">#</a></h2>
+<p>The app builds the trace from the kernel stats it parsed, so every run has one, whether or not the simulator wrote its own. It is a Chrome trace JSON file.</p>
+<ul>
+<li>Each config is one process, named <code>&lt;config&gt; · Accel-Sim simulated GPU</code>.</li>
+<li>Each replica is one thread in its config's process, named <code>replica &lt;n&gt; · &lt;sim id&gt;</code>.</li>
+<li>Each finished kernel is one slice, named <code>k&lt;uid&gt; &lt;readable name&gt;</code>, such as <code>k2 copy_kernel</code>. The readable name is the one the run screen shows.</li>
+<li>A sim's slices are laid end to end in kernel order. A slice lasts the kernel's <code>sim_time_ns</code>, and the time axis is simulated microseconds. A kernel without <code>sim_time_ns</code> is left out.</li>
+<li>Each slice's args hold <code>kernel_name</code> as recorded, <code>kernel_index</code>, <code>uid</code>, <code>gpu_sim_cycle</code>, <code>gpu_sim_insn</code>, <code>ipc</code> and <code>sim_time_ns</code>. <code>start_cycle</code> and <code>end_cycle</code> count the sim's cycles before and after the kernel.</li>
+<li>When the trace has real timing, one more process, <code>Real hardware · &lt;source_gpu&gt;</code>, holds the measured kernels the same way.</li>
+</ul>
+<p>Each slice includes the config's launch latency. Laying kernels end to end leaves out host time, copies and any overlap between kernels.</p>
+
 <h2 id="downloads">Downloads<a class="anchor" href="#downloads" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table class="table"><thead><tr><th>download</th><th>where</th><th>contents</th></tr></thead><tbody>
 <tr><td>Run results</td><td><strong>Download results</strong> on the run screen, or <a href="api-runs.html#get-run-results">the API</a></td><td>One <a href="types.html#runresults"><code>RunResults</code></a> JSON file: the run, the trace, every sim's per-kernel stats, and the comparison.</td></tr>
 <tr><td>Sim results</td><td><strong>Results</strong> on a sim card, or <a href="api-runs.html#get-sim-results">the API</a></td><td>One <a href="types.html#simresults"><code>SimResults</code></a> file: the sim, its config, its kernels and its totals.</td></tr>
 <tr><td>Log</td><td><strong>Log</strong> on a sim card, or <a href="api-runs.html#get-sim-log">the API</a></td><td>The sim's full raw output, as plain text.</td></tr>
+<tr><td>Output file</td><td>The <strong>Outputs</strong> card, <strong>Files</strong> in a sim's panel, or <a href="api-runs.html#get-sim-file">the API</a></td><td>One file as the sim uploaded it. A <code>.gz</code> file stays compressed.</td></tr>
+<tr><td>Perfetto JSON</td><td><strong>Perfetto JSON</strong> on the <strong>Outputs</strong> card, or <a href="api-runs.html#get-run-perfetto">the API</a></td><td>The run's simulated kernels as a Chrome trace JSON, named <code>&lt;run_id&gt;-perfetto.json</code>.</td></tr>
 </tbody></table></div>
 <p>Each kernel in a results file has a <code>stats</code> map with every <code>key = value</code> line in its Accel-Sim block, about 950 keys and 30 KB per kernel. Numbers are parsed as floats, and anything else stays a string. The live run screen leaves <code>stats</code> out to stay small. Use the downloads for it.</p>
 
@@ -70,7 +90,7 @@
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="runs.html"><span>Previous</span>Runs</a><a class="next" href="simulator.html"><span>Next</span>Bring your own simulator</a></nav>
     <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#metrics-on-a-sim-card">Metrics on a sim card</a></li><li class="l2"><a href="#simulated-time-per-kernel">Simulated time per kernel</a></li><li class="l2"><a href="#real-against-simulated">Real against simulated</a></li><li class="l2"><a href="#downloads">Downloads</a></li><li class="l2"><a href="#how-the-parser-reads-a-log">How the parser reads a log</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#metrics-on-a-sim-card">Metrics on a sim card</a></li><li class="l2"><a href="#simulated-time-per-kernel">Simulated time per kernel</a></li><li class="l2"><a href="#real-against-simulated">Real against simulated</a></li><li class="l2"><a href="#outputs">Outputs</a></li><li class="l2"><a href="#the-perfetto-trace">The Perfetto trace</a></li><li class="l2"><a href="#downloads">Downloads</a></li><li class="l2"><a href="#how-the-parser-reads-a-log">How the parser reads a log</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">

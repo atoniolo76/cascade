@@ -203,6 +203,26 @@ class SimStepTimeline(BaseModel):
     compare: dict | None
 
 
+FILE_NAME_PATTERN = r"^(?!\.\.?$)[A-Za-z0-9._-]{1,128}$"
+FILE_MAX_BYTES = 64 << 20  # per output file; a bigger PUT is 413
+SIM_FILES_MAX_BYTES = 256 << 20  # all of one sim's output files together
+
+
+class SimFile(BaseModel):
+    """An output file a sim uploaded with PUT /api/sims/{id}/files/{name}."""
+
+    name: str  # matches FILE_NAME_PATTERN; Accel-Sim's name, plus .gz when the worker gzipped it
+    size: int  # bytes as stored
+    content_type: str
+    created_at: datetime  # when this version was stored; a re-put replaces the file
+
+
+class RunFile(SimFile):
+    sim_id: str
+    gpu_config: str
+    replica: int
+
+
 class ComparisonRow(BaseModel):
     kernel_index: int
     kernel_name: str

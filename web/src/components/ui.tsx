@@ -1,6 +1,6 @@
-import { useEffect, useState, type ButtonHTMLAttributes, type ComponentProps, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type ComponentProps, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
-import { Check, Copy, Minus, Plus } from "lucide-react";
+import { Check, Copy, Minus, Plus, X } from "lucide-react";
 import { formatAge, formatExact, ms } from "../domain/format";
 import { TONE_VARS, type Tone } from "../domain/status";
 import { useNow } from "../hooks/useNow";
@@ -266,4 +266,46 @@ export function Th({ icon, children, className }: { icon?: ReactNode; children?:
 
 export function Dash() {
   return <span className="text-faint">—</span>;
+}
+
+/** Mounted means open; unmounting drops it from the top layer, so it is never closed by hand. Keys stop here so Esc closes only the dialog, not the page's shortcuts behind it. */
+export function Dialog({ title, subtitle, actions, onClose, className, children }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; onClose: () => void; className?: string; children: ReactNode }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const d = ref.current;
+    if (d !== null && !d.open) d.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby={titleId}
+      onClose={onClose}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={cx("m-auto max-h-[calc(100dvh-32px)] w-[min(960px,calc(100vw-32px))] overflow-hidden rounded-[22px] bg-surface p-0 text-fg shadow-pop ring-1 ring-border backdrop:bg-black/30", className)}
+    >
+      <div className="flex max-h-[calc(100dvh-32px)] flex-col">
+        <div className="flex items-start gap-3 border-b border-border px-5 pt-4 pb-3.5">
+          <div className="min-w-0 flex-1">
+            <h2 id={titleId} className="truncate text-[15px] leading-6 font-medium text-fg">
+              {title}
+            </h2>
+            {subtitle !== undefined && <div className="text-[13px] leading-5 text-muted">{subtitle}</div>}
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {actions}
+            <IconButton label="Close (Esc)" onClick={onClose}>
+              <X className="size-[18px]" {...ICON} />
+            </IconButton>
+          </div>
+        </div>
+        {children}
+      </div>
+    </dialog>
+  );
 }

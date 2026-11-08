@@ -61,7 +61,7 @@ function detailMessage(body: unknown, fallback: string): string {
   return fallback;
 }
 
-async function request(path: string, init?: RequestInit): Promise<Response> {
+export async function request(path: string, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
   const token = tokenStore.get();
   if (token !== null) headers.set("Authorization", `Bearer ${token}`);

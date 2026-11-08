@@ -1,14 +1,14 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/runs/run-9f56e171af08/step-timelines",
+    "path": "/api/runs/run-a5c5ba6e0ac7/step-timelines",
     "body": null
   },
   "status": 200,
   "content_type": "application/json",
   "body": [
     {
-      "sim_id": "sim-6b4c91e71437",
+      "sim_id": "sim-4bc665cf326e",
       "gpu_config": "SM86_RTX3070",
       "replica": 0,
       "simulated": {
@@ -278,7 +278,7 @@
       }
     },
     {
-      "sim_id": "sim-70f1ae5fc7c6",
+      "sim_id": "sim-09e225316002",
       "gpu_config": "SM86_RTX3070",
       "replica": 1,
       "simulated": {

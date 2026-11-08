@@ -9,7 +9,7 @@ description: The status codes the Cascade API returns, the two error body shapes
 {{example error-401}}
 
 <h2 id="e404">404 Not Found</h2>
-<p>The trace, run or sim in the path doesn't exist, or `trace_id` in a new run names no trace. `detail` names what's missing.</p>
+<p>The trace, run, sim or sim's file in the path doesn't exist, or `trace_id` in a new run names no trace. `detail` names what's missing.</p>
 {{example error-404-run}}
 <p>A path under `/api/` that no route serves gets a plain `Not Found`, without a token check.</p>
 {{example error-404-route}}
@@ -18,10 +18,15 @@ description: The status codes the Cascade API returns, the two error body shapes
 <p>Only [Create a run](api-runs.html#create-run) returns `409`, when the trace exists but isn't `ready`. Wait for it to finish processing, or check its `error` if it `failed`.</p>
 {{example error-409}}
 
+<h2 id="e413">413 Content Too Large</h2>
+<p>Only [Upload an output file](api-simulator.html#put-sim-file) returns `413`, when the file is over 64 MiB or the sim's files would pass 256 MiB in all. The app reads the whole body before it answers, so the client gets the `413` instead of a dropped connection.</p>
+{{example error-413-file}}
+
 <h2 id="e422">422 Unprocessable Entity</h2>
-<p>`422` has two shapes. When a run asks for a config the app doesn't have, or one for another architecture, `detail` is a sentence.</p>
+<p>`422` has two shapes. When a run asks for a config the app doesn't have, or one for another architecture, or a file upload has a name the app refuses, `detail` is a sentence.</p>
 {{example error-422-unknown-config}}
 {{example error-422-arch}}
+{{example error-422-file-name}}
 <p>When the body doesn't match its model, `detail` is a list. Each entry has a `type`, a `loc` path into the request, a `msg`, the `input` it rejected, and sometimes a `ctx` with the limit.</p>
 {{example error-422-validation}}
 

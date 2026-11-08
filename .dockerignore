@@ -7,3 +7,8 @@ data
 web/node_modules
 web/dist
 cascade/static
+# Only the OPT-125m outputs the stand-in replays; the other results are big.
+results/*
+!results/20261108-021007-opt125m-h100-accelsim
+results/20261108-021007-opt125m-h100-accelsim/*
+!results/20261108-021007-opt125m-h100-accelsim/outputs

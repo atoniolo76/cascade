@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/sims/sim-4bc665cf326e/files/nope.txt",
+    "body": null
+  },
+  "status": 404,
+  "content_type": "application/json",
+  "body": {
+    "detail": "sim sim-4bc665cf326e has no file 'nope.txt'"
+  }
+}

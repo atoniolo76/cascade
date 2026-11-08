@@ -43,7 +43,7 @@
 }</code></pre></div>
 
 <h2 id="e404">404 Not Found<a class="anchor" href="#e404" aria-label="Link to this section">#</a></h2>
-<p>The trace, run or sim in the path doesn't exist, or <code>trace_id</code> in a new run names no trace. <code>detail</code> names what's missing.</p>
+<p>The trace, run, sim or sim's file in the path doesn't exist, or <code>trace_id</code> in a new run names no trace. <code>detail</code> names what's missing.</p>
 <div class="code"><div class="code-bar"><span>Response · 404 Not Found · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"detail"</span>: <span class="tk-s">"run run-000000000000 not found"</span>
 }</code></pre></div>
@@ -58,13 +58,22 @@
   <span class="tk-k">"detail"</span>: <span class="tk-s">"trace demo-failed is failed, not ready"</span>
 }</code></pre></div>
 
+<h2 id="e413">413 Content Too Large<a class="anchor" href="#e413" aria-label="Link to this section">#</a></h2>
+<p>Only <a href="api-simulator.html#put-sim-file">Upload an output file</a> returns <code>413</code>, when the file is over 64 MiB or the sim's files would pass 256 MiB in all. The app reads the whole body before it answers, so the client gets the <code>413</code> instead of a dropped connection.</p>
+<div class="code"><div class="code-bar"><span>Response · 413 Content Too Large · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"detail"</span>: <span class="tk-s">"file is over the 64 MiB per-file limit"</span>
+}</code></pre></div>
+
 <h2 id="e422">422 Unprocessable Entity<a class="anchor" href="#e422" aria-label="Link to this section">#</a></h2>
-<p><code>422</code> has two shapes. When a run asks for a config the app doesn't have, or one for another architecture, <code>detail</code> is a sentence.</p>
+<p><code>422</code> has two shapes. When a run asks for a config the app doesn't have, or one for another architecture, or a file upload has a name the app refuses, <code>detail</code> is a sentence.</p>
 <div class="code"><div class="code-bar"><span>Response · 422 Unprocessable Entity · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"detail"</span>: <span class="tk-s">"unknown gpu_config 'SM99_X'"</span>
 }</code></pre></div>
 <div class="code"><div class="code-bar"><span>Response · 422 Unprocessable Entity · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"detail"</span>: <span class="tk-s">"SM90_H100 is sm_90 but trace demo is sm_86"</span>
+}</code></pre></div>
+<div class="code"><div class="code-bar"><span>Response · 422 Unprocessable Entity · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"detail"</span>: <span class="tk-s">"file name 'my file.txt' must match ^(?!\\.\\.?$)[A-Za-z0-9._-]{1,128}$"</span>
 }</code></pre></div>
 <p>When the body doesn't match its model, <code>detail</code> is a list. Each entry has a <code>type</code>, a <code>loc</code> path into the request, a <code>msg</code>, the <code>input</code> it rejected, and sometimes a <code>ctx</code> with the limit.</p>
 <div class="code"><div class="code-bar"><span>Response · 422 Unprocessable Entity · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
@@ -92,7 +101,7 @@
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="types.html"><span>Previous</span>Types</a><a class="next" href="troubleshooting.html"><span>Next</span>Troubleshooting</a></nav>
     <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#e401">401 Unauthorized</a></li><li class="l2"><a href="#e404">404 Not Found</a></li><li class="l2"><a href="#e409">409 Conflict</a></li><li class="l2"><a href="#e422">422 Unprocessable Entity</a></li><li class="l2"><a href="#server-errors">Server errors</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#e401">401 Unauthorized</a></li><li class="l2"><a href="#e404">404 Not Found</a></li><li class="l2"><a href="#e409">409 Conflict</a></li><li class="l2"><a href="#e413">413 Content Too Large</a></li><li class="l2"><a href="#e422">422 Unprocessable Entity</a></li><li class="l2"><a href="#server-errors">Server errors</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">

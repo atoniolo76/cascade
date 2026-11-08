@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "PUT",
+    "path": "/api/sims/sim-48c07a8a5767/files/kernel-stats.csv",
+    "body": null,
+    "file": "kernel-stats.csv"
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "body": {
+    "name": "kernel-stats.csv",
+    "size": 3829,
+    "content_type": "text/csv",
+    "created_at": "2026-11-08T06:56:50.236353Z"
+  }
+}

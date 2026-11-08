@@ -7,6 +7,7 @@ import type { RunDetail, SimState } from "../api/types";
 import { PageHeader } from "../components/AppShell";
 import { BlockMeter, Status } from "../components/meters";
 import { ComparisonPanel } from "../components/run/ComparisonPanel";
+import { OutputsPanel } from "../components/run/OutputsPanel";
 import { SimGrid } from "../components/run/SimGrid";
 import { SimPanel } from "../components/run/SimPanel";
 import { SimTimePanel } from "../components/run/SimTimePanel";
@@ -202,6 +203,8 @@ function RunView({ live, connection, onRun }: { live: Live; connection: Connecti
           </div>
 
           <StepTimingPanel runId={run.id} live={runState === "active"} series={series} />
+
+          <OutputsPanel runId={run.id} live={runState === "active"} hasKernels={Object.keys(live.kernels).length > 0} series={series} />
         </div>
       </div>
       {selected && (
