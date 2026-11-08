@@ -7,3 +7,8 @@ Decisions are recorded as they are made. Superseded decisions are struck through
 ## Process
 
 - Work happens on the `amani` branch, committed continuously.
+
+## Stack
+
+- Backend: Python FastAPI. Frontend: React built with Vite into static files that FastAPI serves.
+- One process, one image for both main and simulator modes. Next.js was rejected because it needs a Node server next to Python in every forked sailbox, and its SSR/API-route strengths don't apply to a Python-backed dashboard.
