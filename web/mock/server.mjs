@@ -41,7 +41,7 @@ const KERNEL_KINDS = [
   { kind: "gemm", ipc: 112, bias: 0.9, name: "sm90_xmma_gemm_f16f16_f16f32_f32_tn_n_tilesize128x128x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas", grid: [18, 1, 1], block: [384, 1, 1], insn: 2_359_296 },
   { kind: "rope", ipc: 54, bias: 1.08, name: "_ZN4vllm23rotary_embedding_kernelIN3c104HalfELb1EEEvPKlPT_S6_PKS4_iiiiii", grid: [16, 1, 1], block: [512, 1, 1], insn: 262_144 },
   { kind: "cache", ipc: 29, bias: 1.58, name: "_ZN4vllm30reshape_and_cache_flash_kernelIN3c104HalfES2_LNS_18Fp8KVCacheDataTypeE0EEEvPKT_S7_PT0_S9_PKlliiiiiPKfSD_", grid: [16, 1, 1], block: [768, 1, 1], insn: 147_456 },
-  { kind: "attn", ipc: 86, bias: 0.8, name: "_ZN5flash22flash_fwd_splitkv_kernelI23Flash_fwd_kernel_traitsILi64ELi64ELi128ELi4ELb0ELb0EN7cutlass6half_tELb0EELb0ELb0ELb0ELb0ELb1ELb0ELb0ELb0EEEv13Flash_fwd_params", grid: [1, 12, 16], block: [128, 1, 1], insn: 1_572_864 },
+  { kind: "attn", ipc: 86, bias: 0.8, name: "_ZN5flash24flash_fwd_splitkv_kernelI23Flash_fwd_kernel_traitsILi64ELi64ELi128ELi4ELb0ELb0EN7cutlass6half_tELb0EELb0ELb0ELb0ELb0ELb1ELb0ELb0ELb0EEEv13Flash_fwd_params", grid: [1, 12, 16], block: [128, 1, 1], insn: 1_572_864 },
   { kind: "gemm_out", ipc: 104, bias: 0.96, name: "sm90_xmma_gemm_f16f16_f16f32_f32_tn_n_tilesize64x128x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas", grid: [12, 1, 1], block: [384, 1, 1], insn: 786_432 },
   { kind: "add", ipc: 47, bias: 1.2, name: "_ZN2at6native29vectorized_elementwise_kernelILi4ENS0_15CUDAFunctor_addIN3c104HalfEEESt5arrayIPcLm3EEEEviT0_T1_", grid: [96, 1, 1], block: [128, 1, 1], insn: 196_608 },
 ];
@@ -49,7 +49,7 @@ const KERNEL_KINDS = [
 const DECODE_KINDS = [
   ...KERNEL_KINDS,
   { kind: "silu", ipc: 44, bias: 1.12, name: "triton_poi_fused_mul_silu_0", grid: [112, 1, 1], block: [128, 1, 1], insn: 344_064 },
-  { kind: "down", ipc: 98, bias: 0.86, name: "_ZN7cutlass7Kernel2I52cutlass_80_tensorop_f16_s16816gemm_relu_f16_64x64_64x4_tn_align8EEvNT_6ParamsE", grid: [24, 4, 1], block: [128, 1, 1], insn: 1_179_648 },
+  { kind: "down", ipc: 98, bias: 0.86, name: "_ZN7cutlass7Kernel2I64cutlass_80_tensorop_f16_s16816gemm_relu_f16_64x64_64x4_tn_align8EEvNT_6ParamsE", grid: [24, 4, 1], block: [128, 1, 1], insn: 1_179_648 },
   { kind: "argmax", ipc: 31, bias: 1.27, name: "void at::native::(anonymous namespace)::cunn_SoftMaxForward<4, float, float, float, at::native::(anonymous namespace)::SoftMaxForwardEpilogue>(float*, float const*, int)", grid: [1, 1, 1], block: [1024, 1, 1], insn: 425_984 },
 ];
 const LM_HEAD = { kind: "lm_head", ipc: 118, bias: 0.93, name: "sm90_xmma_gemm_f16f16_f16f32_f32_tn_n_tilesize256x128x64_warpgroupsize2x1x1_execute_segment_k_off_kernel__5x_cublas", grid: [132, 1, 1], block: [384, 1, 1], insn: 31_457_280 };

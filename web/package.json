@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "test": "node --experimental-strip-types --no-warnings --test 'src/**/*.test.ts'",
     "preview": "vite preview",
     "mock": "node mock/server.mjs"
   },

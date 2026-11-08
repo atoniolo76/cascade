@@ -21,6 +21,10 @@ export default tseslint.config(
     },
   },
   {
+    files: ["src/**/*.test.ts"],
+    rules: { "@typescript-eslint/no-floating-promises": "off" },
+  },
+  {
     files: ["mock/**/*.mjs", "eslint.config.js"],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
