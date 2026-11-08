@@ -40,7 +40,7 @@ description: Traces, runs, sims and GPU configs in Cascade, their state machines
 
 <h2>How a run launches</h2>
 <p>When you create a run, the app writes the run and all of its sims as `pending`, returns, and launches in the background. Up to 8 launches run at once.</p>
-<p>On Sail (`CASCADE_LAUNCHER=sail`, which the deploy script sets), launching works like this.</p>
+<p>On Sail (`cascade serve --sims sail`, which the deploy script runs), launching works like this.</p>
 <ol>
 <li>The app checkpoints its own sandbox once per run, as `cascade-<run id>`. A checkpoint saves the disk, so it includes the ready trace. If a checkpoint with that name already exists, the app reuses it, so a restart mid-launch doesn't take a second one.</li>
 <li>For each sim, the app starts a new sandbox named `cascade-<sim id>` from that checkpoint with `restore_memory=False`. The fork boots fresh from the saved disk instead of cloning the app's running process.</li>
@@ -48,7 +48,7 @@ description: Traces, runs, sims and GPU configs in Cascade, their state machines
 <li>The sim's `launcher_ref` is the fork's sandbox id. When the sim finishes or is cancelled, the app terminates that sandbox.</li>
 </ol>
 <p>Every fork of a run starts from the same checkpoint, so every sim reads an identical trace, and the trace is never copied over the network.</p>
-<p>Locally (`CASCADE_LAUNCHER=local`, the default), the app runs `CASCADE_SIM_CMD` as a subprocess in its own process group, with the same environment, and `launcher_ref` is the process id. To stop it, the app sends `SIGTERM` to the group and `SIGKILL` after 5 seconds.</p>
+<p>Locally (`cascade serve --sims local`, the default), the app runs `CASCADE_SIM_CMD` as a subprocess in its own process group, with the same environment, and `launcher_ref` is the process id. To stop it, the app sends `SIGTERM` to the group and `SIGKILL` after 5 seconds.</p>
 <div class="note"><p>The Sail launcher was written against the Sail SDK 0.17.2 source and is covered by tests with a fake SDK. It hasn't run against the live Sail service yet.</p></div>
 
 <h2>How sims report back</h2>

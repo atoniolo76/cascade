@@ -72,7 +72,7 @@
 
 <h2 id="how-a-run-launches">How a run launches<a class="anchor" href="#how-a-run-launches" aria-label="Link to this section">#</a></h2>
 <p>When you create a run, the app writes the run and all of its sims as <code>pending</code>, returns, and launches in the background. Up to 8 launches run at once.</p>
-<p>On Sail (<code>CASCADE_LAUNCHER=sail</code>, which the deploy script sets), launching works like this.</p>
+<p>On Sail (<code>cascade serve --sims sail</code>, which the deploy script runs), launching works like this.</p>
 <ol>
 <li>The app checkpoints its own sandbox once per run, as <code>cascade-&lt;run id&gt;</code>. A checkpoint saves the disk, so it includes the ready trace. If a checkpoint with that name already exists, the app reuses it, so a restart mid-launch doesn't take a second one.</li>
 <li>For each sim, the app starts a new sandbox named <code>cascade-&lt;sim id&gt;</code> from that checkpoint with <code>restore_memory=False</code>. The fork boots fresh from the saved disk instead of cloning the app's running process.</li>
@@ -80,7 +80,7 @@
 <li>The sim's <code>launcher_ref</code> is the fork's sandbox id. When the sim finishes or is cancelled, the app terminates that sandbox.</li>
 </ol>
 <p>Every fork of a run starts from the same checkpoint, so every sim reads an identical trace, and the trace is never copied over the network.</p>
-<p>Locally (<code>CASCADE_LAUNCHER=local</code>, the default), the app runs <code>CASCADE_SIM_CMD</code> as a subprocess in its own process group, with the same environment, and <code>launcher_ref</code> is the process id. To stop it, the app sends <code>SIGTERM</code> to the group and <code>SIGKILL</code> after 5 seconds.</p>
+<p>Locally (<code>cascade serve --sims local</code>, the default), the app runs <code>CASCADE_SIM_CMD</code> as a subprocess in its own process group, with the same environment, and <code>launcher_ref</code> is the process id. To stop it, the app sends <code>SIGTERM</code> to the group and <code>SIGKILL</code> after 5 seconds.</p>
 <div class="note"><p>The Sail launcher was written against the Sail SDK 0.17.2 source and is covered by tests with a fake SDK. It hasn't run against the live Sail service yet.</p></div>
 
 <h2 id="how-sims-report-back">How sims report back<a class="anchor" href="#how-sims-report-back" aria-label="Link to this section">#</a></h2>

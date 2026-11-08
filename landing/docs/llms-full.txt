@@ -766,7 +766,7 @@ The diagram is drawn from `SIM_TRANSITIONS` in `cascade/models.py`, which is the
 
 When you create a run, the app writes the run and all of its sims as `pending`, returns, and launches in the background. Up to 8 launches run at once.
 
-On Sail (`CASCADE_LAUNCHER=sail`, which the deploy script sets), launching works like this.
+On Sail (`cascade serve --sims sail`, which the deploy script runs), launching works like this.
 
 1. The app checkpoints its own sandbox once per run, as `cascade-<run id>`. A checkpoint saves the disk, so it includes the ready trace. If a checkpoint with that name already exists, the app reuses it, so a restart mid-launch doesn't take a second one.
 2. For each sim, the app starts a new sandbox named `cascade-<sim id>` from that checkpoint with `restore_memory=False`. The fork boots fresh from the saved disk instead of cloning the app's running process.
@@ -775,7 +775,7 @@ On Sail (`CASCADE_LAUNCHER=sail`, which the deploy script sets), launching works
 
 Every fork of a run starts from the same checkpoint, so every sim reads an identical trace, and the trace is never copied over the network.
 
-Locally (`CASCADE_LAUNCHER=local`, the default), the app runs `CASCADE_SIM_CMD` as a subprocess in its own process group, with the same environment, and `launcher_ref` is the process id. To stop it, the app sends `SIGTERM` to the group and `SIGKILL` after 5 seconds.
+Locally (`cascade serve --sims local`, the default), the app runs `CASCADE_SIM_CMD` as a subprocess in its own process group, with the same environment, and `launcher_ref` is the process id. To stop it, the app sends `SIGTERM` to the group and `SIGKILL` after 5 seconds.
 
 > The Sail launcher was written against the Sail SDK 0.17.2 source and is covered by tests with a fake SDK. It hasn't run against the live Sail service yet.
 
@@ -861,7 +861,7 @@ If `CASCADE_TOKEN` isn't set, the script makes one and prints it as `token:`. Sa
 
 ## What's in the image
 
-The `Dockerfile` builds the web UI with Node 22, then layers the app onto `BASE_IMAGE`: rclone 1.76.0, uv with Python 3.12, the app at `/app`, and the Accel-Sim configs and logs from `tests/fixtures`. The app sandbox and every sim fork run this one image. Sail doesn't run the image's `CMD`, so the script starts `cascade serve` itself, with `CASCADE_LAUNCHER=sail` and your `SAIL_API_KEY`, which the app needs to checkpoint and fork itself.
+The `Dockerfile` builds the web UI with Node 22, then layers the app onto `BASE_IMAGE`: rclone 1.76.0, uv with Python 3.12, the app at `/app`, and the Accel-Sim configs and logs from `tests/fixtures`. The app sandbox and every sim fork run this one image. Sail doesn't run the image's `CMD`, so the script starts `cascade serve --sims sail` itself, with your `SAIL_API_KEY`, which the app needs to checkpoint and fork itself.
 
 The sandbox has auto-sleep turned off, so the app keeps running while sims report in.
 
@@ -872,7 +872,6 @@ The sandbox has auto-sleep turned off, so the app keeps running while sims repor
 | variable | default | what it sets |
 |---|---|---|
 | `CASCADE_TOKEN` | required | The shared bearer token. The UI and every sim send it. The app refuses to start without it unless `CASCADE_NO_AUTH` is set. |
-| `CASCADE_LAUNCHER` | `local` | `local` runs each sim as a subprocess of the app. `sail` forks a Sail sandbox per sim. `deploy_sail.py` sets `sail`. |
 | `CASCADE_NO_AUTH` | false | Local development only. Set to `1` to turn off the token check: the API accepts any request, `/api/health` reports `auth: false`, and the web UI skips its token screen. Never set it on a deployment someone else can reach. |
 | `CASCADE_ACCELSIM_DIR` | `/opt/accel-sim-framework` | Accel-Sim checkout. The app reads GPU configs from `gpu-simulator/gpgpu-sim/configs/tested-cfgs/*/gpgpusim.config` under it. |
 | `CASCADE_S3_BUCKET` | `cascade` | The bucket the profiler uploads to. It is a directory under `$CASCADE_DATA_DIR/s3/`. |
@@ -884,7 +883,7 @@ The sandbox has auto-sleep turned off, so the app keeps running while sims repor
 | `CASCADE_PUBLIC_URL` | `http://127.0.0.1:8000` | The URL sims use to reach the app. Each sim gets it as `CASCADE_MAIN_URL`. |
 | `CASCADE_S3_PREFIX` | `accelsim-traces` | The key prefix traces live under. Each trace is `<prefix>/<run_name>/`. |
 
-`cascade serve` takes `--host` (default `0.0.0.0`), `--port` (default 8000) and `--s3-port` (default 9000).
+`cascade serve` takes `--host` (default `0.0.0.0`), `--port` (default 8000), `--s3-port` (default 9000) and `--sims`. `--sims local`, the default, runs each sim as a subprocess of the app. `--sims sail` forks a Sail sandbox per sim.
 
 The S3 endpoint accepts anonymous reads and writes. Anyone with its URL can upload a trace. The app's API and UI need the token.
 

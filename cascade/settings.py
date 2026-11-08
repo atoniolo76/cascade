@@ -8,6 +8,9 @@ from typing import Literal
 POSTPROCESS_REL = "util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing"
 
 
+LauncherKind = Literal["local", "sail"]
+
+
 class SettingsError(ValueError):
     pass
 
@@ -26,7 +29,7 @@ class Settings:
     data_dir: Path
     token: str
     no_auth: bool
-    launcher: Literal["local", "sail"]
+    launcher: LauncherKind
     public_url: str
     s3_bucket: str
     s3_prefix: str
@@ -37,15 +40,14 @@ class Settings:
     run_s3: bool
 
     @classmethod
-    def from_env(cls, env: dict[str, str] | None = None) -> Settings:
+    def from_env(
+        cls, env: dict[str, str] | None = None, launcher: LauncherKind = "local"
+    ) -> Settings:
         env = dict(os.environ if env is None else env)
         token = env.get("CASCADE_TOKEN", "")
         no_auth = _bool(env.get("CASCADE_NO_AUTH", "false"))
         if not token and not no_auth:
             raise SettingsError("CASCADE_TOKEN is required (or CASCADE_NO_AUTH=1 for local dev)")
-        launcher = env.get("CASCADE_LAUNCHER", "local")
-        if launcher not in ("local", "sail"):
-            raise SettingsError(f"CASCADE_LAUNCHER must be local or sail, got {launcher!r}")
         accelsim_dir = Path(env.get("CASCADE_ACCELSIM_DIR", "/opt/accel-sim-framework"))
         return cls(
             data_dir=Path(env.get("CASCADE_DATA_DIR", "/data")),

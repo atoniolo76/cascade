@@ -5,11 +5,12 @@ import logging
 import shutil
 import subprocess
 import threading
+from typing import get_args
 
 import uvicorn
 
 from cascade.api import create_app
-from cascade.settings import Settings
+from cascade.settings import LauncherKind, Settings
 from cascade.sim.cli import add_commands
 
 log = logging.getLogger("cascade")
@@ -70,7 +71,7 @@ class RcloneSupervisor:
 
 
 def serve(args: argparse.Namespace) -> None:
-    settings = Settings.from_env()
+    settings = Settings.from_env(launcher=args.sims)
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     rclone = RcloneSupervisor(settings, f":{args.s3_port}") if settings.run_s3 else None
     if rclone:
@@ -89,17 +90,28 @@ def serve(args: argparse.Namespace) -> None:
             rclone.stop()
 
 
-def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="cascade")
     sub = p.add_subparsers(dest="command", required=True)
     s = sub.add_parser("serve", help="run main: API, UI, trace ingest, and rclone S3")
     s.add_argument("--host", default="0.0.0.0")
     s.add_argument("--port", type=int, default=8000)
     s.add_argument("--s3-port", type=int, default=9000, help="port for rclone serve s3")
+    s.add_argument(
+        "--sims",
+        choices=get_args(LauncherKind),
+        default="local",
+        help="where sims run: local subprocesses, or one Sail fork per sim",
+    )
     s.set_defaults(func=serve)
     add_commands(sub)
-    args = p.parse_args()
+    return p
+
+
+def main(argv: list[str] | None = None) -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    p = build_parser()
+    args = p.parse_args(argv)
     if args.func is serve:
         args.func(args)
         return

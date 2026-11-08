@@ -148,10 +148,6 @@ SETTINGS_NOTES: dict[str, tuple[str | None, str]] = {
         "false",
         "Local development only. Set to `1` to turn off the token check: the API accepts any request, `/api/health` reports `auth: false`, and the web UI skips its token screen. Never set it on a deployment someone else can reach.",
     ),
-    "CASCADE_LAUNCHER": (
-        None,
-        "`local` runs each sim as a subprocess of the app. `sail` forks a Sail sandbox per sim. `deploy_sail.py` sets `sail`.",
-    ),
     "CASCADE_ACCELSIM_DIR": (
         None,
         "Accel-Sim checkout. The app reads GPU configs from `gpu-simulator/gpgpu-sim/configs/tested-cfgs/*/gpgpusim.config` under it.",

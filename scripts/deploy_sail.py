@@ -71,7 +71,6 @@ def main() -> int:
 
     env = {
         "CASCADE_TOKEN": token,
-        "CASCADE_LAUNCHER": "sail",
         "CASCADE_PUBLIC_URL": app_url,
         "CASCADE_DATA_DIR": "/data",
         "CASCADE_ACCELSIM_DIR": args.accelsim_dir,
@@ -81,7 +80,10 @@ def main() -> int:
     }
     if args.postprocess_cmd:
         env["CASCADE_POSTPROCESS_CMD"] = args.postprocess_cmd
-    serve = "mkdir -p /data && cd /app && exec cascade serve >> /data/cascade-serve.log 2>&1"
+    serve = (
+        "mkdir -p /data && cd /app"
+        " && exec cascade serve --sims sail >> /data/cascade-serve.log 2>&1"
+    )
     box.exec(serve, background=True, env=env)
     box.wait_for_listener(APP_PORT, timeout=120)
 

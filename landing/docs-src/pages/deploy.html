@@ -59,11 +59,11 @@ logs:     /data/cascade-serve.log inside the sailbox
 </tbody></table></div>
 
 <h2>What's in the image</h2>
-<p>The `Dockerfile` builds the web UI with Node 22, then layers the app onto `BASE_IMAGE`: rclone 1.76.0, uv with Python 3.12, the app at `/app`, and the Accel-Sim configs and logs from `tests/fixtures`. The app sandbox and every sim fork run this one image. Sail doesn't run the image's `CMD`, so the script starts `cascade serve` itself, with `CASCADE_LAUNCHER=sail` and your `SAIL_API_KEY`, which the app needs to checkpoint and fork itself.</p>
+<p>The `Dockerfile` builds the web UI with Node 22, then layers the app onto `BASE_IMAGE`: rclone 1.76.0, uv with Python 3.12, the app at `/app`, and the Accel-Sim configs and logs from `tests/fixtures`. The app sandbox and every sim fork run this one image. Sail doesn't run the image's `CMD`, so the script starts `cascade serve --sims sail` itself, with your `SAIL_API_KEY`, which the app needs to checkpoint and fork itself.</p>
 <p>The sandbox has auto-sleep turned off, so the app keeps running while sims report in.</p>
 
 <h2>Configuration</h2>
 <p>`cascade serve` reads these environment variables. The table is generated from `cascade/settings.py`.</p>
 {{settings}}
-<p>`cascade serve` takes `--host` (default `0.0.0.0`), `--port` (default 8000) and `--s3-port` (default 9000).</p>
+<p>`cascade serve` takes `--host` (default `0.0.0.0`), `--port` (default 8000), `--s3-port` (default 9000) and `--sims`. `--sims local`, the default, runs each sim as a subprocess of the app. `--sims sail` forks a Sail sandbox per sim.</p>
 <p>The S3 endpoint accepts anonymous reads and writes. Anyone with its URL can upload a trace. The app's API and UI need the token.</p>
