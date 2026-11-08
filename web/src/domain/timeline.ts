@@ -364,9 +364,9 @@ export function niceStep(raw: number): number {
 }
 
 function timeUnit(step: number): { unit: string; scale: number } {
-  if (step < 1e3) return { unit: "ns", scale: 1 };
-  if (step < 1e6) return { unit: "µs", scale: 1e3 };
-  if (step < 1e9) return { unit: "ms", scale: 1e6 };
+  if (step < 1e2) return { unit: "ns", scale: 1 };
+  if (step < 1e5) return { unit: "µs", scale: 1e3 };
+  if (step < 1e8) return { unit: "ms", scale: 1e6 };
   return { unit: "s", scale: 1e9 };
 }
 

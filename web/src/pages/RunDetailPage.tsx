@@ -10,6 +10,7 @@ import { ComparisonPanel } from "../components/run/ComparisonPanel";
 import { SimGrid } from "../components/run/SimGrid";
 import { SimPanel } from "../components/run/SimPanel";
 import { SimTimePanel } from "../components/run/SimTimePanel";
+import { RunTimeline } from "../components/timeline/RunTimeline";
 import { ConfigChips } from "../components/RunsTable";
 import { TraceChip } from "../components/TraceState";
 import { Button, Card, CopyButton, EmptyState, ErrorNote, Panel, RelTime, Skeleton } from "../components/ui";
@@ -191,6 +192,8 @@ function RunView({ live, connection, onRun }: { live: Live; connection: Connecti
           <RunSummaryCard run={run} runState={runState} />
 
           <SimGrid sims={sims} series={series} selectedId={selected?.id ?? null} onSelect={select} />
+
+          <RunTimeline run={run} kernels={live.kernels} series={series} live={runState === "active"} />
 
           <div className="grid gap-8 2xl:grid-cols-2">
             <SimTimePanel runId={run.id} sims={run.sims} kernels={live.kernels} series={series} />

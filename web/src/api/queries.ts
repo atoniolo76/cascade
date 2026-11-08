@@ -1,8 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiJson } from "./client";
 import type {
   Comparison,
   GpuConfig,
+  KernelStat,
   RunCreate,
   RunDetail,
   RunSummary,
@@ -19,6 +20,7 @@ export const keys = {
   runs: ["runs"] as const,
   run: (id: string) => ["runs", id] as const,
   comparison: (id: string) => ["runs", id, "comparison"] as const,
+  kernels: (id: string) => ["runs", id, "kernels"] as const,
   gpuConfigs: ["gpu-configs"] as const,
   simLog: (id: string) => ["sims", id, "log"] as const,
 };
@@ -64,6 +66,32 @@ export function useComparison(runId: string, { live }: { live: boolean }) {
     queryFn: () => apiJson<Comparison>(`/api/runs/${enc(runId)}/comparison`),
     refetchInterval: live ? 5000 : false,
   });
+}
+
+/** Everything the Compare timeline needs per run; active runs refresh on the comparison cadence. */
+export function useRunsForTimeline(ids: readonly string[], active: (id: string) => boolean) {
+  const runs = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: keys.run(id),
+      queryFn: () => apiJson<RunDetail>(`/api/runs/${enc(id)}`),
+      refetchInterval: active(id) ? POLL_MS : false,
+    })),
+  });
+  const kernels = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: keys.kernels(id),
+      queryFn: () => apiJson<KernelStat[]>(`/api/runs/${enc(id)}/kernels`),
+      refetchInterval: active(id) ? POLL_MS : false,
+    })),
+  });
+  const comparisons = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: keys.comparison(id),
+      queryFn: () => apiJson<Comparison>(`/api/runs/${enc(id)}/comparison`),
+      refetchInterval: active(id) ? 5000 : false,
+    })),
+  });
+  return { runs, kernels, comparisons };
 }
 
 export function useCreateRun() {
