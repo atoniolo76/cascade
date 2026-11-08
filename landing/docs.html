@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cascade Docs</title>
+<meta name="description" content="How to trace an ML workload, send it to Cascade, and simulate it across many GPU configs.">
+<meta name="theme-color" content="#fafaf8">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div class="page">
+  <main>
+    <header class="masthead">
+      <h1>
+        <a href="index.html">
+          <svg class="mark" viewBox="0 0 48 39.5" aria-hidden="true">
+            <rect x="0" y="0" width="16" height="6.5" rx="1.6" fill="currentColor" style="animation-delay:0.05s"/>
+            <rect x="9" y="8.25" width="14" height="6.5" rx="1.6" fill="currentColor" style="animation-delay:0.20s"/>
+            <rect x="17" y="16.5" width="12" height="6.5" rx="1.6" fill="currentColor" style="animation-delay:0.35s"/>
+            <rect x="23" y="24.75" width="16" height="6.5" rx="1.6" fill="#6D4AE0" style="animation-delay:0.50s"/>
+            <rect x="33" y="33" width="15" height="6.5" rx="1.6" fill="#A35CE8" style="animation-delay:0.65s"/>
+          </svg>
+          Cascade
+        </a>
+      </h1>
+      <nav class="sitenav" aria-label="Site"><a href="docs.html" aria-current="page">docs</a><a href="writeup.html">writeup</a></nav>
+    </header>
+
+    <div class="doc">
+      <aside class="toc" aria-label="On this page">
+        <h2>on this page</h2>
+        <ol>
+          <li><a href="#overview">Overview</a></li>
+          <li><a href="#deploy">1. Deploy the app</a></li>
+          <li><a href="#trace">2. Trace a workload</a></li>
+          <li><a href="#traces">3. Wait for the trace</a></li>
+          <li><a href="#launch">4. Launch a run</a></li>
+          <li><a href="#results">5. Read the results</a></li>
+          <li><a href="#api">API</a></li>
+          <li><a href="#simulator">Bring your own simulator</a></li>
+          <li><a href="#troubleshooting">Troubleshooting</a></li>
+          <li><a href="#limits">Limits</a></li>
+        </ol>
+      </aside>
+
+      <div class="doc-body">
+        <section id="overview" aria-labelledby="overview-h">
+          <h2 id="overview-h">overview</h2>
+          <p>Cascade takes a trace of an ML workload captured on one real GPU and simulates it on other GPU configs, many copies at once. It has three parts.</p>
+          <ul>
+            <li><strong>Profiler.</strong> Runs your workload, for example a <code>vLLM</code> model, on a real GPU under Accel-Sim's NVBit tracer, and uploads the trace to Cascade while it is still tracing.</li>
+            <li><strong>Cascade app.</strong> A Sail sandbox that receives traces, gets them ready to simulate, launches runs, and shows everything in a web UI.</li>
+            <li><strong>Simulators.</strong> Each simulator is a fork of the app's sandbox, so it already has the trace on disk. It runs <code>Accel-Sim 2.0</code> against one GPU config and reports progress back to the app.</li>
+          </ul>
+          <p>The steps below take you from nothing to a finished run.</p>
+        </section>
+
+        <section id="deploy" aria-labelledby="deploy-h">
+          <h2 id="deploy-h">1. deploy the app</h2>
+          <p>You need a <a href="https://docs.sailresearch.com/quickstart" target="_blank" rel="noopener">Sail</a> account and an API key. Pick any long random string as your Cascade token. The UI, the profiler and the simulators all use it.</p>
+          <div class="code"><pre>git clone https://github.com/atoniolo76/cascade.git
+cd cascade
+export SAIL_API_KEY=...
+export CASCADE_TOKEN=$(openssl rand -hex 24)
+uv run python scripts/deploy_sail.py</pre></div>
+          <p>The script creates the app's sandbox and prints two URLs.</p>
+          <table class="table">
+            <thead><tr><th>url</th><th>use it for</th></tr></thead>
+            <tbody>
+              <tr><td>App (port 8000)</td><td>Open it in a browser and paste your token. This is the Cascade UI and API.</td></tr>
+              <tr><td>S3 endpoint (port 9000)</td><td>Give it to the profiler. Traces upload here.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="trace" aria-labelledby="trace-h">
+          <h2 id="trace-h">2. trace a workload</h2>
+          <p>The profiler runs on <a href="https://modal.com" target="_blank" rel="noopener">Modal</a> on an H100. Install Modal and log in once.</p>
+          <div class="code"><pre>pip install modal
+modal setup</pre></div>
+          <p>Tracing every instruction is slow, so you trace one or a few layers, not the whole model. List the layer names first.</p>
+          <div class="code"><pre>modal run accelsim_trace.py --model facebook/opt-125m --list-layers</pre></div>
+          <p>Then trace and stream to your Cascade app. Use the S3 endpoint from step 1.</p>
+          <div class="code"><pre>modal run accelsim_trace.py \
+  --model facebook/opt-125m \
+  --layers model.decoder.layers.10.self_attn \
+  --prompt "Hello, my name is" \
+  --max-tokens 4 \
+  --s3-endpoint https://&lt;your-s3-endpoint&gt; \
+  --s3-bucket cascade \
+  --s3-addressing-style path</pre></div>
+          <h3>What happens</h3>
+          <ul>
+            <li>Each kernel's trace uploads as soon as that kernel finishes, so files arrive while tracing is still running.</li>
+            <li><code>metadata.json</code> uploads last. It records the model, layers, prompts, the GPU it ran on, and whether the run succeeded.</li>
+            <li>The run name defaults to the time plus model and layers. Set your own with <code>--run-name</code>.</li>
+          </ul>
+        </section>
+
+        <section id="traces" aria-labelledby="traces-h">
+          <h2 id="traces-h">3. wait for the trace</h2>
+          <p>Open the <strong>Traces</strong> screen. Your trace appears as soon as its first file lands and moves through these states.</p>
+          <table class="table">
+            <thead><tr><th>state</th><th>meaning</th></tr></thead>
+            <tbody>
+              <tr><td>uploading</td><td>Files are still arriving. The kernel count and size grow as they do.</td></tr>
+              <tr><td>processing</td><td>Everything has arrived. Cascade is converting the raw trace into the format the simulator reads.</td></tr>
+              <tr><td>ready</td><td>You can launch runs on it.</td></tr>
+              <tr><td>failed</td><td>The profiler reported a failure, or processing failed. The error is shown on the trace.</td></tr>
+            </tbody>
+          </table>
+          <p>Open a trace to see what it came from: the model, layers, prompts, the source GPU, and every traced kernel with its grid and block size.</p>
+        </section>
+
+        <section id="launch" aria-labelledby="launch-h">
+          <h2 id="launch-h">4. launch a run</h2>
+          <p>From a ready trace, choose <strong>New run</strong>. A run is a list of GPU configs, each with a count.</p>
+          <ul>
+            <li><strong>Config</strong> is one of Accel-Sim's tested GPU models, such as <code>SM90_H100</code>. The trace's suggested config, the GPU it was captured on, is preselected.</li>
+            <li><strong>Count</strong> is how many simulators run that config, from 1 to 64. Each one is its own sandbox.</li>
+            <li>Configs for a different GPU architecture are disabled. A trace from an H100 contains Hopper-only instructions, so it only runs on <code>sm_90</code> configs like <code>SM90_H100</code> and <code>SM90_H200</code>. To model another architecture, trace on that GPU.</li>
+          </ul>
+          <p>When you launch, Cascade checkpoints its sandbox once for the run, then forks one simulator per count from that checkpoint. Every simulator starts with the same trace on disk.</p>
+        </section>
+
+        <section id="results" aria-labelledby="results-h">
+          <h2 id="results-h">5. read the results</h2>
+          <p>The run screen updates live. Each simulator shows its state, when it last reported in, how many kernels it has finished, and its latest numbers.</p>
+          <table class="table">
+            <thead><tr><th>state</th><th>meaning</th></tr></thead>
+            <tbody>
+              <tr><td>pending</td><td>Waiting to be launched.</td></tr>
+              <tr><td>launching</td><td>Its sandbox is being forked and started.</td></tr>
+              <tr><td>running</td><td>Simulating and reporting in.</td></tr>
+              <tr><td>lost</td><td>It hasn't reported in for 60 seconds. It goes back to running if it reports again.</td></tr>
+              <tr><td>succeeded</td><td>Finished every kernel.</td></tr>
+              <tr><td>failed</td><td>The simulator exited with an error, or its sandbox failed to start.</td></tr>
+              <tr><td>cancelled</td><td>You cancelled the run.</td></tr>
+            </tbody>
+          </table>
+          <h3>Metrics</h3>
+          <table class="table">
+            <thead><tr><th>metric</th><th>meaning</th></tr></thead>
+            <tbody>
+              <tr><td>cycles</td><td>Total simulated GPU cycles so far (<code>gpu_tot_sim_cycle</code>).</td></tr>
+              <tr><td>IPC</td><td>Instructions per cycle across the GPU (<code>gpu_tot_ipc</code>).</td></tr>
+              <tr><td>sim rate</td><td>How fast the simulator itself is running, in simulated instructions per second.</td></tr>
+              <tr><td>simulated time</td><td>Per kernel, <code>gpu_sim_cycle</code> divided by the config's core clock.</td></tr>
+            </tbody>
+          </table>
+          <h3>Real vs. simulated</h3>
+          <p>When a trace includes real kernel timings from the original GPU, the run screen lines up real against simulated time kernel by kernel and shows the error for each config. Capturing real timings in the profiler is in progress. Until it lands, this panel says so and shows simulated time only.</p>
+          <h3>Downloads</h3>
+          <ul>
+            <li><strong>Run results</strong> are one JSON file with the run, the trace, every simulator's per-kernel stats, and the comparison.</li>
+            <li><strong>Simulator results</strong> are the same for one simulator.</li>
+            <li><strong>Log</strong> is the simulator's full raw Accel-Sim output.</li>
+          </ul>
+        </section>
+
+        <section id="api" aria-labelledby="api-h">
+          <h2 id="api-h">api</h2>
+          <p>Everything in the UI is available over HTTP. Send your token as a bearer token.</p>
+          <div class="code"><pre>curl -H "Authorization: Bearer $CASCADE_TOKEN" https://&lt;your-app&gt;/api/traces
+
+curl -X POST -H "Authorization: Bearer $CASCADE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"trace_id": "&lt;trace-id&gt;", "entries": [{"gpu_config": "SM90_H100", "count": 4}]}' \
+  https://&lt;your-app&gt;/api/runs</pre></div>
+          <p>See the <a href="https://github.com/atoniolo76/cascade/blob/amani/docs/api.md" target="_blank" rel="noopener">API reference</a> for every route and type, including the live event stream for a run.</p>
+        </section>
+
+        <section id="simulator" aria-labelledby="simulator-h">
+          <h2 id="simulator-h">bring your own simulator</h2>
+          <p>Cascade starts whatever command is set in <code>CASCADE_SIM_CMD</code> inside each fork. Any program that follows this contract can be the simulator.</p>
+          <ol>
+            <li>Read <code>CASCADE_SIM_ID</code>, <code>CASCADE_MAIN_URL</code>, <code>CASCADE_TOKEN</code>, <code>CASCADE_GPU_CONFIG</code> and <code>CASCADE_TRACE_DIR</code> from the environment.</li>
+            <li>Every few seconds, <code>POST /api/sims/{id}/heartbeat</code> with <code>{"state": "running"}</code>. Stop if the reply has <code>"cancel": true</code>.</li>
+            <li>Send output as <code>POST /api/sims/{id}/logs</code> with <code>{"seq": n, "lines": [...]}</code>. Increase <code>seq</code> by one each time. A repeated <code>seq</code> is ignored, so retrying is safe.</li>
+            <li>Finish with a heartbeat of <code>"succeeded"</code> or <code>"failed"</code> and your exit code.</li>
+          </ol>
+          <p>Send Accel-Sim's stdout as is. Cascade parses the per-kernel stats out of it for you.</p>
+        </section>
+
+        <section id="troubleshooting" aria-labelledby="troubleshooting-h">
+          <h2 id="troubleshooting-h">troubleshooting</h2>
+          <table class="table">
+            <thead><tr><th>symptom</th><th>what to check</th></tr></thead>
+            <tbody>
+              <tr><td>Trace stuck in uploading</td><td>The profiler hasn't uploaded <code>metadata.json</code> yet, which it sends last. Check that the Modal run finished.</td></tr>
+              <tr><td>Profiler can't reach the bucket</td><td>Use the S3 endpoint URL, not the app URL, with <code>--s3-bucket cascade</code> and <code>--s3-addressing-style path</code>.</td></tr>
+              <tr><td>A config is disabled</td><td>It's for a different GPU architecture than the trace. Trace on that GPU instead.</td></tr>
+              <tr><td>A simulator shows lost</td><td>Its sandbox stopped reporting. It recovers on its own if it reports again. If it doesn't, open its log.</td></tr>
+              <tr><td>Token rejected</td><td>Use the exact <code>CASCADE_TOKEN</code> the app was deployed with.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="limits" aria-labelledby="limits-h">
+          <h2 id="limits-h">limits</h2>
+          <ul>
+            <li>Each simulator models one GPU. Making many simulated GPUs act as one system is the next step, not something Cascade does yet.</li>
+            <li>A trace only runs on configs of the architecture it was captured on.</li>
+            <li>Traces grow with the layers, tokens and forward passes you trace. A small layer is tens of MB. Whole models with long prompts can reach hundreds of GB. The app needs about 2.2 times the uploaded size in disk.</li>
+            <li>Simulation is much slower than real hardware. Start with one layer and a few tokens.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <span>Cascade, 2026</span>
+    <a href="index.html" style="color: inherit; text-decoration: none;">Home</a>
+  </footer>
+</div>
+<script>
+  for (const block of document.querySelectorAll(".code")) {
+    const btn = document.createElement("button");
+    btn.className = "copy";
+    btn.type = "button";
+    btn.textContent = "copy";
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(block.querySelector("pre").innerText);
+        btn.textContent = "copied";
+      } catch {
+        btn.textContent = "select + copy";
+      }
+      setTimeout(() => { btn.textContent = "copy"; }, 1400);
+    });
+    block.append(btn);
+  }
+
+  const links = [...document.querySelectorAll(".toc a")];
+  const byId = new Map(links.map((a) => [a.getAttribute("href").slice(1), a]));
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        links.forEach((a) => a.classList.remove("active"));
+        byId.get(e.target.id)?.classList.add("active");
+      }
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    document.querySelectorAll(".doc-body section").forEach((s) => io.observe(s));
+  }
+</script>
+</body>
+</html>
