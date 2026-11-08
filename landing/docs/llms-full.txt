@@ -1057,6 +1057,34 @@ uv run python scripts/upload_trace.py ./my-run --run-name my-run \
 
 Add `--status failed` to mark the upload as failed. The app then marks the trace `failed` without processing it.
 
+## Profile, trace and simulate in your own Modal app
+
+Install with `pip install "git+https://github.com/atoniolo76/cascade@profiler"`, using Python 3.12 locally because `register()` uses serialized Modal functions.
+
+`prof.profile` runs on GPU: baseline (no profiler), nsys capture, then NVBit tracing of the chosen steps, writing `corrected_timeline.json` and `trace_alignment.json`.
+
+`prof.simulate` runs Accel-Sim on CPU and writes `sim_durations.json`.
+
+```python
+# app.py
+import modal
+from cascade_profiler import Workload, register
+
+app = modal.App("my-profiler")
+runs = modal.Volume.from_name("my-profiler-runs", create_if_missing=True)
+hf = modal.Volume.from_name("my-hf-cache", create_if_missing=True)
+prof = register(app, runs, gpu="H100!", hf_cache=hf)
+
+@app.local_entrypoint()
+def main():
+    wl = Workload("facebook/opt-125m", ["Hello, my name is"], max_tokens=32, repeats=4)
+    run = prof.profile.remote(wl.to_dict(), trace_steps=[0, 5])   # GPU: baseline -> nsys -> NVBit on steps 0,5
+    sim = prof.simulate.remote(run["run_name"], verify_dedup=2)    # CPU: Accel-Sim on the traced kernels
+    print(run["run_name"], run["stage_wall_s"], sim["coverage"])
+```
+
+Run with `modal run app.py`, then download with `modal volume get my-profiler-runs <run_name> ./<run_name>`.
+
 
 # Traces
 

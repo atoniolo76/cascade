@@ -86,10 +86,30 @@ modal setup</code></pre></div><p>The first run builds an image with NVBit, the t
 <div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>uv run python scripts/upload_trace.py ./my-run --run-name my-run \
   --endpoint https://&lt;your-s3-endpoint&gt; --meta trace_gpu_arch=sm_80</code></pre></div><p>Add <code>--status failed</code> to mark the upload as failed. The app then marks the trace <code>failed</code> without processing it.</p>
 
+<h2 id="profile-trace-and-simulate-in-your-own-modal-app">Profile, trace and simulate in your own Modal app<a class="anchor" href="#profile-trace-and-simulate-in-your-own-modal-app" aria-label="Link to this section">#</a></h2>
+<p>Install with <code>pip install "git+https://github.com/atoniolo76/cascade@profiler"</code>, using Python 3.12 locally because <code>register()</code> uses serialized Modal functions.</p>
+<p><code>prof.profile</code> runs on GPU: baseline (no profiler), nsys capture, then NVBit tracing of the chosen steps, writing <code>corrected_timeline.json</code> and <code>trace_alignment.json</code>.</p>
+<p><code>prof.simulate</code> runs Accel-Sim on CPU and writes <code>sim_durations.json</code>.</p>
+<div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-c"># app.py</span>
+<span class="tk-k">import</span> modal
+<span class="tk-k">from</span> cascade_profiler <span class="tk-k">import</span> Workload, register
+
+app = modal.App(<span class="tk-s">"my-profiler"</span>)
+runs = modal.Volume.from_name(<span class="tk-s">"my-profiler-runs"</span>, create_if_missing=<span class="tk-k">True</span>)
+hf = modal.Volume.from_name(<span class="tk-s">"my-hf-cache"</span>, create_if_missing=<span class="tk-k">True</span>)
+prof = register(app, runs, gpu=<span class="tk-s">"H100!"</span>, hf_cache=hf)
+
+@app.local_entrypoint()
+<span class="tk-k">def</span> main():
+    wl = Workload(<span class="tk-s">"facebook/opt-125m"</span>, [<span class="tk-s">"Hello, my name is"</span>], max_tokens=32, repeats=4)
+    run = prof.profile.remote(wl.to_dict(), trace_steps=[0, 5])   <span class="tk-c"># GPU: baseline -&gt; nsys -&gt; NVBit on steps 0,5</span>
+    sim = prof.simulate.remote(run[<span class="tk-s">"run_name"</span>], verify_dedup=2)    <span class="tk-c"># CPU: Accel-Sim on the traced kernels</span>
+    <span class="tk-k">print</span>(run[<span class="tk-s">"run_name"</span>], run[<span class="tk-s">"stage_wall_s"</span>], sim[<span class="tk-s">"coverage"</span>])</code></pre></div><p>Run with <code>modal run app.py</code>, then download with <code>modal volume get my-profiler-runs &lt;run_name&gt; ./&lt;run_name&gt;</code>.</p>
+
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="deploy.html"><span>Previous</span>Deploy the app</a><a class="next" href="traces.html"><span>Next</span>Traces</a></nav>
     <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#set-up-modal">Set up Modal</a></li><li class="l2"><a href="#pick-the-layers">Pick the layers</a></li><li class="l2"><a href="#trace-and-stream">Trace and stream</a></li><li class="l2"><a href="#what-gets-uploaded">What gets uploaded</a></li><li class="l2"><a href="#profiler-flags">Profiler flags</a></li><li class="l2"><a href="#upload-a-trace-you-already-have">Upload a trace you already have</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#set-up-modal">Set up Modal</a></li><li class="l2"><a href="#pick-the-layers">Pick the layers</a></li><li class="l2"><a href="#trace-and-stream">Trace and stream</a></li><li class="l2"><a href="#what-gets-uploaded">What gets uploaded</a></li><li class="l2"><a href="#profiler-flags">Profiler flags</a></li><li class="l2"><a href="#upload-a-trace-you-already-have">Upload a trace you already have</a></li><li class="l2"><a href="#profile-trace-and-simulate-in-your-own-modal-app">Profile, trace and simulate in your own Modal app</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">
