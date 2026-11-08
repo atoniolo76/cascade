@@ -352,6 +352,9 @@ One kernel launch from the trace's stats_ctx_* file (original hardware).
 - `source_gpu` (`str | None`): metadata.json "gpu".
 - `trace_gpu_arch` (`str`): metadata.json "trace_gpu_arch", default "sm_90".
 - `suggested_sim_config` (`str | None`): `metadata.json` `suggested_sim_config`. The UI preselects it on the New run screen.
+- `real_gpu_config` (`str | None`): metadata.json: config of the GPU it was captured on.
+- `sample_sim_configs` (`list[str]`): metadata.json: preselected.
+- `sample_set` (`str | None`): metadata.json: traces compared side by side.
 - `kernel_count` (`int`): Traced kernels seen so far.
 - `bytes` (`int`): Bytes on disk under the trace dir.
 - `has_real_timing` (`bool`): True when the trace has real per-kernel timings (`real_timing.json`). The profiler does not write them yet.

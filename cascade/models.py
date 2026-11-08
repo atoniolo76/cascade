@@ -91,9 +91,9 @@ class TraceSummary(BaseModel):
     source_gpu: str | None  # metadata.json "gpu"
     trace_gpu_arch: str  # metadata.json "trace_gpu_arch", default "sm_90"
     suggested_sim_config: str | None
-    real_gpu_config: str | None = None
-    sample_sim_configs: list[str] = Field(default_factory=list)
-    sample_set: str | None = None
+    real_gpu_config: str | None = None  # metadata.json: config of the GPU it was captured on
+    sample_sim_configs: list[str] = Field(default_factory=list)  # metadata.json: preselected
+    sample_set: str | None = None  # metadata.json: traces compared side by side
     kernel_count: int  # traced kernels seen so far
     bytes: int  # bytes on disk under the trace dir
     has_real_timing: bool

@@ -343,7 +343,8 @@ def constraints(model: type[BaseModel], field: str, defaults: bool = True) -> li
             if getattr(meta, attr, None) is not None:
                 out.append(fmt.format(getattr(meta, attr)).replace("item(s)", "item"))
     if defaults and not info.is_required():
-        out.append(f"default `{json.dumps(info.default)}`")
+        default = info.default_factory() if info.default_factory else info.default
+        out.append(f"default `{json.dumps(default)}`")
     return out
 
 
