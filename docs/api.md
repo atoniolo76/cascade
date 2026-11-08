@@ -8,7 +8,7 @@ All `/api` routes require `Authorization: Bearer $CASCADE_TOKEN`, except `GET /a
 
 | Method | Path | Returns |
 | --- | --- | --- |
-| GET | `/api/health` | `{"ok": true}` |
+| GET | `/api/health` | `{"ok": true, "auth": bool}`. `auth` is false when the app runs with `CASCADE_NO_AUTH=1` (local dev only), and the UI then skips the token screen. |
 | GET | `/api/gpu-configs` | `GpuConfig[]` |
 | GET | `/api/traces` | `TraceSummary[]`, newest first |
 | GET | `/api/traces/{id}` | `TraceDetail` |
@@ -18,6 +18,7 @@ All `/api` routes require `Authorization: Bearer $CASCADE_TOKEN`, except `GET /a
 | POST | `/api/runs/{id}/cancel` | `RunDetail`. Moves every non-terminal sim to `cancelled` and calls `Launcher.terminate`. Idempotent. |
 | GET | `/api/runs/{id}/events` | SSE stream of `RunEvent` as plain `data:` lines. First event is a `snapshot` with the run and every `KernelStat` so far, each with an empty `stats` map to keep it small. Full stats are in the results downloads and in live `kernel` events. |
 | GET | `/api/runs/{id}/comparison` | `Comparison` |
+| GET | `/api/runs/{id}/kernels` | `KernelStat[]` for every sim in the run, each with an empty `stats` map, ordered by config, replica, then kernel. Feeds the timeline. |
 | GET | `/api/runs/{id}/results` | `RunResults` (download) |
 | GET | `/api/sims/{id}/results` | `SimResults` (download) |
 | GET | `/api/sims/{id}/log` | full raw log, `text/plain` (download) |

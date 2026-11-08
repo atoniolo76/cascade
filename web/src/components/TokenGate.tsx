@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { KeyRound } from "lucide-react";
 import { checkToken, tokenStore, type TokenCheck } from "../api/client";
 import { Button, Card } from "./ui";
@@ -9,9 +9,37 @@ const PROBLEM: Record<Exclude<TokenCheck, "ok">, string> = {
   unreachable: "Couldn't reach the Cascade API.",
 };
 
+const NO_AUTH_TOKEN = "no-auth";
+
+async function authDisabled(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/health");
+    const body: unknown = await res.json();
+    return typeof body === "object" && body !== null && "auth" in body && body.auth === false;
+  } catch {
+    return false;
+  }
+}
+
 export function TokenGate({ children }: { children: ReactNode }) {
   const token = useSyncExternalStore(tokenStore.subscribe, tokenStore.get);
+  const [probed, setProbed] = useState(false);
+
+  useEffect(() => {
+    if (token !== null) return;
+    let live = true;
+    void authDisabled().then((off) => {
+      if (!live) return;
+      if (off) tokenStore.set(NO_AUTH_TOKEN);
+      setProbed(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [token]);
+
   if (token !== null) return children;
+  if (!probed) return null;
   return <TokenForm />;
 }
 

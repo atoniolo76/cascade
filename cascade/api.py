@@ -29,6 +29,7 @@ from cascade.models import (
     Heartbeat,
     HeartbeatAck,
     KernelEvent,
+    KernelStat,
     LogChunk,
     LogEvent,
     RunCreate,
@@ -134,11 +135,11 @@ class Cascade:
             run = self.store.get_run(run_id)
             if run is None:
                 return None
-            kernels = [
-                k.model_copy(update={"stats": {}}) for k in self.store.kernel_stats_for_run(run_id)
-            ]
-            snapshot = SnapshotEvent(run=run, kernels=kernels)
+            snapshot = SnapshotEvent(run=run, kernels=self.light_kernels(run_id))
             return self.bus.subscribe(run_id, loop), snapshot
+
+    def light_kernels(self, run_id: str) -> list[KernelStat]:
+        return [k.model_copy(update={"stats": {}}) for k in self.store.kernel_stats_for_run(run_id)]
 
     def publish_sim(self, sim: SimSummary) -> None:
         self.bus.publish(sim.run_id, SimEvent(sim=sim))
@@ -350,6 +351,8 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
     store = cascade.store
 
     def check(token: str | None) -> None:
+        if settings.no_auth:
+            return
         if token is None or not secrets.compare_digest(token, settings.token):
             raise HTTPException(401, "missing or wrong token", {"WWW-Authenticate": "Bearer"})
 
@@ -379,7 +382,7 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
 
     @app.get("/api/health")
     def health() -> dict:
-        return {"ok": True}
+        return {"ok": True, "auth": not settings.no_auth}
 
     @app.get("/api/gpu-configs", dependencies=auth)
     def gpu_configs() -> list[GpuConfig]:
@@ -461,6 +464,11 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
     @app.get("/api/runs/{run_id}/comparison", dependencies=auth)
     def comparison(run_id: str) -> Comparison:
         return cascade.comparison(get_run_or_404(run_id))
+
+    @app.get("/api/runs/{run_id}/kernels", dependencies=auth)
+    def run_kernels(run_id: str) -> list[KernelStat]:
+        get_run_or_404(run_id)
+        return cascade.light_kernels(run_id)
 
     @app.get("/api/runs/{run_id}/results", dependencies=auth)
     def run_results(run_id: str) -> Response:
