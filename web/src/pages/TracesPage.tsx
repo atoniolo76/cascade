@@ -1,15 +1,42 @@
+import { Fragment } from "react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Check, CircleDot, Clock, Cpu, HardDrive, Hash, Layers, Send, Timer } from "lucide-react";
+import {
+  Check,
+  CircleDot,
+  Clock,
+  Cpu,
+  FlaskConical,
+  HardDrive,
+  Hash,
+  Layers,
+  Send,
+  Timer,
+} from "lucide-react";
 import { useTraces } from "../api/queries";
 import type { TraceSummary } from "../api/types";
 import { PageHeader } from "../components/AppShell";
 import { QuickLaunch } from "../components/QuickLaunch";
 import { SendTraceGuide } from "../components/SendTraceGuide";
-import { ModelTile, SampleBadge, StepsBadge, TraceState } from "../components/TraceState";
+import {
+  ModelTile,
+  SampleBadge,
+  StepsBadge,
+  TraceState,
+} from "../components/TraceState";
 import { LogoTile } from "../components/BrandLogo";
 import { gpuLogo } from "../domain/logos";
-import { Button, Card, Dash, ErrorNote, Panel, RelTime, SectionTitle, Skeleton, Th } from "../components/ui";
+import {
+  Button,
+  Card,
+  Dash,
+  ErrorNote,
+  Panel,
+  RelTime,
+  SectionTitle,
+  Skeleton,
+  Th,
+} from "../components/ui";
 import { ICON, ROW, THEAD } from "../components/styles";
 import { formatBytes, formatInt, plural } from "../domain/format";
 import { noOwnTraces } from "../domain/samples";
@@ -27,7 +54,13 @@ export function TracesPage() {
     <>
       <PageHeader
         crumbs={[{ label: "Traces" }]}
-        status={traces.data !== undefined && traces.data.length > 0 ? <span className="text-[15px] text-muted tabular-nums">{formatInt(traces.data.length)}</span> : undefined}
+        status={
+          traces.data !== undefined && traces.data.length > 0 ? (
+            <span className="text-[15px] text-muted tabular-nums">
+              {formatInt(traces.data.length)}
+            </span>
+          ) : undefined
+        }
         actions={
           !first && (
             <Button
@@ -42,7 +75,10 @@ export function TracesPage() {
           )
         }
       >
-        <p className="max-w-2xl text-[15px] text-muted">Kernel traces captured on real hardware. Replay any ready trace in Accel-Sim on other GPU configs.</p>
+        <p className="max-w-2xl text-[15px] text-muted">
+          Kernel traces captured on real hardware. Replay any ready trace in
+          Accel-Sim on other GPU configs.
+        </p>
       </PageHeader>
 
       {(first || guideOpen) && (
@@ -52,8 +88,10 @@ export function TracesPage() {
               title={first ? "Send your first trace" : "Send a trace"}
               subtitle={
                 <>
-                  The profiler streams kernel files into this app's bucket while it traces.
-                  {hasSample && " Profiling takes about 30 minutes; explore the sample trace and its run below in the meantime."}
+                  The profiler streams kernel files into this app's bucket while
+                  it traces.
+                  {hasSample &&
+                    " Profiling takes about 30 minutes; explore the sample trace and its run below in the meantime."}
                 </>
               }
             />
@@ -83,14 +121,24 @@ function TraceName({ t }: { t: TraceSummary }) {
       <ModelTile model={t.model} fallback={t.id} />
       <span className="min-w-0">
         <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-[14px] font-medium text-fg" title={t.id}>
+          <span
+            className="truncate text-[14px] font-medium text-fg"
+            title={t.id}
+          >
             {t.model ?? t.id}
           </span>
           {t.sample && <SampleBadge />}
           {t.has_step_timeline && <StepsBadge />}
         </span>
-        <span className="block truncate font-mono text-[12px] leading-4 text-muted" title={t.layers.length > 0 ? t.layers.join(", ") : t.id}>
-          {t.layers.length > 0 ? t.layers.join(", ") : t.model === null ? "metadata pending" : t.id}
+        <span
+          className="block truncate font-mono text-[12px] leading-4 text-muted"
+          title={t.layers.length > 0 ? t.layers.join(", ") : t.id}
+        >
+          {t.layers.length > 0
+            ? t.layers.join(", ")
+            : t.model === null
+              ? "metadata pending"
+              : t.id}
         </span>
       </span>
     </span>
@@ -99,6 +147,71 @@ function TraceName({ t }: { t: TraceSummary }) {
 
 function TraceTable({ traces }: { traces: TraceSummary[] }) {
   const navigate = useNavigate();
+  const own = traces.filter((t) => !t.sample);
+  const samples = traces.filter((t) => t.sample);
+  const renderRow = (t: TraceSummary) => (
+    <tr
+      key={t.id}
+      onClick={() => {
+        void navigate(paths.trace(t.id));
+      }}
+      className={`${ROW} cursor-pointer ${t.sample ? SAMPLE_ROW : "hover:bg-surface-2/50"}`}
+    >
+      <td
+        className={`${CELL} ${t.sample ? "shadow-[inset_3px_0_0_var(--accent)]" : ""}`}
+      >
+        <Link
+          to={paths.trace(t.id)}
+          className="block min-w-0"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <TraceName t={t} />
+        </Link>
+      </td>
+      <td className={CELL}>
+        <TraceState trace={t} />
+      </td>
+      <td className={CELL}>
+        <span className="flex min-w-0 items-center gap-2.5">
+          <LogoTile
+            logo={gpuLogo(t.source_gpu)}
+            fallback={t.source_gpu ?? "?"}
+            size="sm"
+          />
+          <span className="min-w-0">
+            <span
+              className="block truncate text-[14px] text-fg-2"
+              title={t.source_gpu ?? undefined}
+            >
+              {t.source_gpu ?? <Dash />}
+            </span>
+            <span className="block font-mono text-[12px] leading-4 text-muted">
+              {t.trace_gpu_arch}
+            </span>
+          </span>
+        </span>
+      </td>
+      <td className={`${CELL} text-right text-[14px] text-fg-2 tabular-nums`}>
+        {formatInt(t.kernel_count)}
+      </td>
+      <td className={`${CELL} text-right text-[14px] text-fg-2 tabular-nums`}>
+        {formatBytes(t.bytes)}
+      </td>
+      <td className={CELL}>
+        <RealTiming has={t.has_real_timing} />
+      </td>
+      <td className={`${CELL} text-[14px] text-muted`}>
+        <RelTime iso={t.created_at} />
+      </td>
+      <td className={`${CELL} text-right`}>
+        {t.state === "ready" && (
+          <QuickLaunch trace={t} size="sm" variant="secondary" />
+        )}
+      </td>
+    </tr>
+  );
   return (
     <>
       <table className="hidden w-full table-fixed border-collapse lg:table">
@@ -129,85 +242,95 @@ function TraceTable({ traces }: { traces: TraceSummary[] }) {
           </tr>
         </thead>
         <tbody>
-          {traces.map((t) => (
-            <tr
-              key={t.id}
-              onClick={() => {
-                void navigate(paths.trace(t.id));
-              }}
-              className={`${ROW} cursor-pointer hover:bg-surface-2/50`}
-            >
-              <td className={CELL}>
-                <Link
-                  to={paths.trace(t.id)}
-                  className="block min-w-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                >
-                  <TraceName t={t} />
-                </Link>
+          {own.map(renderRow)}
+          {samples.length > 0 && (
+            <tr>
+              <td
+                colSpan={8}
+                className="border-b border-border bg-accent-soft px-4 py-2"
+              >
+                <SampleGroupLabel />
               </td>
-              <td className={CELL}>
-                <TraceState trace={t} />
-              </td>
-              <td className={CELL}>
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <LogoTile logo={gpuLogo(t.source_gpu)} fallback={t.source_gpu ?? "?"} size="sm" />
-                  <span className="min-w-0">
-                    <span className="block truncate text-[14px] text-fg-2" title={t.source_gpu ?? undefined}>
-                      {t.source_gpu ?? <Dash />}
-                    </span>
-                    <span className="block font-mono text-[12px] leading-4 text-muted">{t.trace_gpu_arch}</span>
-                  </span>
-                </span>
-              </td>
-              <td className={`${CELL} text-right text-[14px] text-fg-2 tabular-nums`}>{formatInt(t.kernel_count)}</td>
-              <td className={`${CELL} text-right text-[14px] text-fg-2 tabular-nums`}>{formatBytes(t.bytes)}</td>
-              <td className={CELL}>
-                <RealTiming has={t.has_real_timing} />
-              </td>
-              <td className={`${CELL} text-[14px] text-muted`}>
-                <RelTime iso={t.created_at} />
-              </td>
-              <td className={`${CELL} text-right`}>{t.state === "ready" && <QuickLaunch trace={t} size="sm" variant="secondary" />}</td>
             </tr>
-          ))}
+          )}
+          {samples.map(renderRow)}
         </tbody>
       </table>
 
       <ul className="divide-y divide-border lg:hidden">
-        {traces.map((t) => (
-          <li key={t.id} className="flex items-start gap-3 px-4 py-4">
-            <Link to={paths.trace(t.id)} className="flex min-w-0 flex-1 flex-col gap-2.5">
-              <TraceName t={t} />
-              <div className="pl-9">
-                <TraceState trace={t} />
-              </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-1 pl-9 text-[13px] text-muted">
-                {t.source_gpu !== null && (
-                  <span className="inline-flex items-center gap-1.5 text-fg-2">
-                    <LogoTile logo={gpuLogo(t.source_gpu)} fallback={t.source_gpu} size="sm" />
-                    {t.source_gpu}
-                  </span>
-                )}
-                {t.state !== "uploading" && <span className="tabular-nums">{plural(t.kernel_count, "kernel")}</span>}
-                {t.state !== "uploading" && <span className="tabular-nums">{formatBytes(t.bytes)}</span>}
-                <RelTime iso={t.created_at} />
-              </div>
-            </Link>
-            {t.state === "ready" && <QuickLaunch trace={t} size="sm" variant="secondary" />}
-          </li>
+        {[...own, ...samples].map((t, i) => (
+          <Fragment key={t.id}>
+            {t.sample && i === own.length && (
+              <li className="bg-accent-soft px-4 py-2">
+                <SampleGroupLabel />
+              </li>
+            )}
+            <li
+              className={`flex items-start gap-3 px-4 py-4 ${t.sample ? "bg-accent-soft/50 shadow-[inset_3px_0_0_var(--accent)]" : ""}`}
+            >
+              <Link
+                to={paths.trace(t.id)}
+                className="flex min-w-0 flex-1 flex-col gap-2.5"
+              >
+                <TraceName t={t} />
+                <div className="pl-9">
+                  <TraceState trace={t} />
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 pl-9 text-[13px] text-muted">
+                  {t.source_gpu !== null && (
+                    <span className="inline-flex items-center gap-1.5 text-fg-2">
+                      <LogoTile
+                        logo={gpuLogo(t.source_gpu)}
+                        fallback={t.source_gpu}
+                        size="sm"
+                      />
+                      {t.source_gpu}
+                    </span>
+                  )}
+                  {t.state !== "uploading" && (
+                    <span className="tabular-nums">
+                      {plural(t.kernel_count, "kernel")}
+                    </span>
+                  )}
+                  {t.state !== "uploading" && (
+                    <span className="tabular-nums">{formatBytes(t.bytes)}</span>
+                  )}
+                  <RelTime iso={t.created_at} />
+                </div>
+              </Link>
+              {t.state === "ready" && (
+                <QuickLaunch trace={t} size="sm" variant="secondary" />
+              )}
+            </li>
+          </Fragment>
         ))}
       </ul>
     </>
   );
 }
 
+const SAMPLE_ROW = "bg-accent-soft/50 hover:bg-accent-soft";
+
+function SampleGroupLabel() {
+  return (
+    <span className="flex items-center gap-2 text-[12px] text-accent-ink">
+      <FlaskConical className="size-3.5" strokeWidth={2} aria-hidden="true" />
+      <span className="font-medium">Sample</span>
+      <span className="text-muted">
+        A real recorded run to explore while your own trace profiles
+      </span>
+    </span>
+  );
+}
+
 function RealTiming({ has }: { has: boolean }) {
   return has ? (
     <span className="inline-flex items-center gap-1.5 text-[14px] text-fg-2">
-      <Check className="size-4" style={{ color: "var(--st-ok-dot)" }} strokeWidth={2} />
+      <Check
+        className="size-4"
+        style={{ color: "var(--st-ok-dot)" }}
+        strokeWidth={2}
+      />
       Captured
     </span>
   ) : (
