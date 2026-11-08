@@ -31,6 +31,8 @@ All `/api` routes require `Authorization: Bearer $CASCADE_TOKEN`, except `GET /a
 
 Simulator env: `CASCADE_SIM_ID`, `CASCADE_MAIN_URL`, `CASCADE_TOKEN`, `CASCADE_GPU_CONFIG`, `CASCADE_TRACE_DIR`.
 
+Simulator image (the Dockerfile's `BASE_IMAGE`): the app expects the trace post-processor at `CASCADE_POSTPROCESS_CMD` (default `$CASCADE_ACCELSIM_DIR/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing`), Accel-Sim's `gpu-simulator/gpgpu-sim/configs/tested-cfgs/*/gpgpusim.config` under `CASCADE_ACCELSIM_DIR`, and the simulator entrypoint as the shell command `CASCADE_SIM_CMD`, which main runs with the env above.
+
 ## Sim state machine
 
 `SIM_TRANSITIONS` in models.py is the only source of allowed moves.

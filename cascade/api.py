@@ -485,7 +485,7 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
     def api_not_found(path: str) -> JSONResponse:
         return JSONResponse({"detail": "Not Found"}, status_code=404)
 
-    if STATIC_DIR.is_dir():
+    if (STATIC_DIR / "index.html").is_file():
         root = STATIC_DIR.resolve()
 
         @app.get("/{path:path}", include_in_schema=False)
