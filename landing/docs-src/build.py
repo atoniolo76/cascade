@@ -13,6 +13,7 @@ import sys
 import tempfile
 import tokenize
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 from typing import get_args
 
@@ -25,7 +26,8 @@ OUT = HERE.parent / "docs"
 EXAMPLES = HERE / "examples"
 sys.path.insert(0, str(HERE))
 
-from endpoints import ENDPOINTS, Endpoint, Param  # noqa: E402
+from endpoints import ENDPOINTS, UNAUTHORIZED, Endpoint, Param  # noqa: E402
+from html_to_md import to_markdown  # noqa: E402
 from typenotes import (  # noqa: E402
     ENUM_NOTES,
     FIELD_NOTES,
@@ -35,7 +37,7 @@ from typenotes import (  # noqa: E402
 )
 
 NAV: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Getting started", ("index", "quickstart", "concepts")),
+    ("Getting started", ("index", "quickstart", "agents", "concepts")),
     (
         "Guides",
         ("deploy", "trace-a-workload", "traces", "runs", "reading-results", "simulator"),
@@ -48,6 +50,10 @@ NAV: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 GITHUB = "https://github.com/atoniolo76/cascade"
+ROOT = HERE.parent.parent
+PROMPT_TEMPLATE = HERE / "agent-prompt.md"
+STAND_IN_LOG = ROOT / "tests/fixtures/logs/babelstream_sm86_rtx3070.log"
+SIMULATOR_PAGE = "api-simulator"
 
 
 @dataclass(frozen=True)
@@ -311,7 +317,7 @@ def type_html(annotation: str) -> str:
     )
 
 
-def constraints(model: type[BaseModel], field: str) -> list[str]:
+def constraints(model: type[BaseModel], field: str, defaults: bool = True) -> list[str]:
     info = model.model_fields[field]
     out = []
     words = {
@@ -325,16 +331,21 @@ def constraints(model: type[BaseModel], field: str) -> list[str]:
         for attr, fmt in words.items():
             if getattr(meta, attr, None) is not None:
                 out.append(fmt.format(getattr(meta, attr)).replace("item(s)", "item"))
-    if not info.is_required():
-        out.append(f"default <code>{esc(json.dumps(info.default))}</code>")
+    if defaults and not info.is_required():
+        out.append(f"default `{json.dumps(info.default)}`")
     return out
 
 
-def sentence(comment: str) -> str:
+def sentence_text(comment: str) -> str:
     """A source comment as a sentence: `e.g.` spelled out, capitalized, ending in a period."""
     text = re.sub(r"^e\.g\. ", "For example, ", comment)
-    text = text[0].upper() + text[1:]
-    return esc(text if text.endswith((".", ")")) else text + ".")
+    if not re.match(r"\S*[_./]", text):
+        text = text[0].upper() + text[1:]
+    return text if text.endswith((".", ")")) else text + "."
+
+
+def sentence(comment: str) -> str:
+    return esc(sentence_text(comment))
 
 
 def fields_table(name: str) -> str:
@@ -345,7 +356,7 @@ def fields_table(name: str) -> str:
         parts = [inline(note) if note else (sentence(f.comment) if f.comment else "")]
         extra = constraints(model, f.name)
         if extra:
-            parts.append(f'<span class="constraint">{", ".join(extra)}</span>')
+            parts.append(f'<span class="constraint">{inline(", ".join(extra))}</span>')
         desc = " ".join(p for p in parts if p)
         rows.append(
             f'<tr><td><code>{f.name}</code></td><td><code class="type">'
@@ -869,6 +880,264 @@ def slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", re.sub(r"<[^>]+>", "", text).lower()).strip("-")
 
 
+ROUTE_BY_KEY = {e.key: f"`{e.method} {e.path}`" for e in ENDPOINTS}
+
+
+def plain(text: str) -> str:
+    """Docs prose for Markdown read outside the site: a link to a route names the route, any
+    other link becomes its text."""
+    return re.sub(
+        r"\[([^\]\n]+)\]\([^)\s#]*#?([^)\s]*)\)",
+        lambda m: ROUTE_BY_KEY.get(m.group(2), m.group(1)),
+        text,
+    )
+
+
+def or_list(items: list[str]) -> str:
+    return ", ".join(items[:-1]) + f" or {items[-1]}" if len(items) > 1 else items[0]
+
+
+def agent_endpoints() -> list[Endpoint]:
+    return [e for e in ENDPOINTS if e.page != SIMULATOR_PAGE]
+
+
+def prompt_route_index() -> str:
+    rows = [f"| {e.method} | `{e.path}` | {plain(e.summary)} |" for e in agent_endpoints()]
+    return "\n".join(["| method | path | what it does |", "|---|---|---|", *rows])
+
+
+PROMPT_AUTH = {
+    "bearer": None,
+    "none": "No token needed.",
+    "bearer-or-query": "Bearer token, or the token as the `token` query parameter.",
+}
+
+
+def prompt_route(ep: Endpoint) -> str:
+    lines = [f"### {ep.method} {ep.path}", "", f"{ep.title}. {plain(ep.doc)}", ""]
+    if PROMPT_AUTH[ep.auth]:
+        lines.append(f"- Auth: {PROMPT_AUTH[ep.auth]}")
+    for p in ep.params:
+        opt = ", optional" if not p.required else ""
+        lines.append(
+            f"- {p.where.capitalize()} parameter `{p.name}` ({p.type}{opt}): {plain(p.doc)}"
+        )
+    if ep.body:
+        lines.append(f"- Body: `{ep.body}`.")
+    lines.append(f"- Returns: {plain(ep.returns)}")
+    for code, when in ep.errors:
+        if (code, when) != UNAUTHORIZED:
+            lines.append(f"- `{code}`: {plain(when)}")
+    return "\n".join(lines)
+
+
+def prompt_routes() -> str:
+    return "\n\n".join(prompt_route(e) for e in agent_endpoints())
+
+
+def prompt_simulator_routes() -> str:
+    routes = or_list([f"`{e.method} {e.path}`" for e in ENDPOINTS if e.page == SIMULATOR_PAGE])
+    return (
+        f"- Never call {routes}. Those routes are for simulators, and a heartbeat changes a sim's "
+        "state."
+    )
+
+
+def prompt_states() -> str:
+    def items(enum: str, values: list[str], nexts: dict[str, list[str]]) -> list[str]:
+        out = []
+        for v in values:
+            note = plain(ENUM_NOTES[enum][v])
+            follow = nexts.get(v)
+            if follow:
+                note += f" Next: {or_list([f'`{n}`' for n in follow])}."
+            elif not note.endswith("Terminal."):
+                note += " Terminal."
+            out.append(f"- `{v}`: {note}")
+        return out
+
+    trace_next: dict[str, list[str]] = {}
+    for a, b in TRACE_EDGES:
+        trace_next.setdefault(a, []).append(b)
+    sim_next = {
+        a.value: [b.value for b in S if b in targets]
+        for a, targets in models.SIM_TRANSITIONS.items()
+    }
+    trace_values = [m.value for m in models.TraceState]
+    run_values = list(get_args(models.RunState))
+    return "\n".join(
+        [
+            "### Trace states",
+            "",
+            "A trace's `state`. Runs can only launch on a `ready` trace.",
+            "",
+            *items("TraceState", trace_values, trace_next),
+            "",
+            "### Sim states",
+            "",
+            "A sim's `state`. The app ignores any move not listed here.",
+            "",
+            *items("SimState", [s.value for s in S], sim_next),
+            "",
+            "### Run states",
+            "",
+            plain(FIELD_NOTES["RunState"]),
+            "",
+            *(f"- `{v}`: {plain(ENUM_NOTES['RunState'][v])}" for v in run_values),
+        ]
+    )
+
+
+STATE_TYPES = {"TraceState", "SimState", "RunState"}
+
+
+def type_names_in(text: str) -> set[str]:
+    return set(re.findall(r"\b[A-Z]\w*\b", text)) & TYPE_NAMES
+
+
+def prompt_type_names() -> list[str]:
+    todo = set()
+    for e in agent_endpoints():
+        todo |= type_names_in(e.returns) | type_names_in(e.body or "") | set(e.nested)
+    seen: set[str] = set()
+    while todo:
+        name = todo.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        if name in ALIASES:
+            todo |= type_names_in(ALIASES[name])
+        else:
+            info = MODELS[name]
+            todo |= type_names_in(info.base or "")
+            for f in info.fields:
+                todo |= type_names_in(f.annotation)
+    order = [n for _, names in MODEL_GROUPS for n in names]
+    return [n for n in order if n in seen - STATE_TYPES]
+
+
+def field_text(model: str, f: FieldInfo) -> str:
+    note = FIELD_NOTES.get(f"{model}.{f.name}")
+    desc = plain(note) if note else (sentence_text(f.comment) if f.comment else "")
+    extra = constraints(getattr(models, model), f.name, defaults=False)
+    if extra:
+        desc += f" Allowed: {', '.join(extra)}."
+    return f"- `{f.name}` (`{f.annotation}`): {desc}".rstrip()
+
+
+def prompt_type(name: str) -> str:
+    if name in ALIASES:
+        lead = f"`{name}` is `{ALIASES[name]}`."
+        note = FIELD_NOTES.get(name)
+        return f"### {name}\n\n{lead} {plain(note) if note else ''}".rstrip()
+    info = MODELS[name]
+    lead = [plain(t) for t in (info.doc, FIELD_NOTES.get(name)) if t]
+    if info.base in MODELS:
+        lead.append(f"Every field of `{info.base}`, plus these.")
+    body = "\n".join(field_text(name, f) for f in info.fields)
+    return "\n\n".join([f"### {name}", *([" ".join(lead)] if lead else []), body])
+
+
+def prompt_types() -> str:
+    return "\n\n".join(prompt_type(n) for n in prompt_type_names())
+
+
+def stand_in_kernels() -> str:
+    names: list[str] = []
+    for m in re.finditer(r"^kernel_name = _Z(\d+)(\w+)", STAND_IN_LOG.read_text(), re.M):
+        ident = m.group(2)[: int(m.group(1))]
+        if ident not in names:
+            names.append(ident)
+    if not names:
+        raise SystemExit(f"no kernel names in {STAND_IN_LOG}")
+    quoted = [f"`{n}`" for n in names]
+    return ", ".join(quoted[:-1]) + f" and {quoted[-1]}"
+
+
+PROMPT_PARTS = {
+    "route-index": prompt_route_index,
+    "routes": prompt_routes,
+    "simulator-routes": prompt_simulator_routes,
+    "states": prompt_states,
+    "types": prompt_types,
+    "stand-in-kernels": stand_in_kernels,
+}
+
+
+def check_prompt_template(template: str) -> None:
+    """The hand-written parts of the prompt may only name routes the app serves and real fields."""
+    served = {(e.method, e.path) for e in ENDPOINTS}
+    for method, path in re.findall(r"\b(GET|POST) (/api/[^\s`]*)", template):
+        if (method, path) not in served:
+            raise SystemExit(f"agent-prompt.md names {method} {path}, which no Endpoint documents")
+    fields = {f.name for info in MODELS.values() for f in info.fields}
+    kernels = set(re.findall(r"`(\w+)`", stand_in_kernels()))
+    for token in re.findall(r"`([^`\n]+)`", template):
+        for part in token.split("."):
+            if re.fullmatch(r"[a-z]+(?:_[a-z0-9]+)+", part) and part not in fields | kernels:
+                raise SystemExit(f"agent-prompt.md names `{part}`, which is no model field")
+    unknown = set(re.findall(r"\{\{([\w-]+)\}\}", template)) - set(PROMPT_PARTS)
+    if unknown:
+        raise SystemExit(f"agent-prompt.md has unknown placeholders {unknown}")
+
+
+@cache
+def agent_prompt() -> str:
+    template = PROMPT_TEMPLATE.read_text()
+    check_prompt_template(template)
+    return re.sub(r"\{\{([\w-]+)\}\}", lambda m: PROMPT_PARTS[m.group(1)](), template)
+
+
+SKILL_DESCRIPTION = (
+    "Drive a Cascade app over its HTTP API. Use when the user asks about Cascade traces, GPU "
+    "configs, runs or sims, or wants to launch, watch, compare or explain Accel-Sim simulation "
+    "results."
+)
+
+
+def skill_file() -> str:
+    return f"---\nname: cascade\ndescription: {SKILL_DESCRIPTION}\n---\n\n{agent_prompt()}"
+
+
+def prompt_block(arg: str | None = None) -> str:
+    return (
+        '<div class="prompt-block" id="prompt-code">'
+        + code_block(agent_prompt(), label="agent-prompt.md")
+        + "</div>"
+    )
+
+
+def llms_txt(pages: list[Page]) -> str:
+    intro = next(p for p in pages if p.slug == "index").description
+    out = [
+        "# Cascade docs",
+        "",
+        f"> {intro} These docs cover running the app, tracing a workload, launching runs, reading results, and the HTTP API.",
+        "",
+        "To drive a Cascade app from an AI agent, give the agent [agent-prompt.md](agent-prompt.md). It lists every route an agent may call, the state machines, and how to report results.",
+    ]
+    for group, slugs in NAV:
+        out += ["", f"## {group}", ""]
+        out += [f"- [{p.title}]({p.href}): {p.description}" for p in pages if p.slug in slugs]
+    out += [
+        "",
+        "## Agent files",
+        "",
+        "- [Agent prompt](agent-prompt.md): The setup prompt for an AI agent, as Markdown.",
+        "- [Cascade skill](cascade-skill/SKILL.md): The same prompt as an agent skill, with `name` and `description` frontmatter.",
+        "- [Full docs](llms-full.txt): Every page above as Markdown, in one file.",
+    ]
+    return "\n".join(out) + "\n"
+
+
+def llms_full(pages: list[Page], bodies: dict[str, str]) -> str:
+    intro = next(p for p in pages if p.slug == "index").description
+    parts = [f"# Cascade docs\n\n> {intro}\n"]
+    for p in pages:
+        parts.append(f"# {p.title}\n\nPage: {p.href}\n\n{to_markdown(bodies[p.slug], p.href)}")
+    return "\n\n".join(parts)
+
+
 DIRECTIVES = {
     "types": lambda arg: types_reference(),
     "sim-diagram": lambda arg: sim_diagram(),
@@ -885,6 +1154,7 @@ DIRECTIVES = {
     "enum": enum_table,
     "settings": settings_table,
     "event": event_block,
+    "agent-prompt": prompt_block,
     "snippet": lambda name: code_block((HERE / "snippets" / name).read_text(), "python", name),
 }
 
@@ -1023,6 +1293,7 @@ def shell(page: Page, body: str, headings: list[Heading], pages: list[Page], i: 
     <h1>{esc(page.title)}</h1>
 {body}
 {pager(pages, i)}
+    <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
   {toc(headings)}
 </div>
@@ -1038,6 +1309,8 @@ def shell(page: Page, body: str, headings: list[Heading], pages: list[Page], i: 
 
 def write(path: Path, content: str, written: set[Path]) -> None:
     written.add(path)
+    written.update(p for p in path.parents if OUT in p.parents)
+    path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists() or path.read_text() != content:
         path.write_text(content)
         print(f"wrote {path.relative_to(HERE.parent.parent)}")
@@ -1050,8 +1323,10 @@ def main() -> int:
     OUT.mkdir(exist_ok=True)
     written: set[Path] = set()
     index = []
+    bodies: dict[str, str] = {}
     for i, page in enumerate(pages):
         body, headings = render_body(page.source)
+        bodies[page.slug] = body
         write(OUT / page.href, shell(page, body, headings, pages, i), written)
         index.append({"t": page.title, "u": page.href, "g": page.group})
         index += [{"t": h.text, "u": f"{page.href}#{h.id}", "g": page.title} for h in headings]
@@ -1060,6 +1335,10 @@ def main() -> int:
         "window.DOCS_INDEX = " + json.dumps(index, ensure_ascii=False, indent=0) + ";\n",
         written,
     )
+    write(OUT / "agent-prompt.md", agent_prompt(), written)
+    write(OUT / "cascade-skill" / "SKILL.md", skill_file(), written)
+    write(OUT / "llms.txt", llms_txt(pages), written)
+    write(OUT / "llms-full.txt", llms_full(pages, bodies), written)
     for asset in ("docs.css", "docs.js"):
         write(OUT / asset, (HERE / asset).read_text(), written)
     for stale in set(OUT.iterdir()) - written:

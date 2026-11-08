@@ -294,6 +294,35 @@ blockquote { margin: 14px 0 0; padding: 2px 0 2px 14px; border-left: 2px solid v
 .tab-panel .copy { position: absolute; top: 6px; right: 6px; }
 .tabs .code-bar .copy { display: none; }
 
+/* agent prompt */
+.cta {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px;
+  margin-top: 24px; padding: 16px 16px 16px 20px; border: 1px solid var(--rule-strong); border-radius: 12px;
+  background: linear-gradient(120deg, var(--tint-violet), var(--tint-orchid));
+}
+.cta strong { display: block; font-weight: 600; color: var(--ink); }
+.cta span { display: block; margin-top: 2px; font-size: 14px; color: var(--ink-70); line-height: 1.5; }
+.cta > div { flex: 1 1 260px; }
+.copy-prompt {
+  flex-shrink: 0; height: 38px; padding: 0 18px; border: 0; border-radius: 9px; cursor: pointer;
+  background: var(--brand-violet); color: #fff; font: 500 14px Inter, sans-serif;
+  box-shadow: 0 1px 2px rgb(11 11 10 / 0.12); transition: background 0.15s ease;
+}
+.copy-prompt:hover { background: var(--violet); }
+.copy-prompt.done { background: var(--get); }
+.prompt-block .code { border-color: var(--rule-strong); }
+.prompt-block .code pre { max-height: 520px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.prompt-block .copy { color: #fff; background: var(--brand-violet); border-color: transparent; padding: 4px 12px; font-weight: 500; }
+.prompt-block .copy:hover { color: #fff; background: var(--violet); border-color: transparent; }
+.prompt-block .copy.done { color: #fff; background: var(--get); }
+.doc-foot {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-top: 28px;
+  font-size: 13px;
+}
+.doc-foot span { font: 400 11px "Geist Mono", monospace; color: var(--ink-45); text-transform: lowercase; }
+.doc-foot a { color: var(--ink-70); }
+.doc-foot a:hover { color: var(--violet); }
+
 /* endpoints */
 .endpoint { margin-top: 64px; padding-top: 8px; border-top: 1px solid var(--rule); }
 .endpoint:first-of-type { border-top: 0; margin-top: 40px; }

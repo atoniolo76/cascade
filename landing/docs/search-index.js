@@ -40,6 +40,56 @@ window.DOCS_INDEX = [
 "g": "Quickstart"
 },
 {
+"t": "Use with AI agents",
+"u": "agents.html",
+"g": "Getting started"
+},
+{
+"t": "What an agent can do",
+"u": "agents.html#what-an-agent-can-do",
+"g": "Use with AI agents"
+},
+{
+"t": "Set it up",
+"u": "agents.html#set-it-up",
+"g": "Use with AI agents"
+},
+{
+"t": "The setup prompt",
+"u": "agents.html#the-setup-prompt",
+"g": "Use with AI agents"
+},
+{
+"t": "Set up your tool",
+"u": "agents.html#set-up-your-tool",
+"g": "Use with AI agents"
+},
+{
+"t": "Claude Code",
+"u": "agents.html#claude-code",
+"g": "Use with AI agents"
+},
+{
+"t": "Codex",
+"u": "agents.html#codex",
+"g": "Use with AI agents"
+},
+{
+"t": "Cursor",
+"u": "agents.html#cursor",
+"g": "Use with AI agents"
+},
+{
+"t": "Other agents",
+"u": "agents.html#other-agents",
+"g": "Use with AI agents"
+},
+{
+"t": "Docs for agents",
+"u": "agents.html#docs-for-agents",
+"g": "Use with AI agents"
+},
+{
 "t": "Concepts",
 "u": "concepts.html",
 "g": "Getting started"

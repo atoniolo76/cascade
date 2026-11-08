@@ -60,7 +60,7 @@ ENDPOINTS: tuple[Endpoint, ...] = (
         title="Check health",
         summary="Liveness check. Needs no token.",
         doc='Returns `{"ok": true, "auth": true}` while the app process is serving requests. `auth` is `false` only when the app runs with `CASCADE_NO_AUTH=1`, a local-dev mode where no token is needed and the web UI skips its token screen. Health does not check the database, the S3 endpoint or the launcher.',
-        returns='`200` with `{"ok": true}`.',
+        returns='`200` with `{"ok": true, "auth": true}`.',
         example="health",
         auth="none",
     ),

@@ -1,0 +1,86 @@
+<!--
+title: Use with AI agents
+description: Connect Claude Code, Codex, Cursor or another AI agent to your Cascade app with one setup prompt, so it can launch runs and explain the results.
+-->
+<p class="lede">Paste one prompt into your agent and it can work your Cascade app for you. It reads your traces, launches runs on the configs that fit, watches them finish, and explains the results.</p>
+
+<div class="cta">
+<div><strong>Setup prompt</strong><span>Tells your agent how to authenticate, which routes to call, and how to report results.</span></div>
+<button class="copy-prompt" type="button" data-target="prompt-code">Copy prompt</button>
+</div>
+
+<h2>What an agent can do</h2>
+<p>The agent works through the same [HTTP API](api.html) as the web UI. With the prompt, it can do these things.</p>
+<ul>
+<li>Check traces. It lists them, waits for an upload to become `ready`, and reports a trace that `failed`.</li>
+<li>Launch runs. It picks the GPU configs whose `arch` matches the trace's `trace_gpu_arch` and asks before it starts more than 4 sims.</li>
+<li>Watch runs. It polls the run until every sim has finished and tells you the progress as it goes.</li>
+<li>Pull results and comparisons. It reads per-kernel times from `/kernels`, real against simulated time from `/comparison`, and the full stats from `/results` when you ask for them.</li>
+<li>Explain the numbers. It reports simulated time per config, the error against real hardware when the trace has real timing, the worst kernels by readable name, and why any sim failed.</li>
+</ul>
+<p>The agent can't trace a workload. Tracing runs on a real GPU under the Modal profiler, outside the API. [Trace a workload](trace-a-workload.html) covers that part. Once the trace is in your app, the agent takes it from there.</p>
+<div class="note"><p>A default deploy runs the stand-in simulator, which replays one recorded BabelStream log for every trace. The prompt tells the agent to say so when the numbers look like the stand-in's, so a report never passes them off as a simulation of your trace.</p></div>
+
+<h2>Set it up</h2>
+<ol class="steps">
+<li><strong>Put the app's URL and token in the agent's environment.</strong> Run this in the shell your agent runs commands in, or in the terminal you start the agent from. The prompt tells the agent to read the token from `$CASCADE_TOKEN` and never print it.
+```bash
+export CASCADE_URL=https://<your-app>
+export CASCADE_TOKEN=<your token>
+```
+<p>The URL is the one `deploy_sail.py` prints as `app:`. Locally it is `http://127.0.0.1:8000`.</p>
+</li>
+<li><strong>Give the agent the prompt.</strong> Copy the [setup prompt](#the-setup-prompt) and paste it into the chat, or save it where your agent reads instructions, as [Set up your tool](#set-up-your-tool) shows.</li>
+<li><strong>Ask for what you want.</strong> For example:
+```text
+Which of my traces are ready?
+Simulate the newest trace on every config that matches it, one sim each, and compare them.
+Why did sims fail in my last run?
+```
+</li>
+</ol>
+
+<h2>The setup prompt</h2>
+<p>The build generates the API, state and type sections of this prompt from `landing/docs-src/endpoints.py` and `cascade/models.py`, the same sources as the [API reference](api.html). It always matches the API these docs describe. If you saved a copy, copy it again after you update Cascade.</p>
+{{agent-prompt}}
+<p>The same prompt is at [agent-prompt.md](agent-prompt.md) as plain Markdown, and at [cascade-skill/SKILL.md](cascade-skill/SKILL.md) as a skill with `name` and `description` frontmatter.</p>
+
+<h2>Set up your tool</h2>
+<p>Each tool below can take the prompt pasted into a chat. To keep it across sessions, save it as a file the tool reads. The commands copy the files from a Cascade checkout. Run them from your project's root, and set `CASCADE` to the checkout's path.</p>
+
+<h3>Claude Code</h3>
+<p>Save the prompt as a skill. Claude Code loads it when a request matches the skill's description. Use `.claude/skills/` in your project, or `~/.claude/skills/` to have it in every project.</p>
+```bash
+mkdir -p .claude/skills/cascade
+cp "$CASCADE/landing/docs/cascade-skill/SKILL.md" .claude/skills/cascade/SKILL.md
+```
+<p>To load it in every session instead, append the prompt to your project's `CLAUDE.md`.</p>
+```bash
+cat "$CASCADE/landing/docs/agent-prompt.md" >> CLAUDE.md
+```
+
+<h3>Codex</h3>
+<p>Codex reads `AGENTS.md` in your project's root, and `~/.codex/AGENTS.md` for every project. Append the prompt to either one.</p>
+```bash
+cat "$CASCADE/landing/docs/agent-prompt.md" >> AGENTS.md
+```
+
+<h3>Cursor</h3>
+<p>Save the prompt as a project rule in `.cursor/rules/`. This rule has a description, so the agent can pull it in when a request is about Cascade. Cursor's docs list the other ways a rule can apply.</p>
+```bash
+mkdir -p .cursor/rules
+{ printf -- '---\ndescription: Drive the Cascade app API for traces, runs and simulation results\nalwaysApply: false\n---\n\n'
+  cat "$CASCADE/landing/docs/agent-prompt.md"; } > .cursor/rules/cascade.mdc
+```
+
+<h3>Other agents</h3>
+<p>Paste the prompt at the start of the conversation. If your agent loads skills from `SKILL.md` folders, use [cascade-skill/SKILL.md](cascade-skill/SKILL.md). Otherwise, save [agent-prompt.md](agent-prompt.md) wherever your agent reads project instructions. Check your agent's docs for where that is.</p>
+
+<h2>Docs for agents</h2>
+<p>These files give an agent the docs without the site around them. The build writes them next to the pages.</p>
+<ul>
+<li>[llms.txt](llms.txt) lists every docs page with a one-line description, in the llms.txt convention.</li>
+<li>[llms-full.txt](llms-full.txt) has every page as Markdown in one file, in the order of the sidebar.</li>
+<li>[agent-prompt.md](agent-prompt.md) is the setup prompt above.</li>
+<li>[cascade-skill/SKILL.md](cascade-skill/SKILL.md) is the setup prompt as a skill.</li>
+</ul>

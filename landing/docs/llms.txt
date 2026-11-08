@@ -1,0 +1,42 @@
+# Cascade docs
+
+> Cascade traces an ML workload once on a real GPU and simulates it on many GPU configs at once with Accel-Sim. These docs cover running the app, tracing a workload, launching runs, reading results, and the HTTP API.
+
+To drive a Cascade app from an AI agent, give the agent [agent-prompt.md](agent-prompt.md). It lists every route an agent may call, the state machines, and how to report results.
+
+## Getting started
+
+- [Introduction](index.html): Cascade traces an ML workload once on a real GPU and simulates it on many GPU configs at once with Accel-Sim.
+- [Quickstart](quickstart.html): Run Cascade on your laptop with the stand-in simulator, upload a trace, launch a run, and download its results.
+- [Use with AI agents](agents.html): Connect Claude Code, Codex, Cursor or another AI agent to your Cascade app with one setup prompt, so it can launch runs and explain the results.
+- [Concepts](concepts.html): Traces, runs, sims and GPU configs in Cascade, their state machines, and how each sim forks from one checkpoint.
+
+## Guides
+
+- [Deploy the app](deploy.html): Deploy the Cascade app to a Sail sandbox with scripts/deploy_sail.py, with the stand-in simulator or a real Accel-Sim image.
+- [Trace a workload](trace-a-workload.html): Trace a vLLM model on a Modal H100 with Accel-Sim's NVBit tracer and stream the trace into your Cascade app over S3.
+- [Traces](traces.html): How the Cascade app notices an upload, decides it is complete, post-processes it, and marks it ready to simulate.
+- [Runs](runs.html): Launch a Cascade run on a ready trace, choose GPU configs and counts, follow its sims, and cancel it.
+- [Reading results](reading-results.html): What Cascade's run screen, metrics, comparison panel and results downloads mean, and where each number comes from in Accel-Sim's output.
+- [Bring your own simulator](simulator.html): The contract a program follows to run as a Cascade simulator, what the simulator image needs, and a complete stdlib client.
+
+## API reference
+
+- [API overview and auth](api.html): Base URL, bearer-token auth, ids, timestamps and errors for the Cascade app's HTTP API, with every route on one page.
+- [Traces](api-traces.html): List the traces the Cascade app has received and read one trace's metadata and kernels.
+- [Runs](api-runs.html): List GPU configs, create and cancel runs, read run and sim state, and download results and logs from the Cascade API.
+- [Live events (SSE)](api-events.html): Subscribe to one Cascade run's live updates over server-sent events: the snapshot, sim, log and kernel events, and how to reconnect.
+- [Simulator endpoints](api-simulator.html): The two calls a Cascade simulator makes, heartbeats and log chunks, with their bodies, replies and retry rules.
+- [Types](types.html): Every request, response and event model in the Cascade API, its fields and types, and the sim state machine, generated from cascade/models.py.
+- [Errors](errors.html): The status codes the Cascade API returns, the two error body shapes, and a captured example of each.
+
+## Help
+
+- [Troubleshooting](troubleshooting.html): Fixes for traces stuck uploading or failing, rejected tokens, disabled configs, lost or failed sims, and an event stream that goes quiet.
+- [Limits](limits.html): What Cascade does not do yet, and the fixed limits on runs, traces, disk and simulation speed.
+
+## Agent files
+
+- [Agent prompt](agent-prompt.md): The setup prompt for an AI agent, as Markdown.
+- [Cascade skill](cascade-skill/SKILL.md): The same prompt as an agent skill, with `name` and `description` frontmatter.
+- [Full docs](llms-full.txt): Every page above as Markdown, in one file.

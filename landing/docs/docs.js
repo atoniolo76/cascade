@@ -5,9 +5,9 @@
   };
   const root = document.documentElement;
 
-  for (const btn of document.querySelectorAll(".copy")) {
+  const copyOnClick = (btn, pre) => {
+    const label = btn.textContent;
     btn.addEventListener("click", async () => {
-      const pre = btn.closest(".code").querySelector("pre");
       try {
         await navigator.clipboard.writeText(pre.innerText);
         btn.textContent = "Copied";
@@ -15,8 +15,13 @@
         btn.textContent = "Select and copy";
       }
       btn.classList.add("done");
-      setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1400);
+      setTimeout(() => { btn.textContent = label; btn.classList.remove("done"); }, 1400);
     });
+  };
+  for (const btn of document.querySelectorAll(".copy")) copyOnClick(btn, btn.closest(".code").querySelector("pre"));
+  for (const btn of document.querySelectorAll(".copy-prompt")) {
+    const pre = document.getElementById(btn.dataset.target)?.querySelector("pre");
+    if (pre) copyOnClick(btn, pre);
   }
   for (const panel of document.querySelectorAll(".tab-panel")) {
     const btn = panel.querySelector(".copy");
