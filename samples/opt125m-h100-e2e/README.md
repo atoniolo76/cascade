@@ -41,8 +41,9 @@ Paths match the run directory. JSON and the per-kernel logs are gzipped (`.gz`).
   plus the nsys kernels of every step.
 - `trace_alignment.json`: each traced kernel matched to its timeline kernel (712 of 712).
 - `sim_durations.json`: Accel-Sim cycles for every kernel launch, with how each was obtained.
-- `traced/trace_steps.json` and `traced/traces/kernelslist.g`: the traced steps and the kernel list
-  Accel-Sim ran.
+- `traced/trace_steps.json`, `traced/traces/kernelslist.g` and
+  `traced/traces/stats_ctx_0x54c35c0`: the traced steps, the kernel list Accel-Sim ran, and the
+  tracer's launch dimensions and instruction counts for all 23,294 launches of the traced run.
 - `sim/kernels.csv`, `sim/summary.json`: Accel-Sim's per-kernel results and the dedup check.
 - `sim/simulated_timeline.json`, `sim/compare.json`: the simulated timeline and its errors against
   the real one.
@@ -63,8 +64,8 @@ Paths match the run directory. JSON and the per-kernel logs are gzipped (`.gz`).
 
 ## How Cascade shows it
 
-- The trace `sample__facebook_opt-125m__h100-e2e` is `ready`, with the 712 traced kernels and their
-  launch dimensions from `trace_alignment.json`.
+- The trace `sample__facebook_opt-125m__h100-e2e` is `ready`. Its kernel launches are the 712 traced
+  kernels' rows of `stats_ctx_0x54c35c0`, read with the parser ingest uses for any trace.
 - The run `run-sample-opt125m-h100-e2e` has one SM90_H100 sim with one kernel stat per simulated
   kernel (93, in launch order), parsed from that kernel's log. Its `kernel_launch_uid` is the
   tracer's kernel uid, as in `kernels.csv`.

@@ -28,6 +28,7 @@ GZIPPED = (
     "sim_durations.json",
     "trace_alignment.json",
     "traced/trace_steps.json",
+    "traced/traces/stats_ctx_0x54c35c0",
     "sim/summary.json",
     "sim/compare.json",
     "sim/simulated_timeline.json",

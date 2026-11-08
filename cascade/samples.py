@@ -17,8 +17,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from cascade.ingest import parse_stats
 from cascade.models import (
-    KernelLaunch,
     KernelStat,
     SimFile,
     SimMetrics,
@@ -41,6 +41,7 @@ TRACE_FILES = (
     "trace_alignment.json",
     "traced/trace_steps.json",
     "traced/traces/kernelslist.g",
+    "traced/traces/stats_ctx_0x54c35c0",
 )
 
 
@@ -137,7 +138,13 @@ def load(bundle: Bundle) -> Sample:
     started = datetime.fromisoformat(m["sim_started_at"])
     finished = started + timedelta(seconds=summary["wall_s"])
     trace_files = {rel.removeprefix("traced/"): bundle.read(rel) for rel in TRACE_FILES}
-    kernelslist = trace_files["traces/kernelslist.g"].decode().splitlines()
+    kernelslist = [
+        line
+        for line in trace_files["traces/kernelslist.g"].decode().splitlines()
+        if line.startswith("kernel")
+    ]
+    traced = {int(line.split("-")[1]) for line in kernelslist}
+    launches = parse_stats(trace_files["traces/stats_ctx_0x54c35c0"].decode())
     metadata = {
         "status": run["status"],
         "run_name": run["run_name"],
@@ -171,22 +178,13 @@ def load(bundle: Bundle) -> Sample:
         source_gpu=metadata["gpu"],
         trace_gpu_arch=m["trace_gpu_arch"],
         suggested_sim_config=m["gpu_config"],
-        kernel_count=sum(1 for line in kernelslist if line.startswith("kernel")),
+        kernel_count=len(kernelslist),
         bytes=sum(len(b) for b in trace_files.values()),
         has_real_timing=True,
         has_step_timeline=True,
         sample=True,
         metadata=metadata,
-        kernels=[
-            KernelLaunch(
-                kernel_id=k["tracer_uid"],
-                name=k["name"],
-                grid=tuple(k["grid"]),
-                block=tuple(k["block"]),
-                instructions=None,
-            )
-            for k in sorted(alignment["kernels"], key=lambda k: k["tracer_uid"])
-        ],
+        kernels=sorted((k for k in launches if k.kernel_id in traced), key=lambda k: k.kernel_id),
     )
     stats = _stats(bundle, m["sim_id"], simulated)
     insns = [s.gpu_sim_insn for s in stats]

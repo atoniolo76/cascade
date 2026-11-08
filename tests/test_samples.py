@@ -77,6 +77,13 @@ def test_sample_trace_is_ready_and_describes_the_real_trace(app):
     assert [k["kernel_id"] for k in trace["kernels"]] == [
         int(line.split("-")[1]) for line in kernelslist
     ]
+    assert trace["kernels"][0] == {
+        "kernel_id": 6207,
+        "name": simulated_rows()[0]["name"],
+        "grid": [1, 1, 1],
+        "block": [128, 1, 1],
+        "instructions": 92,
+    }
 
 
 def test_sample_kernel_stats_are_kernels_csv_simulated_rows_in_launch_order(app):
