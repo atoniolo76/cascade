@@ -209,12 +209,11 @@
 </div>
 <script>
   const LINKS = {
-    devpost: "",
-    youtube: "",
+    devpost: "https://devpost.com/",
+    youtube: "https://youtube.com/",
   };
   for (const [key, href] of Object.entries(LINKS)) {
-    const a = document.querySelector(`[data-link="${key}"]`);
-    if (href) a.href = href;
+    document.querySelector(`[data-link="${key}"]`).href = href;
   }
 
   const marks = document.querySelectorAll(".hl");
