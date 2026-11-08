@@ -51,9 +51,11 @@ def accelsim_image(*, accelsim_commit=ACCELSIM_COMMIT, gpgpusim_ref=GPGPUSIM_REF
                 "libglu1-mesa-dev", "libssl-dev", "libxml2-dev", "libboost-all-dev", "libzstd-dev",
                 "python3-dev", "python3-setuptools", "python3-pip", "bc", "cmake")
             .uv_pip_install("pyyaml", "plotly", "psutil")
-            .env({"CUDA_INSTALL_PATH": "/usr/local/cuda", "GPGPUSIM_BRANCH": gpgpusim_ref})
+            .env({"CUDA_INSTALL_PATH": "/usr/local/cuda", "GPGPUSIM_BRANCH": gpgpusim_ref,
+                  "CPLUS_INCLUDE_PATH": f"{ROOT}/util/tracer_nvbit/tracer_tool"})
             .run_commands(f"git clone {REPO} {ROOT}",
                           f"git -C {ROOT} checkout {shlex.quote(accelsim_commit)}",
+                          f"sed -i 's|-lzstd -pthread $(BUILD_DIR)/[*].o|-pthread $(BUILD_DIR)/*.o -lzstd|' {ROOT}/gpu-simulator/Makefile",
                           "bash -c " + shlex.quote(build))
             .add_local_python_source("cascade_profiler"))
 

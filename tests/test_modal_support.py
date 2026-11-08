@@ -20,10 +20,13 @@ class ModalSupportTest(unittest.TestCase):
             recipe.reset_mock()
             support.accelsim_image()
         self.assertEqual(recipe.env.call_args.args[0]["GPGPUSIM_BRANCH"], support.GPGPUSIM_REF)
+        self.assertEqual(recipe.env.call_args.args[0]["CPLUS_INCLUDE_PATH"],
+                         f"{support.ROOT}/util/tracer_nvbit/tracer_tool")
         commands = " ".join(recipe.run_commands.call_args.args)
         self.assertIn("source", commands)
         self.assertIn("setup_environment.sh release", commands)
         self.assertIn("post-traces-processing", commands)
+        self.assertIn("-pthread $(BUILD_DIR)/*.o -lzstd", commands)
 
     def test_registration_and_commit_on_failure(self):
         options = []
