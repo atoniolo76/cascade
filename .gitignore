@@ -64,3 +64,6 @@ cascade/static/
 # Profiler
 *.tar
 /nsys
+
+# Vercel project link
+landing/.vercel/
