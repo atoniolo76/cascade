@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API overview and auth · Cascade docs</title>
+<meta name="description" content="Base URL, bearer-token auth, ids, timestamps and errors for the Cascade app&#x27;s HTTP API, with every route on one page.">
+<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+<script>try{const t=localStorage.getItem("cascade-docs-theme");if(t)document.documentElement.dataset.theme=t}catch{}</script>
+<script src="search-index.js" defer></script>
+<script src="docs.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+  <a class="brand" href="index.html"><svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><defs><clipPath id="cm0"><path d="M-6.00 -4.00 L-3.50 -4.00 L-1.00 -4.00 L1.50 -4.00 L4.00 -4.00 L6.50 -4.00 L9.00 -4.00 L11.50 -4.00 L14.00 -4.00 L16.50 -4.00 L19.00 -4.00 L21.50 -4.00 L24.00 -4.00 L26.50 -4.00 L29.00 -4.00 L31.50 -4.00 L34.00 -4.00 L36.50 -4.00 L39.00 -4.00 L41.50 -4.00 L44.00 -4.00 L46.50 -4.00 L49.00 -4.00 L51.50 -4.00 L54.00 -4.00 L54.00 18.39 L51.50 17.02 L49.00 15.77 L46.50 14.63 L44.00 13.62 L41.50 12.72 L39.00 11.95 L36.50 11.29 L34.00 10.75 L31.50 10.34 L29.00 10.04 L26.50 9.86 L24.00 9.80 L21.50 9.86 L19.00 10.04 L16.50 10.34 L14.00 10.75 L11.50 11.29 L9.00 11.95 L6.50 12.72 L4.00 13.62 L1.50 14.63 L-1.00 15.77 L-3.50 17.02 L-6.00 18.39Z"/></clipPath><clipPath id="cm1"><path d="M-6.00 21.79 L-3.50 20.42 L-1.00 19.17 L1.50 18.03 L4.00 17.02 L6.50 16.12 L9.00 15.35 L11.50 14.69 L14.00 14.15 L16.50 13.74 L19.00 13.44 L21.50 13.26 L24.00 13.20 L26.50 13.26 L29.00 13.44 L31.50 13.74 L34.00 14.15 L36.50 14.69 L39.00 15.35 L41.50 16.12 L44.00 17.02 L46.50 18.03 L49.00 19.17 L51.50 20.42 L54.00 21.79 L54.00 32.39 L51.50 31.02 L49.00 29.77 L46.50 28.63 L44.00 27.62 L41.50 26.72 L39.00 25.95 L36.50 25.29 L34.00 24.75 L31.50 24.34 L29.00 24.04 L26.50 23.86 L24.00 23.80 L21.50 23.86 L19.00 24.04 L16.50 24.34 L14.00 24.75 L11.50 25.29 L9.00 25.95 L6.50 26.72 L4.00 27.62 L1.50 28.63 L-1.00 29.77 L-3.50 31.02 L-6.00 32.39Z"/></clipPath><clipPath id="cm2"><path d="M-6.00 35.79 L-3.50 34.42 L-1.00 33.17 L1.50 32.03 L4.00 31.02 L6.50 30.12 L9.00 29.35 L11.50 28.69 L14.00 28.15 L16.50 27.74 L19.00 27.44 L21.50 27.26 L24.00 27.20 L26.50 27.26 L29.00 27.44 L31.50 27.74 L34.00 28.15 L36.50 28.69 L39.00 29.35 L41.50 30.12 L44.00 31.02 L46.50 32.03 L49.00 33.17 L51.50 34.42 L54.00 35.79 L54.00 52.00 L51.50 52.00 L49.00 52.00 L46.50 52.00 L44.00 52.00 L41.50 52.00 L39.00 52.00 L36.50 52.00 L34.00 52.00 L31.50 52.00 L29.00 52.00 L26.50 52.00 L24.00 52.00 L21.50 52.00 L19.00 52.00 L16.50 52.00 L14.00 52.00 L11.50 52.00 L9.00 52.00 L6.50 52.00 L4.00 52.00 L1.50 52.00 L-1.00 52.00 L-3.50 52.00 L-6.00 52.00Z"/></clipPath></defs><g transform="translate(-4 0)"><circle cx="24" cy="24" r="21" fill="currentColor" clip-path="url(#cm0)"/></g><g transform="translate(0 0)"><circle cx="24" cy="24" r="21" fill="#6D4AE0" clip-path="url(#cm1)"/></g><g transform="translate(4 0)"><circle cx="24" cy="24" r="21" fill="#A35CE8" clip-path="url(#cm2)"/></g></svg><span>Cascade</span><span class="brand-docs">docs</span></a>
+  <button class="search-btn" type="button" aria-label="Search docs"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search docs</span><kbd>/</kbd></button>
+  <nav class="top-links" aria-label="Site">
+    <a href="../index.html">Home</a>
+    <a href="../writeup.html">Writeup</a>
+    <a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg></button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html" aria-current="page">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div></aside>
+  <main id="content" class="content">
+    <p class="eyebrow">API reference</p>
+    <h1>API overview and auth</h1>
+<p class="lede">Everything the UI does goes through this HTTP API. It serves JSON over the app's URL, the one <code>deploy_sail.py</code> prints as <code>app:</code>.</p>
+
+<div class="note"><p>Every response on these pages was captured from a running server, by <code>landing/docs-src/capture_examples.py</code>. The sims in that run replayed a recorded Accel-Sim log of BabelStream on an RTX 3070, so the cycles, IPC and kernel names come from that log, not from the uploaded trace. Long lists and maps are trimmed, and each cut is marked with a <code>/* ... trimmed */</code> comment.</p></div>
+
+<h2 id="base-url">Base URL<a class="anchor" href="#base-url" aria-label="Link to this section">#</a></h2>
+<p>The samples read the app's URL and your token from the environment.</p>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>export CASCADE_URL=https://&lt;your-app&gt;
+export CASCADE_TOKEN=&lt;your token&gt;</code></pre></div><p>Locally, the app's URL is <code>http://127.0.0.1:8000</code>.</p>
+
+<h2 id="authentication">Authentication<a class="anchor" href="#authentication" aria-label="Link to this section">#</a></h2>
+<p>Send the token the app was started with as a bearer token on every request.</p>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span> <span class="tk-s">"$CASCADE_URL/api/traces"</span></code></pre></div><p>A missing or wrong token gets <code>401</code> with a <code>WWW-Authenticate: Bearer</code> header. Two routes differ.</p>
+<ul>
+<li><a href="#health">Check health</a> needs no token.</li>
+<li><a href="api-events.html#run-events">Stream run events</a> also accepts the token as <code>?token=</code>, because the browser's <code>EventSource</code> can't send headers.</li>
+</ul>
+<p>There is one token per app, shared by the UI, the profiler and every sim. The app compares it in constant time.</p>
+
+<h2 id="conventions">Conventions<a class="anchor" href="#conventions" aria-label="Link to this section">#</a></h2>
+<ul>
+<li>Request and response bodies are JSON. Every <a href="types.html">type</a> is generated from <code>cascade/models.py</code>.</li>
+<li>Timestamps are ISO 8601 in UTC, such as <code>2026-11-08T03:05:34.001386Z</code>.</li>
+<li>A trace's id is the profiler's run name. Runs and sims get generated ids, <code>run-</code> or <code>sim-</code> and 12 hex digits.</li>
+<li>Lists come back whole. There is no pagination.</li>
+<li>Errors are JSON with a <code>detail</code> field. See <a href="errors.html">Errors</a>.</li>
+</ul>
+
+<h2 id="routes">Routes<a class="anchor" href="#routes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table class="table routes"><thead><tr><th>method</th><th>path</th><th>what it does</th></tr></thead><tbody><tr><td><span class="method get">GET</span></td><td><a href="api.html#health"><code>/api/health</code></a></td><td>Liveness check. Needs no token.</td></tr><tr><td><span class="method get">GET</span></td><td><a href="api-traces.html#list-traces"><code>/api/traces</code></a></td><td>Every trace, newest first.</td></tr><tr><td><span class="method get">GET</span></td><td><a href="api-traces.html#get-trace"><code>/api/traces/{trace_id}</code></a></td><td>One trace with its metadata and kernels.</td></tr><tr><td><span class="method get">GET</span></td><td><a href="api-runs.html#list-gpu-configs"><code>/api/gpu-configs</code></a></td><td>The GPU configs a run can use.</td></tr><tr><td><span class="method post">POST</span></td><td><a href="api-runs.html#create-run"><code>/api/runs</code></a></td><td>Launch sims for a ready trace.</td></tr><tr><td><span class="method get">GET</span></td><td><a href="api-runs.html#list-runs"><code>/api/runs</code></a></td><td>Every run, newest first.</td></tr><tr><td><span class="method get">GET</span></td><td><a href="api-runs.html#get-run"><code>/api/runs/{run_id}</code></a></td><td>One run with its trace and every sim.</td></tr><tr><td><span class="method post">POST</span></td><td><a href="api-runs.html#cancel-run"><code>/api/runs/{run_id}/cancel</code></a></td><td>Cancel every unfinished sim.</td></tr><tr><td><span class="method get">GET</span></td><td><a href="api-runs.html#get-comparison"><code>/api/runs/{run_id}/comparison</code></a></td><td>Per-kernel real time against simulated time per config.</td></tr><tr><td><span class="method get">GET</span></td><td><a href="api-runs.html#get-run-results"><code>/api/runs/{run_id}/results</code></a></td><td>One JSON file with the run, trace, every sim's stats and the comparison.</td></tr><tr><td><span class="method get">GET</span></td><td><a href="api-runs.html#get-sim-results"><code>/api/sims/{sim_id}/results</code></a></td><td>One sim's config, per-kernel stats and totals.</td></tr><tr><td><span class="method get">GET</span></td><td><a href="api-runs.html#get-sim-log"><code>/api/sims/{sim_id}/log</code></a></td><td>The sim's full raw output.</td></tr><tr><td><span class="method get">GET</span></td><td><a href="api-events.html#run-events"><code>/api/runs/{run_id}/events</code></a></td><td>Server-sent events for one run.</td></tr><tr><td><span class="method post">POST</span></td><td><a href="api-simulator.html#heartbeat"><code>/api/sims/{sim_id}/heartbeat</code></a></td><td>Report a sim's state. The reply says whether to stop.</td></tr><tr><td><span class="method post">POST</span></td><td><a href="api-simulator.html#logs"><code>/api/sims/{sim_id}/logs</code></a></td><td>Append a chunk of simulator output.</td></tr></tbody></table></div>
+<p>Any other path under <code>/api/</code> returns <code>404</code> with <code>{"detail": "Not Found"}</code>, without checking the token. Paths outside <code>/api/</code> serve the web UI.</p>
+
+<section class="endpoint"><h2 id="health">Check health<a class="anchor" href="#health" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method get">GET</span><span class="path">/api/health</span><span class="auth">no auth</span></div>
+<p>Returns <code>{"ok": true}</code> while the app process is serving requests. It does not check the database, the S3 endpoint or the launcher.</p>
+<h3 id="returns">Returns<a class="anchor" href="#returns" aria-label="Link to this section">#</a></h3><p><code>200</code> with <code>{"ok": true}</code>.</p>
+<h3 id="example">Example<a class="anchor" href="#example" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/health"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/health"</span>)
+resp.raise_for_status()
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/health`</span>);
+console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
+  <span class="tk-k">"ok"</span>: <span class="tk-l">true</span>
+}</code></pre></div>
+</section>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="simulator.html"><span>Previous</span>Bring your own simulator</a><a class="next" href="api-traces.html"><span>Next</span>Traces</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#base-url">Base URL</a></li><li class="l2"><a href="#authentication">Authentication</a></li><li class="l2"><a href="#conventions">Conventions</a></li><li class="l2"><a href="#routes">Routes</a></li><li class="l2"><a href="#health">Check health</a></li></ul></nav>
+</div>
+<div class="scrim" hidden></div>
+<dialog class="search" aria-label="Search docs">
+  <div class="search-box"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><input type="search" placeholder="Search titles and headings" aria-label="Search" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
+  <ul class="results" role="listbox"></ul>
+</dialog>
+</body>
+</html>

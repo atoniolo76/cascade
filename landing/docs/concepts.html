@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Concepts · Cascade docs</title>
+<meta name="description" content="Traces, runs, sims and GPU configs in Cascade, their state machines, and how each sim forks from one checkpoint.">
+<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+<script>try{const t=localStorage.getItem("cascade-docs-theme");if(t)document.documentElement.dataset.theme=t}catch{}</script>
+<script src="search-index.js" defer></script>
+<script src="docs.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+  <a class="brand" href="index.html"><svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><defs><clipPath id="cm0"><path d="M-6.00 -4.00 L-3.50 -4.00 L-1.00 -4.00 L1.50 -4.00 L4.00 -4.00 L6.50 -4.00 L9.00 -4.00 L11.50 -4.00 L14.00 -4.00 L16.50 -4.00 L19.00 -4.00 L21.50 -4.00 L24.00 -4.00 L26.50 -4.00 L29.00 -4.00 L31.50 -4.00 L34.00 -4.00 L36.50 -4.00 L39.00 -4.00 L41.50 -4.00 L44.00 -4.00 L46.50 -4.00 L49.00 -4.00 L51.50 -4.00 L54.00 -4.00 L54.00 18.39 L51.50 17.02 L49.00 15.77 L46.50 14.63 L44.00 13.62 L41.50 12.72 L39.00 11.95 L36.50 11.29 L34.00 10.75 L31.50 10.34 L29.00 10.04 L26.50 9.86 L24.00 9.80 L21.50 9.86 L19.00 10.04 L16.50 10.34 L14.00 10.75 L11.50 11.29 L9.00 11.95 L6.50 12.72 L4.00 13.62 L1.50 14.63 L-1.00 15.77 L-3.50 17.02 L-6.00 18.39Z"/></clipPath><clipPath id="cm1"><path d="M-6.00 21.79 L-3.50 20.42 L-1.00 19.17 L1.50 18.03 L4.00 17.02 L6.50 16.12 L9.00 15.35 L11.50 14.69 L14.00 14.15 L16.50 13.74 L19.00 13.44 L21.50 13.26 L24.00 13.20 L26.50 13.26 L29.00 13.44 L31.50 13.74 L34.00 14.15 L36.50 14.69 L39.00 15.35 L41.50 16.12 L44.00 17.02 L46.50 18.03 L49.00 19.17 L51.50 20.42 L54.00 21.79 L54.00 32.39 L51.50 31.02 L49.00 29.77 L46.50 28.63 L44.00 27.62 L41.50 26.72 L39.00 25.95 L36.50 25.29 L34.00 24.75 L31.50 24.34 L29.00 24.04 L26.50 23.86 L24.00 23.80 L21.50 23.86 L19.00 24.04 L16.50 24.34 L14.00 24.75 L11.50 25.29 L9.00 25.95 L6.50 26.72 L4.00 27.62 L1.50 28.63 L-1.00 29.77 L-3.50 31.02 L-6.00 32.39Z"/></clipPath><clipPath id="cm2"><path d="M-6.00 35.79 L-3.50 34.42 L-1.00 33.17 L1.50 32.03 L4.00 31.02 L6.50 30.12 L9.00 29.35 L11.50 28.69 L14.00 28.15 L16.50 27.74 L19.00 27.44 L21.50 27.26 L24.00 27.20 L26.50 27.26 L29.00 27.44 L31.50 27.74 L34.00 28.15 L36.50 28.69 L39.00 29.35 L41.50 30.12 L44.00 31.02 L46.50 32.03 L49.00 33.17 L51.50 34.42 L54.00 35.79 L54.00 52.00 L51.50 52.00 L49.00 52.00 L46.50 52.00 L44.00 52.00 L41.50 52.00 L39.00 52.00 L36.50 52.00 L34.00 52.00 L31.50 52.00 L29.00 52.00 L26.50 52.00 L24.00 52.00 L21.50 52.00 L19.00 52.00 L16.50 52.00 L14.00 52.00 L11.50 52.00 L9.00 52.00 L6.50 52.00 L4.00 52.00 L1.50 52.00 L-1.00 52.00 L-3.50 52.00 L-6.00 52.00Z"/></clipPath></defs><g transform="translate(-4 0)"><circle cx="24" cy="24" r="21" fill="currentColor" clip-path="url(#cm0)"/></g><g transform="translate(0 0)"><circle cx="24" cy="24" r="21" fill="#6D4AE0" clip-path="url(#cm1)"/></g><g transform="translate(4 0)"><circle cx="24" cy="24" r="21" fill="#A35CE8" clip-path="url(#cm2)"/></g></svg><span>Cascade</span><span class="brand-docs">docs</span></a>
+  <button class="search-btn" type="button" aria-label="Search docs"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search docs</span><kbd>/</kbd></button>
+  <nav class="top-links" aria-label="Site">
+    <a href="../index.html">Home</a>
+    <a href="../writeup.html">Writeup</a>
+    <a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg></button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="concepts.html" aria-current="page">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div></aside>
+  <main id="content" class="content">
+    <p class="eyebrow">Getting started</p>
+    <h1>Concepts</h1>
+<p class="lede">Cascade has four nouns. A trace is what you captured. A GPU config is what you simulate it on. A run asks for some number of sims per config. A sim is one simulator process working through the trace.</p>
+
+<h2 id="trace">Trace<a class="anchor" href="#trace" aria-label="Link to this section">#</a></h2>
+<p>A trace is one profiler run: Accel-Sim SASS traces for every kernel the traced layers launched, plus the profiler's <code>metadata.json</code>. Its id is the profiler's run name, such as <code>20261107-120000__facebook_opt-125m__model.decoder.layers.10.self_attn</code>.</p>
+<p>The app keeps each trace as plain files at <code>$CASCADE_DATA_DIR/s3/cascade/accelsim-traces/&lt;trace id&gt;/</code>, because <code>rclone serve s3</code> writes uploaded objects to disk as files. Sims read the trace from the same path on their own copy of that disk.</p>
+<p>A trace records the architecture it was captured on in <code>trace_gpu_arch</code>. An H100 trace contains Hopper-only instructions, so it can only run on <code>sm_90</code> configs. If <code>metadata.json</code> has no <code>trace_gpu_arch</code>, the app assumes <code>sm_90</code>, which is what the H100 profiler produces.</p>
+
+<h3 id="trace-states">Trace states<a class="anchor" href="#trace-states" aria-label="Link to this section">#</a></h3>
+<figure class="diagram"><svg viewBox="0 0 720 210" role="img" aria-label="Trace states, from cascade/ingest.py"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="dg-head"/></marker></defs><g class="dg-edges"><path d="M150.0 60.0 Q195.0 60.0 240.0 60.0" marker-end="url(#arrow)"/><path d="M360.0 60.0 Q405.0 60.0 450.0 60.0" marker-end="url(#arrow)"/><path d="M134.0 82.0 Q195.0 112.5 256.0 143.0" marker-end="url(#arrow)"/><path d="M300.0 82.0 Q300.0 112.5 300.0 143.0" marker-end="url(#arrow)"/></g><g class="dg-node "><rect x="34.0" y="42.0" width="112" height="36" rx="10"/><text x="90" y="64" text-anchor="middle">uploading</text></g><g class="dg-node "><rect x="244.0" y="42.0" width="112" height="36" rx="10"/><text x="300" y="64" text-anchor="middle">processing</text></g><g class="dg-node good"><rect x="454.0" y="42.0" width="112" height="36" rx="10"/><text x="510" y="64" text-anchor="middle">ready</text></g><g class="dg-node bad"><rect x="244.0" y="147.0" width="112" height="36" rx="10"/><text x="300" y="169" text-anchor="middle">failed</text></g></svg><figcaption>Trace states, from cascade/ingest.py</figcaption></figure>
+<ul>
+<li><code>uploading</code> starts when the first file of the trace appears in the bucket.</li>
+<li><code>processing</code> starts when the upload is complete. <a href="traces.html#when-an-upload-counts-as-complete">Traces</a> explains how the app decides that.</li>
+<li><code>ready</code> means <code>traces/kernelslist.g</code> exists and runs can launch.</li>
+<li><code>failed</code> means <code>metadata.json</code> says <code>status: "failed"</code>, or post-processing failed.</li>
+</ul>
+
+<h2 id="gpu-config">GPU config<a class="anchor" href="#gpu-config" aria-label="Link to this section">#</a></h2>
+<p>A GPU config is one of Accel-Sim's tested configs, a directory under <code>gpu-simulator/gpgpu-sim/configs/tested-cfgs/</code> such as <code>SM90_H100</code>. The app reads two things from each one: the architecture, from the directory name, and the core clock, from the first value of <code>-gpgpu_clock_domains</code> in <code>gpgpusim.config</code>. The clock turns simulated cycles into simulated time.</p>
+
+<h2 id="run">Run<a class="anchor" href="#run" aria-label="Link to this section">#</a></h2>
+<p>A run is one trace plus a list of entries. Each entry names a config and a count from 1 to 64, so <code>[{"gpu_config": "SM90_H100", "count": 4}, {"gpu_config": "SM90_H200", "count": 2}]</code> asks for six sims. The app doesn't store a run's state. It derives the run's state from its sims every time you read it.</p>
+<div class="table-wrap"><table class="table"><thead><tr><th>sim states</th><th>run state</th></tr></thead><tbody><tr><td><code>running</code>, <code>succeeded</code></td><td><code>active</code></td></tr><tr><td><code>succeeded</code>, <code>succeeded</code></td><td><code>succeeded</code></td></tr><tr><td><code>succeeded</code>, <code>failed</code></td><td><code>partial</code></td></tr><tr><td><code>failed</code>, <code>failed</code></td><td><code>failed</code></td></tr><tr><td><code>cancelled</code>, <code>failed</code></td><td><code>cancelled</code></td></tr><tr><td><code>cancelled</code>, <code>succeeded</code></td><td><code>partial</code></td></tr><tr><td><code>cancelled</code>, <code>cancelled</code></td><td><code>cancelled</code></td></tr></tbody></table></div>
+
+<h2 id="sim">Sim<a class="anchor" href="#sim" aria-label="Link to this section">#</a></h2>
+<p>A sim is one simulator working on one config. Sims of the same entry differ only in <code>replica</code>, numbered from 0. Running several replicas of a config tells you whether its numbers are stable.</p>
+<p>The app and the sim share ownership of the sim's state. The app moves sims to <code>launching</code>, <code>lost</code> and <code>cancelled</code>, and to <code>failed</code> when a launch fails or a sim stays lost too long. Heartbeats from the sim move it to <code>running</code>, <code>succeeded</code> or <code>failed</code>.</p>
+
+<h3 id="sim-states">Sim states<a class="anchor" href="#sim-states" aria-label="Link to this section">#</a></h3>
+<figure class="diagram"><svg viewBox="0 0 720 290" role="img" aria-label="Sim states, drawn from SIM_TRANSITIONS in cascade/models.py"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="dg-head"/></marker></defs><g class="dg-edges"><path d="M140.0 60.0 Q165.0 60.0 190.0 60.0" marker-end="url(#arrow)"/><path d="M310.0 60.0 Q345.0 60.0 380.0 60.0" marker-end="url(#arrow)"/><path d="M268.2 82.0 Q297.5 117.5 326.8 153.0" marker-end="url(#arrow)"/><path d="M310.0 40.9 Q445.0 -2.0 580.0 40.9" marker-end="url(#arrow)"/><path d="M403.7 82.0 Q372.5 100.9 353.2 153.0" marker-end="url(#arrow)"/><path d="M500.0 60.0 Q540.0 60.0 580.0 60.0" marker-end="url(#arrow)"/><path d="M381.3 153.0 Q412.5 134.1 431.8 82.0" marker-end="url(#arrow)"/><path d="M401.4 153.0 Q492.5 117.5 583.6 82.0" marker-end="url(#arrow)"/></g><g class="dg-node "><rect x="24.0" y="42.0" width="112" height="36" rx="10"/><text x="80" y="64" text-anchor="middle">pending</text></g><g class="dg-node "><rect x="194.0" y="42.0" width="112" height="36" rx="10"/><text x="250" y="64" text-anchor="middle">launching</text></g><g class="dg-node "><rect x="384.0" y="42.0" width="112" height="36" rx="10"/><text x="440" y="64" text-anchor="middle">running</text></g><g class="dg-node good"><rect x="584.0" y="42.0" width="112" height="36" rx="10"/><text x="640" y="64" text-anchor="middle">succeeded</text></g><g class="dg-node warn"><rect x="289.0" y="157.0" width="112" height="36" rx="10"/><text x="345" y="179" text-anchor="middle">lost</text></g><text class="dg-note" x="20" y="256">failed ← pending, launching, running, lost</text><text class="dg-note" x="20" y="276">cancelled ← pending, launching, running, lost</text></svg><figcaption>Sim states, drawn from SIM_TRANSITIONS in cascade/models.py</figcaption></figure>
+<p>The diagram is drawn from <code>SIM_TRANSITIONS</code> in <code>cascade/models.py</code>, which is the only list of allowed moves. Any move outside it is ignored. <code>failed</code> and <code>cancelled</code> can be reached from every state that hasn't finished, so they are listed under the diagram instead of drawn.</p>
+<ul>
+<li>A sim with no heartbeat for <code>CASCADE_HEARTBEAT_TIMEOUT_S</code> seconds, 60 by default, becomes <code>lost</code>. The app checks every 5 seconds.</li>
+<li>A <code>lost</code> sim that sends another heartbeat goes back to <code>running</code>, or straight to <code>succeeded</code> or <code>failed</code> if that's what it reports.</li>
+<li>A sim that stays <code>lost</code> for 10 times the timeout, 600 seconds by default, becomes <code>failed</code> with the error <code>no heartbeat for 600s</code>, and the app stops its sandbox. Every run finishes eventually.</li>
+</ul>
+
+<h2 id="how-a-run-launches">How a run launches<a class="anchor" href="#how-a-run-launches" aria-label="Link to this section">#</a></h2>
+<p>When you create a run, the app writes the run and all of its sims as <code>pending</code>, returns, and launches in the background. Up to 8 launches run at once.</p>
+<p>On Sail (<code>CASCADE_LAUNCHER=sail</code>, which the deploy script sets), launching works like this.</p>
+<ol>
+<li>The app checkpoints its own sandbox once per run, as <code>cascade-&lt;run id&gt;</code>. A checkpoint saves the disk, so it includes the ready trace. If a checkpoint with that name already exists, the app reuses it, so a restart mid-launch doesn't take a second one.</li>
+<li>For each sim, the app starts a new sandbox named <code>cascade-&lt;sim id&gt;</code> from that checkpoint with <code>restore_memory=False</code>. The fork boots fresh from the saved disk instead of cloning the app's running process.</li>
+<li>In the fork, the app runs <code>CASCADE_SIM_CMD</code> in the background with the sim's environment, and passes the sim id as the call's idempotency key. The command's output goes to <code>$CASCADE_DATA_DIR/work/sims/&lt;sim id&gt;.out</code> on the fork's disk.</li>
+<li>The sim's <code>launcher_ref</code> is the fork's sandbox id. When the sim finishes or is cancelled, the app terminates that sandbox.</li>
+</ol>
+<p>Every fork of a run starts from the same checkpoint, so every sim reads an identical trace, and the trace is never copied over the network.</p>
+<p>Locally (<code>CASCADE_LAUNCHER=local</code>, the default), the app runs <code>CASCADE_SIM_CMD</code> as a subprocess in its own process group, with the same environment, and <code>launcher_ref</code> is the process id. To stop it, the app sends <code>SIGTERM</code> to the group and <code>SIGKILL</code> after 5 seconds.</p>
+<div class="note"><p>The Sail launcher was written against the Sail SDK 0.17.2 source and is covered by tests with a fake SDK. It hasn't run against the live Sail service yet.</p></div>
+
+<h2 id="how-sims-report-back">How sims report back<a class="anchor" href="#how-sims-report-back" aria-label="Link to this section">#</a></h2>
+<p>Sims push and the app listens. A sim needs no public address of its own. It reaches the app at <code>CASCADE_MAIN_URL</code> and sends two kinds of request.</p>
+<ul>
+<li>A heartbeat every few seconds, with its state. The reply tells it whether it has been cancelled.</li>
+<li>Its raw output in numbered chunks. The app parses Accel-Sim's per-kernel stats out of the lines itself, so a simulator never has to.</li>
+</ul>
+<p>The app stores every chunk, so you can download a sim's full log at any point. It fans every change out to browsers over server-sent events. <a href="simulator.html">Bring your own simulator</a> has the full contract.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="quickstart.html"><span>Previous</span>Quickstart</a><a class="next" href="deploy.html"><span>Next</span>Deploy the app</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#trace">Trace</a></li><li class="l3"><a href="#trace-states">Trace states</a></li><li class="l2"><a href="#gpu-config">GPU config</a></li><li class="l2"><a href="#run">Run</a></li><li class="l2"><a href="#sim">Sim</a></li><li class="l3"><a href="#sim-states">Sim states</a></li><li class="l2"><a href="#how-a-run-launches">How a run launches</a></li><li class="l2"><a href="#how-sims-report-back">How sims report back</a></li></ul></nav>
+</div>
+<div class="scrim" hidden></div>
+<dialog class="search" aria-label="Search docs">
+  <div class="search-box"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><input type="search" placeholder="Search titles and headings" aria-label="Search" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
+  <ul class="results" role="listbox"></ul>
+</dialog>
+</body>
+</html>

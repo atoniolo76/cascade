@@ -1,0 +1,43 @@
+<!--
+title: Traces
+description: How the Cascade app notices an upload, decides it is complete, post-processes it, and marks it ready to simulate.
+-->
+<p class="lede">The app watches its bucket directory. A trace appears on the **Traces** screen as soon as its first file lands, and it's ready once the upload is complete and post-processed.</p>
+
+<h2>Follow a trace</h2>
+<p>Open **Traces** in the UI, or poll [List traces](api-traces.html#list-traces). Each trace moves through these states.</p>
+{{enum TraceState}}
+<p>Open a trace to see what it came from: the model, the layers, the prompts, the source GPU, the suggested config, and every traced kernel with its grid and block size. The kernel list fills in when the trace becomes `ready`.</p>
+
+<h2>When an upload counts as complete</h2>
+<p>The app scans `$CASCADE_DATA_DIR/s3/<bucket>/<prefix>/` every 2 seconds. It skips dotfiles, which covers rclone's in-flight `.rclone_temp_put_*` objects. The upload is complete when `metadata.json` exists and one of these holds.</p>
+<ul>
+<li>`metadata.json` has a `files` list, and every listed file is on disk with the listed size in bytes. `scripts/upload_trace.py` writes this list.</li>
+<li>There is no `files` list, every `traces/kernelslist_ctx_*` has a matching `traces/stats_ctx_*`, and the file tree hasn't changed since the previous scan. This is the case for the streaming profiler, which uploads `metadata.json` before its `traces/` files.</li>
+</ul>
+<p>If `metadata.json` has `status: "failed"`, the trace goes to `failed` straight away, without processing.</p>
+
+<h2>Post-processing</h2>
+<p>The profiler uploads raw traces. Accel-Sim reads processed ones, `traces/kernelslist.g` and one `.tracez` per kernel. So the app runs the post-processor once per trace.</p>
+```bash
+$CASCADE_POSTPROCESS_CMD <trace dir>/traces -j <cpu count>
+```
+<p>Its output goes to `$CASCADE_DATA_DIR/work/postprocess/<trace id>.log`. If it exits non-zero, the trace fails with the exit code and the last 5 lines of that log. If it succeeds but leaves no `kernelslist.g`, the trace fails too.</p>
+<p>An upload that already contains `traces/kernelslist.g` skips post-processing. The quickstart's stand-in trace works this way.</p>
+<p>If the app restarts during post-processing, the trace stays `processing` and the post-processor runs again on the next start.</p>
+
+<h2>Where the trace's fields come from</h2>
+<div class="table-wrap"><table class="table"><thead><tr><th>field</th><th>source</th></tr></thead><tbody>
+<tr><td>`id`</td><td>The directory name under the prefix, which is the profiler's `--run-name`.</td></tr>
+<tr><td>`model`, `layers`</td><td>`metadata.json`.</td></tr>
+<tr><td>`source_gpu`</td><td>`metadata.json` `gpu`.</td></tr>
+<tr><td>`trace_gpu_arch`</td><td>`metadata.json` `trace_gpu_arch`, or `sm_90` if it's missing.</td></tr>
+<tr><td>`suggested_sim_config`</td><td>`metadata.json` `suggested_sim_config`. The profiler doesn't set it, so the New run screen preselects the first compatible config instead.</td></tr>
+<tr><td>`kernel_count`</td><td>While uploading, the raw `kernel-*.trace` and `.trace.xz` files seen. Once ready, the kernel lines in `kernelslist.g`.</td></tr>
+<tr><td>`bytes`</td><td>Every file under the trace's directory.</td></tr>
+<tr><td>`kernels`</td><td>The rows of `traces/stats_ctx_*`, or `stats.csv` from older tracers.</td></tr>
+<tr><td>`has_real_timing`</td><td>Whether `real_timing.json`, or the file `metadata.json` names in `real_timing`, holds a list of rows with integer `kernel_id`s.</td></tr>
+</tbody></table></div>
+
+<h2>Disk space</h2>
+<p>Traces grow with the layers, tokens and forward passes you trace. A single small layer is tens of MB. Whole models with long prompts reach hundreds of GB. Processed files sit next to the raw ones, so plan for about 2.2 times the uploaded size on the app's disk, and pass `--disk-gib` when you deploy.</p>

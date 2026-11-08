@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deploy the app · Cascade docs</title>
+<meta name="description" content="Deploy the Cascade app to a Sail sandbox with scripts/deploy_sail.py, with the stand-in simulator or a real Accel-Sim image.">
+<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+<script>try{const t=localStorage.getItem("cascade-docs-theme");if(t)document.documentElement.dataset.theme=t}catch{}</script>
+<script src="search-index.js" defer></script>
+<script src="docs.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+  <a class="brand" href="index.html"><svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><defs><clipPath id="cm0"><path d="M-6.00 -4.00 L-3.50 -4.00 L-1.00 -4.00 L1.50 -4.00 L4.00 -4.00 L6.50 -4.00 L9.00 -4.00 L11.50 -4.00 L14.00 -4.00 L16.50 -4.00 L19.00 -4.00 L21.50 -4.00 L24.00 -4.00 L26.50 -4.00 L29.00 -4.00 L31.50 -4.00 L34.00 -4.00 L36.50 -4.00 L39.00 -4.00 L41.50 -4.00 L44.00 -4.00 L46.50 -4.00 L49.00 -4.00 L51.50 -4.00 L54.00 -4.00 L54.00 18.39 L51.50 17.02 L49.00 15.77 L46.50 14.63 L44.00 13.62 L41.50 12.72 L39.00 11.95 L36.50 11.29 L34.00 10.75 L31.50 10.34 L29.00 10.04 L26.50 9.86 L24.00 9.80 L21.50 9.86 L19.00 10.04 L16.50 10.34 L14.00 10.75 L11.50 11.29 L9.00 11.95 L6.50 12.72 L4.00 13.62 L1.50 14.63 L-1.00 15.77 L-3.50 17.02 L-6.00 18.39Z"/></clipPath><clipPath id="cm1"><path d="M-6.00 21.79 L-3.50 20.42 L-1.00 19.17 L1.50 18.03 L4.00 17.02 L6.50 16.12 L9.00 15.35 L11.50 14.69 L14.00 14.15 L16.50 13.74 L19.00 13.44 L21.50 13.26 L24.00 13.20 L26.50 13.26 L29.00 13.44 L31.50 13.74 L34.00 14.15 L36.50 14.69 L39.00 15.35 L41.50 16.12 L44.00 17.02 L46.50 18.03 L49.00 19.17 L51.50 20.42 L54.00 21.79 L54.00 32.39 L51.50 31.02 L49.00 29.77 L46.50 28.63 L44.00 27.62 L41.50 26.72 L39.00 25.95 L36.50 25.29 L34.00 24.75 L31.50 24.34 L29.00 24.04 L26.50 23.86 L24.00 23.80 L21.50 23.86 L19.00 24.04 L16.50 24.34 L14.00 24.75 L11.50 25.29 L9.00 25.95 L6.50 26.72 L4.00 27.62 L1.50 28.63 L-1.00 29.77 L-3.50 31.02 L-6.00 32.39Z"/></clipPath><clipPath id="cm2"><path d="M-6.00 35.79 L-3.50 34.42 L-1.00 33.17 L1.50 32.03 L4.00 31.02 L6.50 30.12 L9.00 29.35 L11.50 28.69 L14.00 28.15 L16.50 27.74 L19.00 27.44 L21.50 27.26 L24.00 27.20 L26.50 27.26 L29.00 27.44 L31.50 27.74 L34.00 28.15 L36.50 28.69 L39.00 29.35 L41.50 30.12 L44.00 31.02 L46.50 32.03 L49.00 33.17 L51.50 34.42 L54.00 35.79 L54.00 52.00 L51.50 52.00 L49.00 52.00 L46.50 52.00 L44.00 52.00 L41.50 52.00 L39.00 52.00 L36.50 52.00 L34.00 52.00 L31.50 52.00 L29.00 52.00 L26.50 52.00 L24.00 52.00 L21.50 52.00 L19.00 52.00 L16.50 52.00 L14.00 52.00 L11.50 52.00 L9.00 52.00 L6.50 52.00 L4.00 52.00 L1.50 52.00 L-1.00 52.00 L-3.50 52.00 L-6.00 52.00Z"/></clipPath></defs><g transform="translate(-4 0)"><circle cx="24" cy="24" r="21" fill="currentColor" clip-path="url(#cm0)"/></g><g transform="translate(0 0)"><circle cx="24" cy="24" r="21" fill="#6D4AE0" clip-path="url(#cm1)"/></g><g transform="translate(4 0)"><circle cx="24" cy="24" r="21" fill="#A35CE8" clip-path="url(#cm2)"/></g></svg><span>Cascade</span><span class="brand-docs">docs</span></a>
+  <button class="search-btn" type="button" aria-label="Search docs"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search docs</span><kbd>/</kbd></button>
+  <nav class="top-links" aria-label="Site">
+    <a href="../index.html">Home</a>
+    <a href="../writeup.html">Writeup</a>
+    <a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg></button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html" aria-current="page">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div></aside>
+  <main id="content" class="content">
+    <p class="eyebrow">Guides</p>
+    <h1>Deploy the app</h1>
+<p class="lede"><code>scripts/deploy_sail.py</code> builds the app's image, starts it in a Sail sandbox, and prints the two URLs you need: the app, and the S3 endpoint the profiler uploads to.</p>
+
+<h2 id="before-you-deploy">Before you deploy<a class="anchor" href="#before-you-deploy" aria-label="Link to this section">#</a></h2>
+<ul>
+<li>A <a href="https://docs.sailresearch.com/quickstart" target="_blank" rel="noopener">Sail</a> account and API key.</li>
+<li>A Cascade token. Pick any long random string. The UI, the profiler and every sim use it.</li>
+<li>For real simulation, a simulator image: a Docker image with Accel-Sim, its trace post-processor and your simulator entrypoint built in. Without one, the app runs the stand-in simulator.</li>
+</ul>
+
+<h2 id="deploy-with-a-simulator-image">Deploy with a simulator image<a class="anchor" href="#deploy-with-a-simulator-image" aria-label="Link to this section">#</a></h2>
+<p>To simulate your traces, pass the simulator image and tell the app where things are inside it.</p>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>git clone https://github.com/atoniolo76/cascade.git
+cd cascade
+export SAIL_API_KEY=...
+export CASCADE_TOKEN=$(openssl rand -hex 24)
+uv run --extra sail python scripts/deploy_sail.py \
+  --base-image &lt;simulator-image&gt; \
+  --sim-cmd <span class="tk-s">"&lt;simulator command&gt;"</span> \
+  --accelsim-dir &lt;path to accel-sim in that image&gt;</code></pre></div><p>If the image keeps the post-processor somewhere other than <code>&lt;accelsim-dir&gt;/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing</code>, add <code>--postprocess-cmd</code>. <a href="simulator.html#what-the-image-needs">Bring your own simulator</a> lists what the image needs.</p>
+
+<h2 id="deploy-with-the-stand-in-simulator">Deploy with the stand-in simulator<a class="anchor" href="#deploy-with-the-stand-in-simulator" aria-label="Link to this section">#</a></h2>
+<p>Leave the three flags out to try the UI and the API first.</p>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>uv run --extra sail python scripts/deploy_sail.py</code></pre></div><div class="warn"><p>Without <code>--base-image</code>, <code>--sim-cmd</code> and <code>--accelsim-dir</code>, every sim runs <code>scripts/fake_sim.py</code>, which replays a recorded Accel-Sim log of BabelStream on an RTX 3070. It doesn't simulate your trace, and its numbers are the same for every trace. The image is plain <code>ubuntu:22.04</code>, so it has no post-processor. Upload traces that already contain <code>traces/kernelslist.g</code>, or they fail in <code>processing</code>.</p></div>
+
+<h2 id="what-the-script-prints">What the script prints<a class="anchor" href="#what-the-script-prints" aria-label="Link to this section">#</a></h2>
+<p>The script builds the image if needed, creates the sandbox, starts <code>cascade serve</code> in it, and waits for the app's port.</p>
+<div class="code"><div class="code-bar"><span>text</span><button class="copy" type="button">Copy</button></div><pre><code>creating sailbox 'cascade-main' in app 'cascade' (builds the image if needed)
+sailbox:  &lt;sailbox id&gt;
+app:      https://&lt;app url&gt;
+s3:       https://&lt;s3 url&gt;  (bucket cascade, prefix accelsim-traces, path-style, unsigned)
+logs:     /data/cascade-serve.log inside the sailbox</code></pre></div><div class="table-wrap"><table class="table"><thead><tr><th>url</th><th>use it for</th></tr></thead><tbody>
+<tr><td>app (port 8000)</td><td>Open it in a browser and paste your token. The same URL serves the API.</td></tr>
+<tr><td>s3 (port 9000)</td><td>Pass it to the profiler as <code>--s3-endpoint</code>. Traces upload here, unsigned and path-style.</td></tr>
+</tbody></table></div>
+<p>If <code>CASCADE_TOKEN</code> isn't set, the script makes one and prints it as <code>token:</code>. Save it, because the app accepts nothing else.</p>
+
+<h2 id="script-flags">Script flags<a class="anchor" href="#script-flags" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table class="table"><thead><tr><th>flag</th><th>default</th><th>what it sets</th></tr></thead><tbody>
+<tr><td><code>--app</code></td><td><code>cascade</code></td><td>The Sail app to create the sandbox in. The script creates it if it doesn't exist.</td></tr>
+<tr><td><code>--name</code></td><td><code>cascade-main</code></td><td>The app sandbox's name.</td></tr>
+<tr><td><code>--base-image</code></td><td><code>ubuntu:22.04</code></td><td>The Dockerfile's <code>BASE_IMAGE</code>, the image the app is layered on.</td></tr>
+<tr><td><code>--sim-cmd</code></td><td>the fake simulator</td><td><code>CASCADE_SIM_CMD</code>, the command each sim runs.</td></tr>
+<tr><td><code>--accelsim-dir</code></td><td><code>/app/tests/fixtures/accelsim</code></td><td><code>CASCADE_ACCELSIM_DIR</code>. The default holds real Accel-Sim configs but no simulator.</td></tr>
+<tr><td><code>--postprocess-cmd</code></td><td>derived from <code>--accelsim-dir</code></td><td><code>CASCADE_POSTPROCESS_CMD</code>.</td></tr>
+<tr><td><code>--disk-gib</code></td><td>Sail's default</td><td>The app sandbox's disk limit. Sims fork this disk, so size it for your traces.</td></tr>
+</tbody></table></div>
+
+<h2 id="what-s-in-the-image">What's in the image<a class="anchor" href="#what-s-in-the-image" aria-label="Link to this section">#</a></h2>
+<p>The <code>Dockerfile</code> builds the web UI with Node 22, then layers the app onto <code>BASE_IMAGE</code>: rclone 1.76.0, uv with Python 3.12, the app at <code>/app</code>, and the Accel-Sim configs and logs from <code>tests/fixtures</code>. The app sandbox and every sim fork run this one image. Sail doesn't run the image's <code>CMD</code>, so the script starts <code>cascade serve</code> itself, with <code>CASCADE_LAUNCHER=sail</code> and your <code>SAIL_API_KEY</code>, which the app needs to checkpoint and fork itself.</p>
+<p>The sandbox has auto-sleep turned off, so the app keeps running while sims report in.</p>
+
+<h2 id="configuration">Configuration<a class="anchor" href="#configuration" aria-label="Link to this section">#</a></h2>
+<p><code>cascade serve</code> reads these environment variables. The table is generated from <code>cascade/settings.py</code>.</p>
+<div class="table-wrap"><table class="table"><thead><tr><th>variable</th><th>default</th><th>what it sets</th></tr></thead><tbody><tr><td><code>CASCADE_TOKEN</code></td><td>required</td><td>The shared bearer token. The UI, the profiler's uploads, and every sim use it. The app refuses to start without it.</td></tr><tr><td><code>CASCADE_LAUNCHER</code></td><td><code>local</code></td><td><code>local</code> runs each sim as a subprocess of the app. <code>sail</code> forks a Sail sandbox per sim. <code>deploy_sail.py</code> sets <code>sail</code>.</td></tr><tr><td><code>CASCADE_ACCELSIM_DIR</code></td><td><code>/opt/accel-sim-framework</code></td><td>Accel-Sim checkout. The app reads GPU configs from <code>gpu-simulator/gpgpu-sim/configs/tested-cfgs/*/gpgpusim.config</code> under it.</td></tr><tr><td><code>CASCADE_S3_BUCKET</code></td><td><code>cascade</code></td><td>The bucket the profiler uploads to. It is a directory under <code>$CASCADE_DATA_DIR/s3/</code>.</td></tr><tr><td><code>CASCADE_DATA_DIR</code></td><td><code>/data</code></td><td>Where the app keeps <code>cascade.db</code>, the S3 bucket directory <code>s3/</code>, and scratch files in <code>work/</code>.</td></tr><tr><td><code>CASCADE_SIM_CMD</code></td><td>none</td><td>The command each sim runs. On Sail it runs through a shell. Locally it is split into arguments and run without one. Without it, every sim fails at launch.</td></tr><tr><td><code>CASCADE_POSTPROCESS_CMD</code></td><td><code>$CASCADE_ACCELSIM_DIR/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing</code></td><td>Accel-Sim's trace post-processor. The app runs it once per trace as <code>&lt;cmd&gt; &lt;trace&gt;/traces -j &lt;cpus&gt;</code>.</td></tr><tr><td><code>CASCADE_HEARTBEAT_TIMEOUT_S</code></td><td><code>60</code></td><td>Seconds without a heartbeat before a sim becomes <code>lost</code>. After 10 times this, a <code>lost</code> sim becomes <code>failed</code>.</td></tr><tr><td><code>CASCADE_RUN_S3</code></td><td><code>true</code></td><td>Whether <code>cascade serve</code> starts <code>rclone serve s3</code> next to the app. Set <code>false</code> to run the S3 endpoint yourself.</td></tr><tr><td><code>CASCADE_PUBLIC_URL</code></td><td><code>http://127.0.0.1:8000</code></td><td>The URL sims use to reach the app. Each sim gets it as <code>CASCADE_MAIN_URL</code>.</td></tr><tr><td><code>CASCADE_S3_PREFIX</code></td><td><code>accelsim-traces</code></td><td>The key prefix traces live under. Each trace is <code>&lt;prefix&gt;/&lt;run_name&gt;/</code>.</td></tr></tbody></table></div>
+<p><code>cascade serve</code> takes <code>--host</code> (default <code>0.0.0.0</code>), <code>--port</code> (default 8000) and <code>--s3-port</code> (default 9000).</p>
+<p>The S3 endpoint accepts anonymous reads and writes. Anyone with its URL can upload a trace. The app's API and UI need the token.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="concepts.html"><span>Previous</span>Concepts</a><a class="next" href="trace-a-workload.html"><span>Next</span>Trace a workload</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#before-you-deploy">Before you deploy</a></li><li class="l2"><a href="#deploy-with-a-simulator-image">Deploy with a simulator image</a></li><li class="l2"><a href="#deploy-with-the-stand-in-simulator">Deploy with the stand-in simulator</a></li><li class="l2"><a href="#what-the-script-prints">What the script prints</a></li><li class="l2"><a href="#script-flags">Script flags</a></li><li class="l2"><a href="#what-s-in-the-image">What's in the image</a></li><li class="l2"><a href="#configuration">Configuration</a></li></ul></nav>
+</div>
+<div class="scrim" hidden></div>
+<dialog class="search" aria-label="Search docs">
+  <div class="search-box"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><input type="search" placeholder="Search titles and headings" aria-label="Search" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
+  <ul class="results" role="listbox"></ul>
+</dialog>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bring your own simulator · Cascade docs</title>
+<meta name="description" content="The contract a program follows to run as a Cascade simulator, what the simulator image needs, and a complete stdlib client.">
+<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+<script>try{const t=localStorage.getItem("cascade-docs-theme");if(t)document.documentElement.dataset.theme=t}catch{}</script>
+<script src="search-index.js" defer></script>
+<script src="docs.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+  <a class="brand" href="index.html"><svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><defs><clipPath id="cm0"><path d="M-6.00 -4.00 L-3.50 -4.00 L-1.00 -4.00 L1.50 -4.00 L4.00 -4.00 L6.50 -4.00 L9.00 -4.00 L11.50 -4.00 L14.00 -4.00 L16.50 -4.00 L19.00 -4.00 L21.50 -4.00 L24.00 -4.00 L26.50 -4.00 L29.00 -4.00 L31.50 -4.00 L34.00 -4.00 L36.50 -4.00 L39.00 -4.00 L41.50 -4.00 L44.00 -4.00 L46.50 -4.00 L49.00 -4.00 L51.50 -4.00 L54.00 -4.00 L54.00 18.39 L51.50 17.02 L49.00 15.77 L46.50 14.63 L44.00 13.62 L41.50 12.72 L39.00 11.95 L36.50 11.29 L34.00 10.75 L31.50 10.34 L29.00 10.04 L26.50 9.86 L24.00 9.80 L21.50 9.86 L19.00 10.04 L16.50 10.34 L14.00 10.75 L11.50 11.29 L9.00 11.95 L6.50 12.72 L4.00 13.62 L1.50 14.63 L-1.00 15.77 L-3.50 17.02 L-6.00 18.39Z"/></clipPath><clipPath id="cm1"><path d="M-6.00 21.79 L-3.50 20.42 L-1.00 19.17 L1.50 18.03 L4.00 17.02 L6.50 16.12 L9.00 15.35 L11.50 14.69 L14.00 14.15 L16.50 13.74 L19.00 13.44 L21.50 13.26 L24.00 13.20 L26.50 13.26 L29.00 13.44 L31.50 13.74 L34.00 14.15 L36.50 14.69 L39.00 15.35 L41.50 16.12 L44.00 17.02 L46.50 18.03 L49.00 19.17 L51.50 20.42 L54.00 21.79 L54.00 32.39 L51.50 31.02 L49.00 29.77 L46.50 28.63 L44.00 27.62 L41.50 26.72 L39.00 25.95 L36.50 25.29 L34.00 24.75 L31.50 24.34 L29.00 24.04 L26.50 23.86 L24.00 23.80 L21.50 23.86 L19.00 24.04 L16.50 24.34 L14.00 24.75 L11.50 25.29 L9.00 25.95 L6.50 26.72 L4.00 27.62 L1.50 28.63 L-1.00 29.77 L-3.50 31.02 L-6.00 32.39Z"/></clipPath><clipPath id="cm2"><path d="M-6.00 35.79 L-3.50 34.42 L-1.00 33.17 L1.50 32.03 L4.00 31.02 L6.50 30.12 L9.00 29.35 L11.50 28.69 L14.00 28.15 L16.50 27.74 L19.00 27.44 L21.50 27.26 L24.00 27.20 L26.50 27.26 L29.00 27.44 L31.50 27.74 L34.00 28.15 L36.50 28.69 L39.00 29.35 L41.50 30.12 L44.00 31.02 L46.50 32.03 L49.00 33.17 L51.50 34.42 L54.00 35.79 L54.00 52.00 L51.50 52.00 L49.00 52.00 L46.50 52.00 L44.00 52.00 L41.50 52.00 L39.00 52.00 L36.50 52.00 L34.00 52.00 L31.50 52.00 L29.00 52.00 L26.50 52.00 L24.00 52.00 L21.50 52.00 L19.00 52.00 L16.50 52.00 L14.00 52.00 L11.50 52.00 L9.00 52.00 L6.50 52.00 L4.00 52.00 L1.50 52.00 L-1.00 52.00 L-3.50 52.00 L-6.00 52.00Z"/></clipPath></defs><g transform="translate(-4 0)"><circle cx="24" cy="24" r="21" fill="currentColor" clip-path="url(#cm0)"/></g><g transform="translate(0 0)"><circle cx="24" cy="24" r="21" fill="#6D4AE0" clip-path="url(#cm1)"/></g><g transform="translate(4 0)"><circle cx="24" cy="24" r="21" fill="#A35CE8" clip-path="url(#cm2)"/></g></svg><span>Cascade</span><span class="brand-docs">docs</span></a>
+  <button class="search-btn" type="button" aria-label="Search docs"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search docs</span><kbd>/</kbd></button>
+  <nav class="top-links" aria-label="Site">
+    <a href="../index.html">Home</a>
+    <a href="../writeup.html">Writeup</a>
+    <a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg></button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html" aria-current="page">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div></aside>
+  <main id="content" class="content">
+    <p class="eyebrow">Guides</p>
+    <h1>Bring your own simulator</h1>
+<p class="lede">Cascade runs whatever command is in <code>CASCADE_SIM_CMD</code> inside each sim. Any program that follows this contract can be the simulator: Accel-Sim behind a wrapper, a patched build, or something else entirely.</p>
+
+<h2 id="the-contract">The contract<a class="anchor" href="#the-contract" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Read your identity from the environment.
+<div class="table-wrap"><table class="table"><thead><tr><th>variable</th><th>value</th></tr></thead><tbody>
+<tr><td><code>CASCADE_SIM_ID</code></td><td>This sim's id, such as <code>sim-45609b32f314</code>.</td></tr>
+<tr><td><code>CASCADE_MAIN_URL</code></td><td>The app's URL, from <code>CASCADE_PUBLIC_URL</code>.</td></tr>
+<tr><td><code>CASCADE_TOKEN</code></td><td>The bearer token for every request.</td></tr>
+<tr><td><code>CASCADE_GPU_CONFIG</code></td><td>The config to simulate, such as <code>SM90_H100</code>.</td></tr>
+<tr><td><code>CASCADE_TRACE_DIR</code></td><td>The trace's directory. The processed trace is at <code>$CASCADE_TRACE_DIR/traces/kernelslist.g</code>.</td></tr>
+</tbody></table></div>
+</li>
+<li>Send <code>POST /api/sims/{id}/heartbeat</code> with <code>{"state": "running"}</code> right away, and again every few seconds. If the reply has <code>"cancel": true</code>, stop and exit.</li>
+<li>Send your output as <code>POST /api/sims/{id}/logs</code> with <code>{"seq": n, "lines": [...]}</code>, counting <code>seq</code> up from 0. Send Accel-Sim's stdout as it is. The app parses the per-kernel stats out of it.</li>
+<li>Finish with one heartbeat of <code>succeeded</code> or <code>failed</code>, with your <code>exit_code</code>, and an <code>error</code> if you failed.</li>
+</ol>
+<p><a href="api-simulator.html">Simulator endpoints</a> has the full request and response for both calls.</p>
+
+<h2 id="retries-are-safe">Retries are safe<a class="anchor" href="#retries-are-safe" aria-label="Link to this section">#</a></h2>
+<p>Both calls are safe to repeat, so retry any <code>5xx</code> or network error with backoff. The app ignores a log chunk whose <code>seq</code> it already has, and a heartbeat that repeats the current state only refreshes the heartbeat time. Don't retry a <code>4xx</code>. It means the token or the body is wrong, or the sim doesn't exist.</p>
+<p>Keep heartbeats going while you wait on retries. After 60 seconds of silence the sim shows as <code>lost</code>, and after 600 seconds it fails and the app stops its sandbox.</p>
+
+<h2 id="a-complete-client">A complete client<a class="anchor" href="#a-complete-client" aria-label="Link to this section">#</a></h2>
+<p>This client runs any command, forwards its stdout as log chunks, sends a heartbeat every 5 seconds, stops the command if the run is cancelled, and reports the exit code. It uses only the Python standard library.</p>
+<div class="code"><div class="code-bar"><span>cascade_sim.py</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-s">""</span>"Run a simulator command <span class="tk-k">as</span> a Cascade sim: send heartbeats and forward its stdout.
+
+CASCADE_SIM_CMD=<span class="tk-s">"python3 cascade_sim.py accel-sim.out -trace ... -config ..."</span>
+<span class="tk-s">""</span>"
+
+<span class="tk-k">import</span> json
+<span class="tk-k">import</span> os
+<span class="tk-k">import</span> subprocess
+<span class="tk-k">import</span> sys
+<span class="tk-k">import</span> threading
+<span class="tk-k">import</span> time
+<span class="tk-k">import</span> urllib.error
+<span class="tk-k">import</span> urllib.request
+
+BASE = <span class="tk-s">f"{os.environ['CASCADE_MAIN_URL']}/api/sims/{os.environ['CASCADE_SIM_ID']}"</span>
+TOKEN = os.environ[<span class="tk-s">"CASCADE_TOKEN"</span>]
+cancelled = threading.Event()
+
+
+<span class="tk-k">def</span> post(path, body):
+    data = json.dumps(body).encode()
+    headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {TOKEN}"</span>, <span class="tk-s">"Content-Type"</span>: <span class="tk-s">"application/json"</span>}
+    <span class="tk-k">for</span> attempt <span class="tk-k">in</span> range(6):
+        req = urllib.request.Request(<span class="tk-s">f"{BASE}/{path}"</span>, data, headers, method=<span class="tk-s">"POST"</span>)
+        try:
+            <span class="tk-k">with</span> urllib.request.urlopen(req, timeout=10) <span class="tk-k">as</span> resp:
+                raw = resp.read()
+                <span class="tk-k">return</span> json.loads(raw) <span class="tk-k">if</span> raw else <span class="tk-k">None</span>
+        except urllib.error.HTTPError <span class="tk-k">as</span> e:
+            <span class="tk-k">if</span> e.code &lt; 500:
+                raise
+        except (urllib.error.URLError, TimeoutError):
+            pass
+        time.sleep(2**attempt)
+    raise RuntimeError(<span class="tk-s">f"POST {path} kept failing"</span>)
+
+
+<span class="tk-k">def</span> heartbeat(state, exit_code=<span class="tk-k">None</span>, error=<span class="tk-k">None</span>):
+    ack = post(<span class="tk-s">"heartbeat"</span>, {<span class="tk-s">"state"</span>: state, <span class="tk-s">"exit_code"</span>: exit_code, <span class="tk-s">"error"</span>: error})
+    <span class="tk-k">if</span> ack[<span class="tk-s">"cancel"</span>]:
+        cancelled.set()
+
+
+<span class="tk-k">def</span> keep_beating(proc):
+    <span class="tk-k">while</span> proc.poll() is <span class="tk-k">None</span>:
+        try:
+            heartbeat(<span class="tk-s">"running"</span>)
+        except Exception <span class="tk-k">as</span> e:
+            <span class="tk-k">print</span>(<span class="tk-s">f"heartbeat failed: {e}"</span>, file=sys.stderr)
+        <span class="tk-k">if</span> cancelled.is_set():
+            proc.terminate()
+        time.sleep(5)
+
+
+<span class="tk-k">def</span> main():
+    heartbeat(<span class="tk-s">"running"</span>)
+    <span class="tk-k">if</span> cancelled.is_set():
+        <span class="tk-k">return</span> 0
+    proc = subprocess.Popen(
+        sys.argv[1:], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=<span class="tk-k">True</span>, errors=<span class="tk-s">"replace"</span>
+    )
+    threading.Thread(target=keep_beating, args=(proc,), daemon=<span class="tk-k">True</span>).start()
+    seq, batch, sent_at = 0, [], time.monotonic()
+    <span class="tk-k">for</span> line <span class="tk-k">in</span> proc.stdout:
+        batch.append(line.rstrip(<span class="tk-s">"\n"</span>))
+        <span class="tk-k">if</span> len(batch) &gt;= 200 or time.monotonic() - sent_at &gt; 1:
+            post(<span class="tk-s">"logs"</span>, {<span class="tk-s">"seq"</span>: seq, <span class="tk-s">"lines"</span>: batch})
+            seq, batch, sent_at = seq + 1, [], time.monotonic()
+    <span class="tk-k">if</span> batch:
+        post(<span class="tk-s">"logs"</span>, {<span class="tk-s">"seq"</span>: seq, <span class="tk-s">"lines"</span>: batch})
+    code = proc.wait()
+    <span class="tk-k">if</span> cancelled.is_set():
+        <span class="tk-k">return</span> 0
+    <span class="tk-k">if</span> code == 0:
+        heartbeat(<span class="tk-s">"succeeded"</span>, exit_code=0)
+    else:
+        heartbeat(<span class="tk-s">"failed"</span>, exit_code=code, error=<span class="tk-s">f"simulator exited with {code}"</span>)
+    <span class="tk-k">return</span> code
+
+
+<span class="tk-k">if</span> __name__ == <span class="tk-s">"__main__"</span>:
+    sys.exit(main())</code></pre></div>
+<p>To use it with Accel-Sim, put it in your simulator image and point <code>CASCADE_SIM_CMD</code> at it. Single quotes keep the shell from expanding the variables until the command runs in the sim.</p>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>--sim-cmd <span class="tk-s">'python3 /opt/cascade_sim.py /opt/accel-sim-framework/gpu-simulator/bin/release/accel-sim.out \
+  -trace $CASCADE_TRACE_DIR/traces/kernelslist.g \
+  -config /opt/accel-sim-framework/gpu-simulator/gpgpu-sim/configs/tested-cfgs/$CASCADE_GPU_CONFIG/gpgpusim.config \
+  -config /opt/accel-sim-framework/gpu-simulator/configs/tested-cfgs/$CASCADE_GPU_CONFIG/trace.config'</span></code></pre></div><p>On Sail, the app runs the command through a shell inside the fork. The local launcher splits it into arguments with <code>shlex</code> and runs it without a shell, so <code>$VARIABLES</code> in it don't expand locally.</p>
+<p><code>scripts/fake_sim.py</code> in the repo is another client of the same contract. It replays a recorded log instead of running a command, which is how the stand-in simulator works.</p>
+
+<h2 id="what-the-image-needs">What the image needs<a class="anchor" href="#what-the-image-needs" aria-label="Link to this section">#</a></h2>
+<p>The app is layered on top of your image with the Dockerfile's <code>BASE_IMAGE</code> argument, so the app and every sim run the same image. It needs these things.</p>
+<div class="table-wrap"><table class="table"><thead><tr><th>what</th><th>where the app looks</th></tr></thead><tbody>
+<tr><td>Accel-Sim's GPU configs</td><td><code>$CASCADE_ACCELSIM_DIR/gpu-simulator/gpgpu-sim/configs/tested-cfgs/*/gpgpusim.config</code>. Each directory becomes a GPU config.</td></tr>
+<tr><td>The trace post-processor</td><td><code>CASCADE_POSTPROCESS_CMD</code>, by default <code>$CASCADE_ACCELSIM_DIR/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing</code>. The app runs it on the main sandbox, not in sims.</td></tr>
+<tr><td>Your simulator command</td><td><code>CASCADE_SIM_CMD</code>, a shell command. Sims run it with the environment above.</td></tr>
+<tr><td>A shell and <code>apt-get</code></td><td>The Dockerfile installs rclone and uv with <code>apt-get</code>, so the base must be Debian or Ubuntu.</td></tr>
+</tbody></table></div>
+<p>Pin the simulator to the version the profiler traced with. The profiler at <code>b348d7d</code> builds the tracer from Accel-Sim commit <code>7ba54ded</code>. The app's notes name Accel-Sim tag <code>v2.0.1</code> for the simulator.</p>
+
+<h2 id="where-output-goes">Where output goes<a class="anchor" href="#where-output-goes" aria-label="Link to this section">#</a></h2>
+<p>Anything your command prints to stdout or stderr is also saved to <code>$CASCADE_DATA_DIR/work/sims/&lt;sim id&gt;.out</code> on the sim's disk. Only what you send to <code>/logs</code> reaches the app, and only that gets parsed.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="reading-results.html"><span>Previous</span>Reading results</a><a class="next" href="api.html"><span>Next</span>Overview and auth</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#the-contract">The contract</a></li><li class="l2"><a href="#retries-are-safe">Retries are safe</a></li><li class="l2"><a href="#a-complete-client">A complete client</a></li><li class="l2"><a href="#what-the-image-needs">What the image needs</a></li><li class="l2"><a href="#where-output-goes">Where output goes</a></li></ul></nav>
+</div>
+<div class="scrim" hidden></div>
+<dialog class="search" aria-label="Search docs">
+  <div class="search-box"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><input type="search" placeholder="Search titles and headings" aria-label="Search" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
+  <ul class="results" role="listbox"></ul>
+</dialog>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!--
+title: Live events (SSE)
+nav: Live events (SSE)
+description: Subscribe to one Cascade run's live updates over server-sent events: the snapshot, sim, log and kernel events, and how to reconnect.
+-->
+<p class="lede">The run screen stays live through one server-sent event stream per run. You can subscribe to the same stream from a script.</p>
+
+{{endpoints api-events}}
+
+<h2>Wire format</h2>
+<p>Each event is one `data:` line holding one JSON object, followed by a blank line. The stream uses no `event:` or `id:` fields, so read the object's `type` to tell events apart.</p>
+```text
+data: {"type":"snapshot","run":{"id":"run-d96aefcba965","trace_id":"demo", ...}, "kernels":[]}
+
+data: {"type":"sim","sim":{"id":"sim-d698ff59b168","state":"running", ...}}
+
+: keepalive
+```
+<p>The response sets `Cache-Control: no-cache` and `X-Accel-Buffering: no`, so proxies pass events through as they happen.</p>
+
+<h2>Events</h2>
+<p>These events come from the captured run. Each shows the first event of its kind that the stream sent.</p>
+
+<h3>snapshot</h3>
+<p>Always first. It holds the whole `RunDetail` as it is at connect time and every finished `KernelStat` so far, with each `stats` map emptied to keep the event small. Full stats come in live `kernel` events and in the results downloads. In this capture the stream connected right after the run was created, so both sims are still `launching` and no kernel has finished.</p>
+{{event snapshot}}
+
+<h3>sim</h3>
+<p>A sim changed: its state, its heartbeat time, its progress or its latest metrics. It carries the whole `SimSummary`, so replace your copy of that sim.</p>
+{{event sim}}
+<p>The same event when a sim finishes.</p>
+{{event sim_finished}}
+
+<h3>log</h3>
+<p>New output from one sim, exactly as the simulator sent it in one chunk.</p>
+{{event log}}
+
+<h3>kernel</h3>
+<p>A kernel finished on one sim. The `stat` carries the full `stats` map.</p>
+{{event kernel}}
+
+<h2>Order and reconnects</h2>
+<ul>
+<li>Events arrive in the order the app committed them, and the snapshot never overlaps an event that follows it. Apply the snapshot, then apply each event on top.</li>
+<li>For one log chunk the order is `log`, then any `kernel` events it completed, then `sim`.</li>
+<li>The app keeps up to 2000 unsent events per subscriber. A subscriber that falls further behind is disconnected. Reconnect and start again from the new snapshot. `EventSource` reconnects by itself.</li>
+<li>The stream stays open after the run finishes. Close it when the run's state is no longer `active`.</li>
+</ul>

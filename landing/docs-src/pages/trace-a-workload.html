@@ -1,0 +1,70 @@
+<!--
+title: Trace a workload
+description: Trace a vLLM model on a Modal H100 with Accel-Sim's NVBit tracer and stream the trace into your Cascade app over S3.
+-->
+<p class="lede">The profiler, `accelsim_trace.py`, runs a vLLM model on a Modal H100 under Accel-Sim's NVBit tracer and uploads each kernel's trace to your app's S3 endpoint as soon as that kernel finishes.</p>
+
+<div class="note"><p>Use the streaming profiler from the `validate-accelsim-modal` branch (`accelsim_trace.py` at commit `b348d7d`). The copy at the root of the app branch is an older version that saves to a Modal Volume and has no `--s3-*` flags.</p></div>
+
+<h2>Set up Modal</h2>
+<p>The profiler runs on <a href="https://modal.com" target="_blank" rel="noopener">Modal</a>. Install the client and log in once.</p>
+```bash
+pip install modal
+modal setup
+```
+<p>The first run builds an image with NVBit, the tracer and vLLM, which takes a while. Later runs reuse it.</p>
+
+<h2>Pick the layers</h2>
+<p>Tracing every instruction is slow, so trace one or a few layers, not the whole model. List the layer names first.</p>
+```bash
+modal run accelsim_trace.py --model facebook/opt-125m --list-layers
+```
+
+<h2>Trace and stream</h2>
+<p>Pass the S3 endpoint that [Deploy the app](deploy.html) printed. The bucket is `cascade` and the endpoint needs path-style addressing.</p>
+```bash
+modal run accelsim_trace.py \
+  --model facebook/opt-125m \
+  --layers model.decoder.layers.10.self_attn \
+  --prompt "Hello, my name is" \
+  --max-tokens 4 \
+  --s3-endpoint https://<your-s3-endpoint> \
+  --s3-bucket cascade \
+  --s3-addressing-style path
+```
+<p>Before it starts tracing, the profiler checks that the bucket is reachable and stops if it isn't. When it finishes, it prints where the trace went.</p>
+```text
+Done. Traces at s3://cascade/accelsim-traces/<run name>
+```
+
+<h2>What gets uploaded</h2>
+<p>The tracer writes one `kernel-<N>-ctx_<0x..>.trace.xz` file per kernel and closes it before the next kernel starts. A background thread uploads each closed file and deletes it locally, so the Modal container only ever holds the kernel being traced plus any upload backlog.</p>
+<p>After tracing ends, the profiler uploads the rest of the run: the logs, `metadata.json`, `spinlock_detection/spinlock_instructions.txt`, `traces/kernelslist_ctx_*` and `traces/stats_ctx_*`. It goes in sorted path order, so `metadata.json` arrives before the `traces/` files. It uploads them even when tracing failed, so a partial run is as complete as it can be. Everything lands under `s3://cascade/accelsim-traces/<run name>/`.</p>
+<p>`metadata.json` holds `model`, `layers`, `prompts`, `max_tokens`, `max_model_len`, `spinlock_handling`, `status` (`ok` or `failed`), `gpu` (from `nvidia-smi`), `accelsim_commit`, and upload counts. It doesn't set `trace_gpu_arch`, so the app uses its default `sm_90`, which is right for an H100.</p>
+<p>The profiler doesn't post-process. The app runs Accel-Sim's post-processor once the upload is complete. See [Traces](traces.html).</p>
+
+<h2>Profiler flags</h2>
+<div class="table-wrap"><table class="table"><thead><tr><th>flag</th><th>default</th><th>what it sets</th></tr></thead><tbody>
+<tr><td>`--model`</td><td>`facebook/opt-125m`</td><td>The Hugging Face model vLLM loads.</td></tr>
+<tr><td>`--layers`</td><td>`model.decoder.layers.10.self_attn`</td><td>Comma-separated module names to trace.</td></tr>
+<tr><td>`--prompt`</td><td>`Hello, my name is`</td><td>The one prompt to generate from.</td></tr>
+<tr><td>`--max-tokens`</td><td>4</td><td>Tokens to generate. Each token is another forward pass to trace.</td></tr>
+<tr><td>`--max-model-len`</td><td>2048</td><td>vLLM's `max_model_len`.</td></tr>
+<tr><td>`--run-name`</td><td>time, model and layers</td><td>The trace's id in Cascade. The default looks like `20261107-120000__facebook_opt-125m__model.decoder.layers.10.self_attn`.</td></tr>
+<tr><td>`--list-layers`</td><td>off</td><td>Print layer names and exit without tracing.</td></tr>
+<tr><td>`--spinlock-handling`</td><td>`mark_region`</td><td>`mark_region`, `fast_forward` or `none`. Any mode but `none` first runs Accel-Sim's two-pass spinlock detection.</td></tr>
+<tr><td>`--s3-endpoint`</td><td>none</td><td>Your app's S3 endpoint.</td></tr>
+<tr><td>`--s3-bucket`</td><td>none, required</td><td>Use `cascade`.</td></tr>
+<tr><td>`--s3-prefix`</td><td>`accelsim-traces`</td><td>Must match the app's `CASCADE_S3_PREFIX`.</td></tr>
+<tr><td>`--s3-region`</td><td>`auto`</td><td>Region name for the S3 client.</td></tr>
+<tr><td>`--s3-addressing-style`</td><td>`auto`</td><td>Use `path` for the Cascade endpoint.</td></tr>
+</tbody></table></div>
+<p>The Modal function has 8 CPUs, 64 GiB of memory and 512 GiB of scratch disk, and times out after 4 hours. Tracing stops after 3.5 hours to leave time for uploads to drain.</p>
+
+<h2>Upload a trace you already have</h2>
+<p>`scripts/upload_trace.py` uploads a local directory with the same client settings as the profiler and sends `metadata.json` last, with `status` and a `files` list. Use `--meta key=value` to add fields such as `trace_gpu_arch` for a trace from another GPU. Values are strings.</p>
+```bash
+uv run python scripts/upload_trace.py ./my-run --run-name my-run \
+  --endpoint https://<your-s3-endpoint> --meta trace_gpu_arch=sm_80
+```
+<p>Add `--status failed` to mark the upload as failed. The app then marks the trace `failed` without processing it.</p>

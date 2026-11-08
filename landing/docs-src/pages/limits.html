@@ -1,0 +1,31 @@
+<!--
+title: Limits
+description: What Cascade does not do yet, and the fixed limits on runs, traces, disk and simulation speed.
+-->
+<p class="lede">These are the limits as of this version, from the code and the open work around it.</p>
+
+<h2>Not built yet</h2>
+<ul>
+<li>A default deploy runs the stand-in simulator, `scripts/fake_sim.py`, unless you pass `--base-image`, `--sim-cmd` and `--accelsim-dir`. Its numbers come from a recorded log, not from your trace.</li>
+<li>The profiler doesn't capture real hardware timing (`real_timing.json`) yet, so the comparison shows simulated time only.</li>
+<li>Each sim models one GPU. Making many simulated GPUs act as one system is the next step, not something Cascade does yet.</li>
+<li>The Sail launcher is written against the Sail SDK 0.17.2 source and tested with a fake SDK. It hasn't run against the live Sail service.</li>
+<li>The S3 endpoint accepts anonymous uploads. Anyone with its URL can add a trace.</li>
+</ul>
+
+<h2>Fixed limits</h2>
+<ul>
+<li>Each entry in a run has a count from 1 to 64. A run can have any number of entries.</li>
+<li>A trace only runs on configs of the architecture it was captured on.</li>
+<li>The app launches up to 8 sims at a time. Larger runs launch in waves.</li>
+<li>A subscriber to the event stream can fall up to 2000 events behind before the app disconnects it.</li>
+<li>`log_tail` holds the last 20 lines. The full log is always available as a download.</li>
+</ul>
+
+<h2>Size and speed</h2>
+<ul>
+<li>Traces grow with the layers, tokens and forward passes you trace. A small layer is tens of MB. Whole models with long prompts can reach hundreds of GB.</li>
+<li>The app needs about 2.2 times the uploaded size in disk, for the raw and processed trace.</li>
+<li>Simulation is far slower than real hardware. Start with one layer and a few tokens.</li>
+<li>The profiler's Modal function times out after 4 hours.</li>
+</ul>

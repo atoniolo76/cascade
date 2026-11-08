@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quickstart · Cascade docs</title>
+<meta name="description" content="Run Cascade on your laptop with the stand-in simulator, upload a trace, launch a run, and download its results.">
+<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+<script>try{const t=localStorage.getItem("cascade-docs-theme");if(t)document.documentElement.dataset.theme=t}catch{}</script>
+<script src="search-index.js" defer></script>
+<script src="docs.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+  <a class="brand" href="index.html"><svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><defs><clipPath id="cm0"><path d="M-6.00 -4.00 L-3.50 -4.00 L-1.00 -4.00 L1.50 -4.00 L4.00 -4.00 L6.50 -4.00 L9.00 -4.00 L11.50 -4.00 L14.00 -4.00 L16.50 -4.00 L19.00 -4.00 L21.50 -4.00 L24.00 -4.00 L26.50 -4.00 L29.00 -4.00 L31.50 -4.00 L34.00 -4.00 L36.50 -4.00 L39.00 -4.00 L41.50 -4.00 L44.00 -4.00 L46.50 -4.00 L49.00 -4.00 L51.50 -4.00 L54.00 -4.00 L54.00 18.39 L51.50 17.02 L49.00 15.77 L46.50 14.63 L44.00 13.62 L41.50 12.72 L39.00 11.95 L36.50 11.29 L34.00 10.75 L31.50 10.34 L29.00 10.04 L26.50 9.86 L24.00 9.80 L21.50 9.86 L19.00 10.04 L16.50 10.34 L14.00 10.75 L11.50 11.29 L9.00 11.95 L6.50 12.72 L4.00 13.62 L1.50 14.63 L-1.00 15.77 L-3.50 17.02 L-6.00 18.39Z"/></clipPath><clipPath id="cm1"><path d="M-6.00 21.79 L-3.50 20.42 L-1.00 19.17 L1.50 18.03 L4.00 17.02 L6.50 16.12 L9.00 15.35 L11.50 14.69 L14.00 14.15 L16.50 13.74 L19.00 13.44 L21.50 13.26 L24.00 13.20 L26.50 13.26 L29.00 13.44 L31.50 13.74 L34.00 14.15 L36.50 14.69 L39.00 15.35 L41.50 16.12 L44.00 17.02 L46.50 18.03 L49.00 19.17 L51.50 20.42 L54.00 21.79 L54.00 32.39 L51.50 31.02 L49.00 29.77 L46.50 28.63 L44.00 27.62 L41.50 26.72 L39.00 25.95 L36.50 25.29 L34.00 24.75 L31.50 24.34 L29.00 24.04 L26.50 23.86 L24.00 23.80 L21.50 23.86 L19.00 24.04 L16.50 24.34 L14.00 24.75 L11.50 25.29 L9.00 25.95 L6.50 26.72 L4.00 27.62 L1.50 28.63 L-1.00 29.77 L-3.50 31.02 L-6.00 32.39Z"/></clipPath><clipPath id="cm2"><path d="M-6.00 35.79 L-3.50 34.42 L-1.00 33.17 L1.50 32.03 L4.00 31.02 L6.50 30.12 L9.00 29.35 L11.50 28.69 L14.00 28.15 L16.50 27.74 L19.00 27.44 L21.50 27.26 L24.00 27.20 L26.50 27.26 L29.00 27.44 L31.50 27.74 L34.00 28.15 L36.50 28.69 L39.00 29.35 L41.50 30.12 L44.00 31.02 L46.50 32.03 L49.00 33.17 L51.50 34.42 L54.00 35.79 L54.00 52.00 L51.50 52.00 L49.00 52.00 L46.50 52.00 L44.00 52.00 L41.50 52.00 L39.00 52.00 L36.50 52.00 L34.00 52.00 L31.50 52.00 L29.00 52.00 L26.50 52.00 L24.00 52.00 L21.50 52.00 L19.00 52.00 L16.50 52.00 L14.00 52.00 L11.50 52.00 L9.00 52.00 L6.50 52.00 L4.00 52.00 L1.50 52.00 L-1.00 52.00 L-3.50 52.00 L-6.00 52.00Z"/></clipPath></defs><g transform="translate(-4 0)"><circle cx="24" cy="24" r="21" fill="currentColor" clip-path="url(#cm0)"/></g><g transform="translate(0 0)"><circle cx="24" cy="24" r="21" fill="#6D4AE0" clip-path="url(#cm1)"/></g><g transform="translate(4 0)"><circle cx="24" cy="24" r="21" fill="#A35CE8" clip-path="url(#cm2)"/></g></svg><span>Cascade</span><span class="brand-docs">docs</span></a>
+  <button class="search-btn" type="button" aria-label="Search docs"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search docs</span><kbd>/</kbd></button>
+  <nav class="top-links" aria-label="Site">
+    <a href="../index.html">Home</a>
+    <a href="../writeup.html">Writeup</a>
+    <a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg></button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html" aria-current="page">Quickstart</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div></aside>
+  <main id="content" class="content">
+    <p class="eyebrow">Getting started</p>
+    <h1>Quickstart</h1>
+<p class="lede">In this quickstart, we run the Cascade app on your laptop, upload a small stand-in trace, simulate it on two copies of the <code>SM86_RTX3070</code> config, and download the results.</p>
+<p>The simulators here are <code>scripts/fake_sim.py</code>, which replays a recorded Accel-Sim log of BabelStream on an RTX 3070. Every number you see comes from that log, not from the trace you upload. The point is to see the whole loop work before you deploy for real.</p>
+
+<h2 id="before-you-start">Before you start<a class="anchor" href="#before-you-start" aria-label="Link to this section">#</a></h2>
+<p>You need these on your machine.</p>
+<ul>
+<li><code>git</code> and <a href="https://docs.astral.sh/uv/" target="_blank" rel="noopener">uv</a>. uv installs Python 3.12 for you.</li>
+<li><code>rclone</code>, which serves the app's S3 endpoint. On macOS, run <code>brew install rclone</code>.</li>
+<li>Node 22, only if you want the web UI. Everything else works without it.</li>
+</ul>
+
+<h2 id="run-the-loop">Run the loop<a class="anchor" href="#run-the-loop" aria-label="Link to this section">#</a></h2>
+<ol class="steps">
+<li><strong>Clone and install.</strong>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>git clone https://github.com/atoniolo76/cascade.git
+cd cascade
+uv sync</code></pre></div><p>To get the web UI as well, build it once. The build lands in <code>cascade/static/</code>, which the app serves.</p>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>(cd web &amp;&amp; npm ci &amp;&amp; npm run build)</code></pre></div></li>
+<li><strong>Start the app.</strong> This runs the API and UI on port 8000 and the S3 endpoint on port 9000. Leave it running and open a second terminal for the next steps.
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>export CASCADE_TOKEN=dev-token
+CASCADE_DATA_DIR=./data \
+CASCADE_ACCELSIM_DIR=$PWD/tests/fixtures/accelsim \
+CASCADE_SIM_CMD=<span class="tk-s">"$PWD/.venv/bin/python $PWD/scripts/fake_sim.py $PWD/tests/fixtures/logs/babelstream_sm86_rtx3070.log"</span> \
+uv run cascade serve</code></pre></div><p>When the app is up, the log ends with this line.</p>
+<div class="code"><div class="code-bar"><span>text</span><button class="copy" type="button">Copy</button></div><pre><code>INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)</code></pre></div></li>
+<li><strong>Make a stand-in trace.</strong> The fake simulator only checks that <code>traces/kernelslist.g</code> exists, so one line is enough. A real trace comes from the profiler. See <a href="trace-a-workload.html">Trace a workload</a>.
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>export CASCADE_TOKEN=dev-token CASCADE_URL=http://127.0.0.1:8000
+mkdir -p demo/traces
+echo kernel-1.traceg &gt; demo/traces/kernelslist.g</code></pre></div></li>
+<li><strong>Upload it.</strong> <code>scripts/upload_trace.py</code> uploads a directory the same way the profiler does and sends <code>metadata.json</code> last. The two <code>--meta</code> flags tell the app which GPU architecture the trace is for and which config to suggest.
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>uv run python scripts/upload_trace.py demo --run-name demo \
+  --meta trace_gpu_arch=sm_86 --meta suggested_sim_config=SM86_RTX3070</code></pre></div><p>You see each file go up.</p>
+<div class="code"><div class="code-bar"><span>text</span><button class="copy" type="button">Copy</button></div><pre><code>uploaded traces/kernelslist.g (16 bytes)
+uploaded metadata.json (1 files listed) to s3://cascade/accelsim-traces/demo/</code></pre></div></li>
+<li><strong>Wait for the trace to be ready.</strong> The app scans the bucket every 2 seconds. Because the upload already has <code>kernelslist.g</code>, it skips post-processing.
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -s -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span> <span class="tk-s">"$CASCADE_URL/api/traces/demo"</span></code></pre></div><p>Repeat until the response has <code>"state":"ready"</code>. It takes a few seconds.</p>
+</li>
+<li><strong>Launch a run.</strong> This asks for two sims on <code>SM86_RTX3070</code> and saves the run's id.
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>RUN=$(curl -s -X POST <span class="tk-s">"$CASCADE_URL/api/runs"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span> \
+  -H <span class="tk-s">"Content-Type: application/json"</span> \
+  -d <span class="tk-s">'{"trace_id": "demo", "entries": [{"gpu_config": "SM86_RTX3070", "count": 2}]}'</span> \
+  | python3 -c <span class="tk-s">'import json, sys; print(json.load(sys.stdin)["id"])'</span>)
+echo $RUN</code></pre></div></li>
+<li><strong>Watch it finish.</strong> Each fake sim replays about 10,000 log lines and finishes in a few seconds.
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -s -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span> <span class="tk-s">"$CASCADE_URL/api/runs/$RUN"</span> \
+  | python3 -c <span class="tk-s">'import json, sys; r = json.load(sys.stdin); print(r["state"], r["sim_counts"])'</span></code></pre></div><p>When both sims are done, you see this.</p>
+<div class="code"><div class="code-bar"><span>text</span><button class="copy" type="button">Copy</button></div><pre><code>succeeded {'succeeded': 2}</code></pre></div><p>If you built the UI, open <a href="http://127.0.0.1:8000" target="_blank" rel="noopener">http://127.0.0.1:8000</a>, paste <code>dev-token</code>, and open the run to see the same thing live.</p>
+</li>
+<li><strong>Download the results.</strong> This saves one JSON file with the run, the trace, every sim's per-kernel stats, and the comparison.
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -s -OJ -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span> <span class="tk-s">"$CASCADE_URL/api/runs/$RUN/results"</span></code></pre></div><p>The file is named <code>&lt;run id&gt;-results.json</code>. <a href="reading-results.html">Reading results</a> explains what's in it.</p>
+</li>
+</ol>
+
+<p>To stop, press Ctrl+C in the first terminal. The app stops rclone too. Your traces and runs stay in <code>./data</code> for next time.</p>
+
+<h2 id="next-steps">Next steps<a class="anchor" href="#next-steps" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="concepts.html">Concepts</a> explains what a trace, a run and a sim are, and how their states move.</li>
+<li><a href="deploy.html">Deploy the app</a> runs the same app on Sail, where each sim is its own sandbox.</li>
+<li><a href="simulator.html">Bring your own simulator</a> replaces <code>fake_sim.py</code> with Accel-Sim or anything else.</li>
+</ul>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="index.html"><span>Previous</span>Introduction</a><a class="next" href="concepts.html"><span>Next</span>Concepts</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#before-you-start">Before you start</a></li><li class="l2"><a href="#run-the-loop">Run the loop</a></li><li class="l2"><a href="#next-steps">Next steps</a></li></ul></nav>
+</div>
+<div class="scrim" hidden></div>
+<dialog class="search" aria-label="Search docs">
+  <div class="search-box"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><input type="search" placeholder="Search titles and headings" aria-label="Search" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
+  <ul class="results" role="listbox"></ul>
+</dialog>
+</body>
+</html>

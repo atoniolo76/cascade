@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Troubleshooting · Cascade docs</title>
+<meta name="description" content="Fixes for traces stuck uploading or failing, rejected tokens, disabled configs, lost or failed sims, and an event stream that goes quiet.">
+<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+<script>try{const t=localStorage.getItem("cascade-docs-theme");if(t)document.documentElement.dataset.theme=t}catch{}</script>
+<script src="search-index.js" defer></script>
+<script src="docs.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+  <a class="brand" href="index.html"><svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><defs><clipPath id="cm0"><path d="M-6.00 -4.00 L-3.50 -4.00 L-1.00 -4.00 L1.50 -4.00 L4.00 -4.00 L6.50 -4.00 L9.00 -4.00 L11.50 -4.00 L14.00 -4.00 L16.50 -4.00 L19.00 -4.00 L21.50 -4.00 L24.00 -4.00 L26.50 -4.00 L29.00 -4.00 L31.50 -4.00 L34.00 -4.00 L36.50 -4.00 L39.00 -4.00 L41.50 -4.00 L44.00 -4.00 L46.50 -4.00 L49.00 -4.00 L51.50 -4.00 L54.00 -4.00 L54.00 18.39 L51.50 17.02 L49.00 15.77 L46.50 14.63 L44.00 13.62 L41.50 12.72 L39.00 11.95 L36.50 11.29 L34.00 10.75 L31.50 10.34 L29.00 10.04 L26.50 9.86 L24.00 9.80 L21.50 9.86 L19.00 10.04 L16.50 10.34 L14.00 10.75 L11.50 11.29 L9.00 11.95 L6.50 12.72 L4.00 13.62 L1.50 14.63 L-1.00 15.77 L-3.50 17.02 L-6.00 18.39Z"/></clipPath><clipPath id="cm1"><path d="M-6.00 21.79 L-3.50 20.42 L-1.00 19.17 L1.50 18.03 L4.00 17.02 L6.50 16.12 L9.00 15.35 L11.50 14.69 L14.00 14.15 L16.50 13.74 L19.00 13.44 L21.50 13.26 L24.00 13.20 L26.50 13.26 L29.00 13.44 L31.50 13.74 L34.00 14.15 L36.50 14.69 L39.00 15.35 L41.50 16.12 L44.00 17.02 L46.50 18.03 L49.00 19.17 L51.50 20.42 L54.00 21.79 L54.00 32.39 L51.50 31.02 L49.00 29.77 L46.50 28.63 L44.00 27.62 L41.50 26.72 L39.00 25.95 L36.50 25.29 L34.00 24.75 L31.50 24.34 L29.00 24.04 L26.50 23.86 L24.00 23.80 L21.50 23.86 L19.00 24.04 L16.50 24.34 L14.00 24.75 L11.50 25.29 L9.00 25.95 L6.50 26.72 L4.00 27.62 L1.50 28.63 L-1.00 29.77 L-3.50 31.02 L-6.00 32.39Z"/></clipPath><clipPath id="cm2"><path d="M-6.00 35.79 L-3.50 34.42 L-1.00 33.17 L1.50 32.03 L4.00 31.02 L6.50 30.12 L9.00 29.35 L11.50 28.69 L14.00 28.15 L16.50 27.74 L19.00 27.44 L21.50 27.26 L24.00 27.20 L26.50 27.26 L29.00 27.44 L31.50 27.74 L34.00 28.15 L36.50 28.69 L39.00 29.35 L41.50 30.12 L44.00 31.02 L46.50 32.03 L49.00 33.17 L51.50 34.42 L54.00 35.79 L54.00 52.00 L51.50 52.00 L49.00 52.00 L46.50 52.00 L44.00 52.00 L41.50 52.00 L39.00 52.00 L36.50 52.00 L34.00 52.00 L31.50 52.00 L29.00 52.00 L26.50 52.00 L24.00 52.00 L21.50 52.00 L19.00 52.00 L16.50 52.00 L14.00 52.00 L11.50 52.00 L9.00 52.00 L6.50 52.00 L4.00 52.00 L1.50 52.00 L-1.00 52.00 L-3.50 52.00 L-6.00 52.00Z"/></clipPath></defs><g transform="translate(-4 0)"><circle cx="24" cy="24" r="21" fill="currentColor" clip-path="url(#cm0)"/></g><g transform="translate(0 0)"><circle cx="24" cy="24" r="21" fill="#6D4AE0" clip-path="url(#cm1)"/></g><g transform="translate(4 0)"><circle cx="24" cy="24" r="21" fill="#A35CE8" clip-path="url(#cm2)"/></g></svg><span>Cascade</span><span class="brand-docs">docs</span></a>
+  <button class="search-btn" type="button" aria-label="Search docs"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search docs</span><kbd>/</kbd></button>
+  <nav class="top-links" aria-label="Site">
+    <a href="../index.html">Home</a>
+    <a href="../writeup.html">Writeup</a>
+    <a href="https://github.com/atoniolo76/cascade" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg></button>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Docs"><div class="nav-group"><h2>Getting started</h2><ul><li><a href="index.html">Introduction</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="concepts.html">Concepts</a></li></ul></div><div class="nav-group"><h2>Guides</h2><ul><li><a href="deploy.html">Deploy the app</a></li><li><a href="trace-a-workload.html">Trace a workload</a></li><li><a href="traces.html">Traces</a></li><li><a href="runs.html">Runs</a></li><li><a href="reading-results.html">Reading results</a></li><li><a href="simulator.html">Bring your own simulator</a></li></ul></div><div class="nav-group"><h2>API reference</h2><ul><li><a href="api.html">Overview and auth</a></li><li><a href="api-traces.html">Traces</a></li><li><a href="api-runs.html">Runs</a></li><li><a href="api-events.html">Live events (SSE)</a></li><li><a href="api-simulator.html">Simulator endpoints</a></li><li><a href="types.html">Types</a></li><li><a href="errors.html">Errors</a></li></ul></div><div class="nav-group"><h2>Help</h2><ul><li><a href="troubleshooting.html" aria-current="page">Troubleshooting</a></li><li><a href="limits.html">Limits</a></li></ul></div></aside>
+  <main id="content" class="content">
+    <p class="eyebrow">Help</p>
+    <h1>Troubleshooting</h1>
+<p class="lede">Each section starts from what you see. Most problems show their cause in a trace's <code>error</code>, a sim's <code>error</code>, or a log file on the app's disk.</p>
+
+<h2 id="the-trace-is-stuck-in-uploading">The trace is stuck in uploading<a class="anchor" href="#the-trace-is-stuck-in-uploading" aria-label="Link to this section">#</a></h2>
+<ul>
+<li>The profiler sends <code>metadata.json</code> and the <code>traces/kernelslist_ctx_*</code> and <code>stats_ctx_*</code> files after tracing ends. Check that the Modal run finished.</li>
+<li>If <code>metadata.json</code> has a <code>files</code> list, one listed file may be missing or a different size than listed. Compare the list with what's under <code>$CASCADE_DATA_DIR/s3/cascade/accelsim-traces/&lt;trace id&gt;/</code>.</li>
+<li>Without a <code>files</code> list, the app also waits for a scan in which no file changed. A trace that keeps changing stays <code>uploading</code>.</li>
+</ul>
+
+<h2 id="the-trace-failed-in-processing">The trace failed in processing<a class="anchor" href="#the-trace-failed-in-processing" aria-label="Link to this section">#</a></h2>
+<p>Read the trace's <code>error</code>.</p>
+<ul>
+<li><code>post-processor not found</code> means <code>CASCADE_POSTPROCESS_CMD</code> isn't on the image. A deploy without <code>--base-image</code> has no post-processor, so only uploads that already include <code>traces/kernelslist.g</code> work there.</li>
+<li><code>post-processing exited &lt;code&gt;</code> ends with the last lines of the post-processor's log. The whole log is at <code>$CASCADE_DATA_DIR/work/postprocess/&lt;trace id&gt;.log</code>.</li>
+<li><code>profiler reported status 'failed'</code> means tracing failed. The profiler's logs are in the trace's directory.</li>
+</ul>
+
+<h2 id="the-profiler-can-t-reach-the-bucket">The profiler can't reach the bucket<a class="anchor" href="#the-profiler-can-t-reach-the-bucket" aria-label="Link to this section">#</a></h2>
+<p>Use the S3 endpoint URL, not the app URL, with <code>--s3-bucket cascade</code> and <code>--s3-addressing-style path</code>. The profiler checks the bucket before it starts tracing, so this fails fast.</p>
+
+<h2 id="the-profiler-has-no-s3-endpoint-flag">The profiler has no --s3-endpoint flag<a class="anchor" href="#the-profiler-has-no-s3-endpoint-flag" aria-label="Link to this section">#</a></h2>
+<p>You're running the older profiler at the root of the app branch. Use <code>accelsim_trace.py</code> from the <code>validate-accelsim-modal</code> branch, commit <code>b348d7d</code>.</p>
+
+<h2 id="the-token-is-rejected">The token is rejected<a class="anchor" href="#the-token-is-rejected" aria-label="Link to this section">#</a></h2>
+<p>Use the exact <code>CASCADE_TOKEN</code> the app was started with. If you deployed without setting one, <code>deploy_sail.py</code> printed the one it made as <code>token:</code>. Check for a trailing newline or space if you pasted it.</p>
+
+<h2 id="a-config-is-disabled-or-the-run-gets-422">A config is disabled or the run gets 422<a class="anchor" href="#a-config-is-disabled-or-the-run-gets-422" aria-label="Link to this section">#</a></h2>
+<p>The config's architecture differs from the trace's <code>trace_gpu_arch</code>. A trace only runs on configs of the GPU architecture it was captured on, so trace on that GPU instead. If a config you expect isn't listed at all, check that its <code>gpgpusim.config</code> is under <code>$CASCADE_ACCELSIM_DIR/gpu-simulator/gpgpu-sim/configs/tested-cfgs/</code> and has a <code>-gpgpu_clock_domains</code> line, then restart the app.</p>
+
+<h2 id="a-sim-shows-lost">A sim shows lost<a class="anchor" href="#a-sim-shows-lost" aria-label="Link to this section">#</a></h2>
+<p>The sim hasn't sent a heartbeat for <code>CASCADE_HEARTBEAT_TIMEOUT_S</code>. It recovers by itself if it reports again. If it doesn't, read its output at <code>$CASCADE_DATA_DIR/work/sims/&lt;sim id&gt;.out</code> on its sandbox. After 10 times the timeout it fails with <code>no heartbeat for 600s</code>.</p>
+
+<h2 id="every-sim-fails-at-launch">Every sim fails at launch<a class="anchor" href="#every-sim-fails-at-launch" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><code>launch: CASCADE_SIM_CMD is not set</code> means the app has no simulator command.</li>
+<li><code>launcher prepare:</code> means the app couldn't checkpoint its own sandbox. Check that <code>SAIL_API_KEY</code> is set in the app's environment.</li>
+<li>Locally, <code>could not start</code> means the first word of <code>CASCADE_SIM_CMD</code> isn't an executable path.</li>
+</ul>
+
+<h2 id="a-sim-fails-right-away-with-kernelslist-g-not-found">A sim fails right away with kernelslist.g not found<a class="anchor" href="#a-sim-fails-right-away-with-kernelslist-g-not-found" aria-label="Link to this section">#</a></h2>
+<p>The trace has no processed <code>traces/kernelslist.g</code>. The stand-in simulator and Accel-Sim both need it. Check that the trace reached <code>ready</code> through post-processing, not through a partial upload.</p>
+
+<h2 id="the-event-stream-goes-quiet">The event stream goes quiet<a class="anchor" href="#the-event-stream-goes-quiet" aria-label="Link to this section">#</a></h2>
+<p>The stream sends <code>: keepalive</code> every 15 seconds when nothing happens. If even that stops, a proxy may be buffering. The app sets <code>X-Accel-Buffering: no</code>, but other proxies may need their own setting. If your client fell more than 2000 events behind, the app closed the stream. Reconnect to get a fresh snapshot.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="errors.html"><span>Previous</span>Errors</a><a class="next" href="limits.html"><span>Next</span>Limits</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#the-trace-is-stuck-in-uploading">The trace is stuck in uploading</a></li><li class="l2"><a href="#the-trace-failed-in-processing">The trace failed in processing</a></li><li class="l2"><a href="#the-profiler-can-t-reach-the-bucket">The profiler can't reach the bucket</a></li><li class="l2"><a href="#the-profiler-has-no-s3-endpoint-flag">The profiler has no --s3-endpoint flag</a></li><li class="l2"><a href="#the-token-is-rejected">The token is rejected</a></li><li class="l2"><a href="#a-config-is-disabled-or-the-run-gets-422">A config is disabled or the run gets 422</a></li><li class="l2"><a href="#a-sim-shows-lost">A sim shows lost</a></li><li class="l2"><a href="#every-sim-fails-at-launch">Every sim fails at launch</a></li><li class="l2"><a href="#a-sim-fails-right-away-with-kernelslist-g-not-found">A sim fails right away with kernelslist.g not found</a></li><li class="l2"><a href="#the-event-stream-goes-quiet">The event stream goes quiet</a></li></ul></nav>
+</div>
+<div class="scrim" hidden></div>
+<dialog class="search" aria-label="Search docs">
+  <div class="search-box"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><input type="search" placeholder="Search titles and headings" aria-label="Search" autocomplete="off" spellcheck="false"><kbd>esc</kbd></div>
+  <ul class="results" role="listbox"></ul>
+</dialog>
+</body>
+</html>
