@@ -36,6 +36,51 @@
     <h1>Introduction</h1>
 <p class="lede">Cascade takes a trace of an ML workload captured on one real GPU and simulates it on other GPU configs, many copies at once. You trace once, then ask how the same kernels run on an H100, an H200 or a dozen replicas of each.</p>
 
+<h2 id="worked-example-opt-125m-on-an-h100">Worked example: OPT-125m on an H100<a class="anchor" href="#worked-example-opt-125m-on-an-h100" aria-label="Link to this section">#</a></h2>
+<p><strong>A full 32-token request: 254.45 ms real, 262.14 ms simulated — +3.02%.</strong> This is <code>facebook/opt-125m</code> on a Modal H100 80GB HBM3, with the six-token prompt <code>Hello, my name is</code>, vLLM 0.21.0 in eager mode (no CUDA graphs / torch.compile). Means cover repeats 1–3; repeat 0 is warm-up.</p>
+
+<div class="table-wrap"><table class="table"><thead><tr><th>Request metric (mean)</th><th>Real H100</th><th>Simulated H100</th><th>Signed error</th></tr></thead><tbody>
+<tr><td><strong>Full request (e2e)</strong></td><td><strong>254.45 ms</strong></td><td><strong>262.14 ms</strong></td><td><strong>+3.02%</strong></td></tr>
+<tr><td>Time to first token (TTFT)</td><td>8.63 ms</td><td>9.00 ms</td><td>+4.3%</td></tr>
+<tr><td>Inter-token latency (ITL)</td><td>7.93 ms</td><td>8.17 ms</td><td>+3.06%</td></tr>
+</tbody></table></div>
+
+<h3 id="each-steady-repeat">Each steady repeat<a class="anchor" href="#each-steady-repeat" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table class="table"><thead><tr><th>Repeat</th><th>Real e2e ms</th><th>H100 sim ms</th><th>Error</th><th>Real / sim TTFT ms</th><th>Real / sim ITL mean ms</th></tr></thead><tbody>
+<tr><td>1</td><td>253.435</td><td>261.134</td><td>+7.699 ms (+3.04%)</td><td>8.636 / 8.987</td><td>7.897 / 8.141</td></tr>
+<tr><td>2</td><td>254.613</td><td>262.302</td><td>+7.689 ms (+3.02%)</td><td>8.383 / 8.710</td><td>7.943 / 8.187</td></tr>
+<tr><td>3</td><td>255.308</td><td>262.988</td><td>+7.680 ms (+3.01%)</td><td>8.865 / 9.302</td><td>7.950 / 8.191</td></tr>
+</tbody></table></div>
+
+<h3 id="where-the-error-comes-from">Where the error comes from<a class="anchor" href="#where-the-error-comes-from" aria-label="Link to this section">#</a></h3>
+<p>The profiler measures unprofiled request/step timing and Nsight kernel timing separately. NVBit traces four steps (prefill and decode at contexts ≈ 8, 16, 32); Accel-Sim simulates 31 distinct kernels, then propagates durations to 17,088 steady kernel launches. Replay swaps in simulated kernel durations while retaining measured host residuals, gaps and unmatched GPU activity.</p>
+<div class="table-wrap"><table class="table"><thead><tr><th>Kernel group</th><th>Real mean µs</th><th>H100 sim µs</th><th>Signed error</th></tr></thead><tbody>
+<tr><td>QKV GEMM</td><td>4.69</td><td>4.94</td><td>+5.4%</td></tr>
+<tr><td>Attention</td><td>6.33</td><td>6.86</td><td>+8.5%</td></tr>
+<tr><td>Out-proj GEMM</td><td>4.08</td><td>4.46</td><td>+9.3%</td></tr>
+<tr><td>MLP up GEMM</td><td>4.88</td><td>5.47</td><td>+12.1%</td></tr>
+<tr><td>MLP down GEMM</td><td>5.01</td><td>5.19</td><td>+3.6%</td></tr>
+<tr><td>lm_head GEMM</td><td>30.62</td><td>26.26</td><td>−14.2%</td></tr>
+<tr><td>KV-cache write</td><td>2.05</td><td>4.08</td><td>+98.7%</td></tr>
+<tr><td>Split-K reduction</td><td>1.94</td><td>3.67</td><td>+89.2%</td></tr>
+<tr><td>Layer norm</td><td>3.40</td><td>5.10</td><td>+49.9%</td></tr>
+<tr><td>Small elementwise</td><td>1.39</td><td>3.23</td><td>+133.3%</td></tr>
+</tbody></table></div>
+<p>Kernel means compare the 712 aligned traced occurrences, not full-request-weighted decodes; group roles are inferred from kernel names. <strong>Interpretation:</strong> a ~3 µs (~6,000-cycle) per-kernel floor makes tiny kernels 1.5–2.3× too slow. With 178 kernels per step, small elementwise, layer norm, KV-write and split-K kernels account for about 200 µs of the ~240 µs step over-prediction (derived). Calibrating that floor is the main accuracy opportunity.</p>
+<div class="note"><strong>Small request error is not small GPU error.</strong> Decode GPU busy is 575.6 µs real versus 817.0 µs simulated (+41.9%, about +42%). In eager mode, about 93% of step wall time is the retained host residual (a derived residual, not independently measured CPU time). That dilutes GPU error to about +3% e2e; CUDA graphs could move request error toward ~42% unless the floor is calibrated.</div>
+
+<h3 id="across-architectures">Across architectures<a class="anchor" href="#across-architectures" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table class="table"><thead><tr><th>Hardware / config</th><th>Full request mean</th><th>Comparison / status</th></tr></thead><tbody>
+<tr><td>Real H100</td><td>254.45 ms</td><td>Measured unprofiled reference</td></tr>
+<tr><td>SM90_H100 simulation</td><td>262.14 ms</td><td>+3.02% vs real H100</td></tr>
+<tr><td>SM90_H200 simulation</td><td>262.16 ms</td><td>+3.03% vs real H100; counterfactual, not measured H200 accuracy</td></tr>
+<tr><td>A100 / SM80_A100</td><td>Pending</td><td>Native A100 run in progress — numbers pending; needs its own SM80 traces</td></tr>
+<tr><td>B200 / Blackwell</td><td>—</td><td>No config exists in Accel-Sim</td></tr>
+</tbody></table></div>
+<p>H100 traces run on H100/H200 (sm_90); older architectures are rejected for mismatch. H200 differs here only in memory-controller count (40 → 48), yielding +0.02 ms per request. <strong>Inference:</strong> this small workload does not separate the configs; the simplified H200 model is not a validated physical H200.</p>
+<div class="warn">Coverage is 100%, not proof of accuracy: dedup verification found up to 39.7% cycle disagreement in one small-kernel group. Attention and KV-write cycles are reused across short contexts, so this is not a context-scaling result.</div>
+<p>Numbers follow the OPT-125m results draft and the committed hardware sweep. See the <a href="sample-analysis-opt125m.html">full OPT-125m analysis</a> for evidence, pipeline costs, per-kernel detail and caveats.</p>
+
 <h2 id="how-it-fits-together">How it fits together<a class="anchor" href="#how-it-fits-together" aria-label="Link to this section">#</a></h2>
 <p>Cascade has three parts. Each part runs in a different place, and they talk over S3 and plain HTTP.</p>
 
@@ -62,6 +107,7 @@
 
 <h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" aria-label="Link to this section">#</a></h2>
 <div class="cards">
+<a class="card" href="sample-analysis-opt125m.html"><strong>OPT-125m worked example</strong><span>Real versus simulated request latency, kernel errors, architecture compatibility, costs and caveats.</span></a>
 <a class="card" href="../start.html"><strong>Get started</strong><span>Create your own Cascade app on Sail from the browser with a workspace name and a Sail API key. No clone.</span></a>
 <a class="card" href="quickstart.html"><strong>Quickstart</strong><span>Run the app on your laptop with the stand-in simulator and finish a run in a few minutes.</span></a>
 <a class="card" href="concepts.html"><strong>Concepts</strong><span>Traces, runs, sims and GPU configs, their state machines, and how forking works.</span></a>
@@ -74,7 +120,7 @@
 <nav class="pager" aria-label="Previous and next page"><span></span><a class="next" href="quickstart.html"><span>Next</span>Quickstart</a></nav>
     <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#how-it-fits-together">How it fits together</a></li><li class="l2"><a href="#where-to-go-next">Where to go next</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#worked-example-opt-125m-on-an-h100">Worked example: OPT-125m on an H100</a></li><li class="l3"><a href="#each-steady-repeat">Each steady repeat</a></li><li class="l3"><a href="#where-the-error-comes-from">Where the error comes from</a></li><li class="l3"><a href="#across-architectures">Across architectures</a></li><li class="l2"><a href="#how-it-fits-together">How it fits together</a></li><li class="l2"><a href="#where-to-go-next">Where to go next</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">
