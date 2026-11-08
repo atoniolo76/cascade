@@ -61,3 +61,13 @@ Decision:
 - MinIO sends a bucket notification webhook to FastAPI (`POST /internal/minio-events`) on object-created. FastAPI then registers the trace and reads its metadata.
 - Because MinIO's data dir is on local disk, the run checkpoint carries the trace into every sim fork. Sims run with `restore_memory=False`, so MinIO does not run in sims.
 - Still to confirm with Alessio: bucket and key layout, what the object is (single archive vs. many files), and how the app knows an upload is complete.
+
+## UI (v1)
+
+Three screens:
+
+- **Traces:** uploaded traces with original hardware info from `metadata.json` (GPU, model, layers, kernel count).
+- **New run:** pick a trace, add `{gpu_config, count}` rows, launch.
+- **Run detail:** a grid of sim cards (status, heartbeat age, kernel progress i/N, live log tail via SSE) plus a chart of simulated cycles per GPU config.
+
+Deferred until Alessio's trace data is known: per-kernel original-vs-simulated comparison, cost/timing panel.
