@@ -92,7 +92,7 @@ const SUB_FONT = '400 10px "JetBrains Mono Variable", ui-monospace, monospace';
 const RULER_FONT = '400 10px "JetBrains Mono Variable", ui-monospace, monospace';
 
 type Drag =
-  | { kind: "scrub"; id: number }
+  | { kind: "scrub"; id: number; left: number }
   | { kind: "pan"; id: number; x0: number; view: View; moved: boolean; hit: Hover | null }
   | { kind: "minimap"; id: number; edge: "move" | "start" | "end"; x0: number; view: View };
 
@@ -108,6 +108,8 @@ export class TimelineController {
   private follow = true;
   private width = 0;
   private trackH = 0;
+  private miniW = 0;
+  private miniH = 0;
   private dpr = 1;
   private frame = 0;
   private dirty = { tracks: true, ruler: true, minimap: true };
@@ -186,12 +188,13 @@ export class TimelineController {
     on(el.ruler, "pointerdown", (e) => {
       if (e.button !== 0) return;
       el.ruler.setPointerCapture(e.pointerId);
-      this.drag = { kind: "scrub", id: e.pointerId };
+      this.drag = { kind: "scrub", id: e.pointerId, left: el.ruler.getBoundingClientRect().left };
       this.pause();
       this.seek(this.posAt(e, el.ruler));
     });
     on(el.ruler, "pointermove", (e) => {
-      if (this.drag?.kind === "scrub" && this.drag.id === e.pointerId) this.seek(this.posAt(e, el.ruler));
+      const d = this.drag;
+      if (d?.kind === "scrub" && d.id === e.pointerId) this.seek(this.view.start + ((e.clientX - d.left) / Math.max(1, this.width)) * (this.view.end - this.view.start));
     });
     const endDrag = (e: PointerEvent) => {
       const d = this.drag;
@@ -267,7 +270,7 @@ export class TimelineController {
       const d = this.drag;
       if (d?.kind !== "minimap" || d.id !== e.pointerId) return;
       const full = this.fullSpan();
-      const shift = ((e.clientX - d.x0) / Math.max(1, el.minimapBox.clientWidth)) * (full.end - full.start);
+      const shift = ((e.clientX - d.x0) / Math.max(1, this.miniW)) * (full.end - full.start);
       const minSpan = this.minSpan();
       if (d.edge === "move") this.setView({ start: d.view.start + shift, end: d.view.end + shift });
       else if (d.edge === "start") this.setView({ start: Math.min(d.view.start + shift, d.view.end - minSpan), end: d.view.end });
@@ -332,7 +335,9 @@ export class TimelineController {
     this.dpr = window.devicePixelRatio || 1;
     this.size(el.ruler, this.width, RULER_H);
     this.size(el.tracks, this.width, this.trackH);
-    this.size(el.minimap, el.minimapBox.clientWidth, el.minimapBox.clientHeight);
+    this.miniW = el.minimapBox.clientWidth;
+    this.miniH = el.minimapBox.clientHeight;
+    this.size(el.minimap, this.miniW, this.miniH);
     this.invalidate();
   }
 
@@ -418,7 +423,7 @@ export class TimelineController {
     if (!box) return 0;
     const full = this.fullSpan();
     const x = e.clientX - box.getBoundingClientRect().left;
-    return full.start + (x / Math.max(1, box.clientWidth)) * (full.end - full.start);
+    return full.start + (x / Math.max(1, this.miniW)) * (full.end - full.start);
   }
 
   seek(pos: number) {
@@ -966,8 +971,8 @@ export class TimelineController {
     if (!el || !colors) return;
     const ctx = this.ctx(el.minimap);
     if (!ctx) return;
-    const W = el.minimapBox.clientWidth;
-    const H = el.minimapBox.clientHeight;
+    const W = this.miniW;
+    const H = this.miniH;
     ctx.clearRect(0, 0, W, H);
     const rows = this.scene.rows;
     if (rows.length === 0) return;
@@ -1008,7 +1013,7 @@ export class TimelineController {
     el.playhead.style.transform = `translateX(${px}px)`;
     el.playhead.style.visibility = visible ? "visible" : "hidden";
     const full = this.fullSpan();
-    const fw = el.minimapBox.clientWidth;
+    const fw = this.miniW;
     const fx = (p: number) => ((p - full.start) / (full.end - full.start)) * fw;
     const a = Math.max(0, fx(this.view.start));
     const b = Math.min(fw, fx(this.view.end));
@@ -1020,7 +1025,7 @@ export class TimelineController {
       this.scene.mode === "time" ? formatTimecode(this.playhead, this.axisPerPx) : `#${this.playhead.toFixed(this.axisPerPx < 0.05 ? 2 : 1)}`;
     const track = this.focusTrack();
     const reading = track ? readTrack(track, this.playhead, this.scene.mode, this.scene.align) : null;
-    const total = track ? track.clips.filter((c) => !c.pending).length : 0;
+    const total = track ? track.clips.length - (track.clips.at(-1)?.pending ? 1 : 0) : 0;
     el.kernelReadout.textContent = reading
       ? `#${reading.clip.kernelIndex} · ${formatInt(Math.min(total, reading.clip.kernelIndex + 1))}/${formatInt(total)}`
       : "—";
