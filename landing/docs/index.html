@@ -60,13 +60,6 @@
 <li><strong>Simulators.</strong> Each simulator is a fork of the app's sandbox, so it starts with the trace already on disk. It runs Accel-Sim against one GPU config and reports progress back to the app.</li>
 </ul>
 
-<h2 id="what-works-today">What works today<a class="anchor" href="#what-works-today" aria-label="Link to this section">#</a></h2>
-<p>Two things are still in progress, and they change what you see.</p>
-<ul>
-<li>A default deploy runs a stand-in simulator, <code>cascade worker --replay</code>, which replays a recorded Accel-Sim log instead of simulating your trace. To simulate your trace, deploy with <code>cascade deploy --from-source --base-image</code>, <code>--sim-cmd</code> and <code>--accelsim-dir</code> pointing at an image that has Accel-Sim built in. See <a href="deploy.html">Deploy the app</a>.</li>
-<li>The profiler doesn't capture real hardware timing (<code>real_timing.json</code>) yet. Until it does, the real-against-simulated comparison shows simulated time only.</li>
-</ul>
-
 <h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" aria-label="Link to this section">#</a></h2>
 <div class="cards">
 <a class="card" href="../start.html"><strong>Get started</strong><span>Create your own Cascade app on Sail from the browser with a workspace name and a Sail API key. No clone.</span></a>
@@ -81,7 +74,7 @@
 <nav class="pager" aria-label="Previous and next page"><span></span><a class="next" href="quickstart.html"><span>Next</span>Quickstart</a></nav>
     <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#how-it-fits-together">How it fits together</a></li><li class="l2"><a href="#what-works-today">What works today</a></li><li class="l2"><a href="#where-to-go-next">Where to go next</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#how-it-fits-together">How it fits together</a></li><li class="l2"><a href="#where-to-go-next">Where to go next</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">

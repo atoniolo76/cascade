@@ -10,11 +10,6 @@ window.DOCS_INDEX = [
 "g": "Introduction"
 },
 {
-"t": "What works today",
-"u": "index.html#what-works-today",
-"g": "Introduction"
-},
-{
 "t": "Where to go next",
 "u": "index.html#where-to-go-next",
 "g": "Introduction"

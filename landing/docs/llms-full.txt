@@ -19,13 +19,6 @@ Diagram: The profiler uploads to the app's S3 endpoint. The app forks one simula
 - **Cascade app.** One Sail sandbox that receives traces over S3, gets them ready to simulate, launches runs, and shows everything in a web UI and an HTTP API.
 - **Simulators.** Each simulator is a fork of the app's sandbox, so it starts with the trace already on disk. It runs Accel-Sim against one GPU config and reports progress back to the app.
 
-## What works today
-
-Two things are still in progress, and they change what you see.
-
-- A default deploy runs a stand-in simulator, `cascade worker --replay`, which replays a recorded Accel-Sim log instead of simulating your trace. To simulate your trace, deploy with `cascade deploy --from-source --base-image`, `--sim-cmd` and `--accelsim-dir` pointing at an image that has Accel-Sim built in. See [Deploy the app](deploy.html).
-- The profiler doesn't capture real hardware timing (`real_timing.json`) yet. Until it does, the real-against-simulated comparison shows simulated time only.
-
 ## Where to go next
 
 - [Get started](../start.html): Create your own Cascade app on Sail from the browser with a workspace name and a Sail API key. No clone.
