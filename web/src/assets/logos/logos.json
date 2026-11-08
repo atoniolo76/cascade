@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "name": "Meta",
+    "color": "meta.svg",
+    "mono": "meta-mono.svg",
+    "source": "@lobehub/icons-static-svg@1.100.0 (MIT)"
+  },
+  "qwen": {
+    "name": "Qwen",
+    "color": "qwen.svg",
+    "mono": "qwen-mono.svg",
+    "source": "@lobehub/icons-static-svg@1.100.0 (MIT)"
+  },
+  "mistral": {
+    "name": "Mistral AI",
+    "color": "mistral.svg",
+    "mono": "mistral-mono.svg",
+    "source": "@lobehub/icons-static-svg@1.100.0 (MIT)"
+  },
+  "deepseek": {
+    "name": "DeepSeek",
+    "color": "deepseek.svg",
+    "mono": "deepseek-mono.svg",
+    "source": "@lobehub/icons-static-svg@1.100.0 (MIT)"
+  },
+  "gemma": {
+    "name": "Gemma",
+    "color": "gemma.svg",
+    "mono": "gemma-mono.svg",
+    "source": "@lobehub/icons-static-svg@1.100.0 (MIT)"
+  },
+  "microsoft": {
+    "name": "Microsoft",
+    "color": "microsoft.svg",
+    "mono": "microsoft-mono.svg",
+    "source": "@lobehub/icons-static-svg@1.100.0 (MIT)"
+  },
+  "openai": {
+    "name": "OpenAI",
+    "color": null,
+    "mono": "openai-mono.svg",
+    "source": "@lobehub/icons-static-svg@1.100.0 (MIT)"
+  },
+  "nvidia": {
+    "name": "NVIDIA",
+    "color": "nvidia.svg",
+    "mono": "nvidia-mono.svg",
+    "source": "@lobehub/icons-static-svg@1.100.0 (MIT)"
+  },
+  "amd": {
+    "name": "AMD",
+    "color": "amd.svg",
+    "mono": "amd-mono.svg",
+    "source": "simple-icons@13.21.0 (CC0)"
+  },
+  "intel": {
+    "name": "Intel",
+    "color": "intel.svg",
+    "mono": "intel-mono.svg",
+    "source": "simple-icons@13.21.0 (CC0)"
+  },
+  "sail": {
+    "name": "Sail",
+    "color": "sail.svg",
+    "mono": "sail-mono.svg",
+    "source": "docs.sailresearch.com logo (solo.svg), icon cut from the wordmark"
+  },
+  "modal": {
+    "name": "Modal",
+    "color": "modal.svg",
+    "mono": "modal-mono.svg",
+    "source": "simple-icons@13.21.0 (CC0)",
+    "tile": "mono"
+  },
+  "vllm": {
+    "name": "vLLM",
+    "color": "vllm.svg",
+    "mono": "vllm-mono.svg",
+    "source": "@lobehub/icons-static-svg@1.100.0 (MIT)"
+  },
+  "huggingface": {
+    "name": "Hugging Face",
+    "color": "huggingface.svg",
+    "mono": "huggingface-mono.svg",
+    "source": "@lobehub/icons-static-svg@1.100.0 (MIT)"
+  },
+  "github": {
+    "name": "GitHub",
+    "color": "github.svg",
+    "mono": "github-mono.svg",
+    "source": "simple-icons@13.21.0 (CC0)"
+  },
+  "_match": {
+    "model_org": {
+      "facebook": "meta",
+      "meta-llama": "meta",
+      "Qwen": "qwen",
+      "mistralai": "mistral",
+      "deepseek-ai": "deepseek",
+      "google": "gemma",
+      "microsoft": "microsoft",
+      "openai": "openai",
+      "nvidia": "nvidia"
+    },
+    "gpu": {
+      "NVIDIA": "nvidia",
+      "SM": "nvidia",
+      "AMD": "amd",
+      "Intel": "intel"
+    }
+  }
+}

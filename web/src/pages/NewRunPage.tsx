@@ -8,6 +8,8 @@ import { TraceState } from "../components/TraceState";
 import { Button, Card, Chip, ErrorNote, Panel, PanelHeader, Skeleton, Stepper } from "../components/ui";
 import { ICON } from "../components/styles";
 import { configSeries } from "../domain/stats";
+import { LogoGlyph, LogoTile } from "../components/BrandLogo";
+import { gpuLogo, logoByKey } from "../domain/logos";
 import { suggestedConfig } from "../domain/configs";
 import { toast } from "../lib/toast";
 import { cx } from "../components/cx";
@@ -152,7 +154,10 @@ function RunForm({
       <Card className="lg:sticky lg:top-6">
         <div className="flex flex-col gap-4 p-5">
           <div>
-            <div className="text-[13px] text-muted">Total sailboxes</div>
+            <div className="flex items-center gap-2 text-[13px] text-muted">
+              <LogoTile logo={logoByKey("sail")} fallback="Sail" size="sm" />
+              Total sailboxes
+            </div>
             <div className="text-[36px] leading-11 font-medium tracking-tight text-fg tabular-nums">{total}</div>
             <SailboxPreview entries={entries} />
           </div>
@@ -162,7 +167,13 @@ function RunForm({
             ) : (
               entries.map((e) => (
                 <li key={e.gpu_config} className="flex items-center justify-between gap-3">
-                  <span className="truncate font-mono text-[13px] text-fg">{e.gpu_config}</span>
+                  <span className="flex min-w-0 items-center gap-1.5 font-mono text-[13px] text-fg">
+                    {(() => {
+                      const logo = gpuLogo(e.gpu_config);
+                      return logo && <LogoGlyph logo={logo} className="size-3 text-muted" />;
+                    })()}
+                    <span className="truncate">{e.gpu_config}</span>
+                  </span>
                   <span className="text-muted tabular-nums">× {e.count}</span>
                 </li>
               ))
@@ -211,6 +222,7 @@ function ConfigRow({
       >
         {selected && <Check className="size-3" strokeWidth={3} />}
       </button>
+      <LogoTile logo={gpuLogo(config.name)} fallback={config.name} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-mono text-[14px] font-medium text-fg">{config.name}</span>

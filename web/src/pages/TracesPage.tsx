@@ -6,7 +6,9 @@ import type { TraceSummary } from "../api/types";
 import { PageHeader } from "../components/AppShell";
 import { QuickLaunch } from "../components/QuickLaunch";
 import { SendTraceGuide } from "../components/SendTraceGuide";
-import { TraceIcon, TraceState } from "../components/TraceState";
+import { ModelTile, TraceState } from "../components/TraceState";
+import { LogoTile } from "../components/BrandLogo";
+import { gpuLogo } from "../domain/logos";
 import { Button, Card, Dash, ErrorNote, Panel, RelTime, SectionTitle, Skeleton, Th } from "../components/ui";
 import { ICON, ROW, THEAD } from "../components/styles";
 import { formatBytes, formatInt, plural } from "../domain/format";
@@ -68,13 +70,13 @@ export function TracesPage() {
 function TraceName({ t }: { t: TraceSummary }) {
   return (
     <span className="flex min-w-0 items-center gap-3">
-      <TraceIcon />
+      <ModelTile model={t.model} fallback={t.id} />
       <span className="min-w-0">
         <span className="block truncate text-[14px] font-medium text-fg" title={t.id}>
           {t.model ?? t.id}
         </span>
-        <span className="block truncate font-mono text-[12px] leading-4 text-muted" title={t.layers.join(", ")}>
-          {t.layers.length > 0 ? t.layers.join(", ") : "layers pending"}
+        <span className="block truncate font-mono text-[12px] leading-4 text-muted" title={t.layers.length > 0 ? t.layers.join(", ") : t.id}>
+          {t.layers.length > 0 ? t.layers.join(", ") : t.model === null ? "metadata pending" : t.id}
         </span>
       </span>
     </span>
@@ -136,10 +138,15 @@ function TraceTable({ traces }: { traces: TraceSummary[] }) {
                 <TraceState trace={t} />
               </td>
               <td className={CELL}>
-                <span className="block truncate text-[14px] text-fg-2" title={t.source_gpu ?? undefined}>
-                  {t.source_gpu ?? <Dash />}
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <LogoTile logo={gpuLogo(t.source_gpu)} fallback={t.source_gpu ?? "?"} size="sm" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] text-fg-2" title={t.source_gpu ?? undefined}>
+                      {t.source_gpu ?? <Dash />}
+                    </span>
+                    <span className="block font-mono text-[12px] leading-4 text-muted">{t.trace_gpu_arch}</span>
+                  </span>
                 </span>
-                <span className="block font-mono text-[12px] leading-4 text-muted">{t.trace_gpu_arch}</span>
               </td>
               <td className={`${CELL} text-right text-[14px] text-fg-2 tabular-nums`}>{formatInt(t.kernel_count)}</td>
               <td className={`${CELL} text-right text-[14px] text-fg-2 tabular-nums`}>{formatBytes(t.bytes)}</td>
@@ -164,7 +171,12 @@ function TraceTable({ traces }: { traces: TraceSummary[] }) {
                 <TraceState trace={t} />
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-1 pl-9 text-[13px] text-muted">
-                {t.source_gpu !== null && <span className="text-fg-2">{t.source_gpu}</span>}
+                {t.source_gpu !== null && (
+                  <span className="inline-flex items-center gap-1.5 text-fg-2">
+                    <LogoTile logo={gpuLogo(t.source_gpu)} fallback={t.source_gpu} size="sm" />
+                    {t.source_gpu}
+                  </span>
+                )}
                 {t.state !== "uploading" && <span className="tabular-nums">{plural(t.kernel_count, "kernel")}</span>}
                 {t.state !== "uploading" && <span className="tabular-nums">{formatBytes(t.bytes)}</span>}
                 <RelTime iso={t.created_at} />

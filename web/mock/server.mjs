@@ -172,7 +172,7 @@ const traces = [
     error: "post-traces-processing exited 1: kernel-12-ctx_0x5a3c1e0.trace.xz: unexpected end of input",
     createdAgo: 6 * HOUR,
     model: "facebook/opt-1.3b",
-    layers: ["model.decoder.layers.0.self_attn"],
+    layers: [],
     sourceGpu: "NVIDIA H100 80GB HBM3",
     kernelCount: 12,
     bytes: 88_120_311,
@@ -361,7 +361,11 @@ createRun({
   entries: [{ gpu_config: "SM90_H100", count: 2 }, { gpu_config: "SM90_H200", count: 1 }],
   createdAt: BOOT - 2 * HOUR,
   live: false,
-  settle: settleSucceeded,
+  settle: (sim, at) => {
+    settleSucceeded(sim, at);
+    // Like the stand-in fake sim: its log has more kernels than the trace lists.
+    if (sim.gpu_config === "SM90_H200") sim.kernels_done += 3;
+  },
 });
 createRun({
   trace_id: traces[2].id,

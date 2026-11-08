@@ -6,6 +6,8 @@ import { RUN_STATE, finishedSims } from "../domain/status";
 import { paths } from "../paths";
 import { SimStateBlocks, Status } from "./meters";
 import { TraceChip } from "./TraceState";
+import { LogoGlyph } from "./BrandLogo";
+import { gpuLogo } from "../domain/logos";
 import { Chip, EntityIcon, RelTime, Th } from "./ui";
 import { ICON, ROW, THEAD } from "./styles";
 
@@ -22,12 +24,16 @@ export function RunIcon({ run }: { run: Pick<RunSummary, "state"> }) {
 export function ConfigChips({ entries }: { entries: RunSummary["entries"] }) {
   return (
     <span className="flex min-w-0 flex-wrap gap-1.5">
-      {entries.map((e) => (
-        <Chip key={e.gpu_config} className="h-6 px-2 font-mono text-[12px]">
-          {e.gpu_config}
-          <span className="text-muted">×{e.count}</span>
-        </Chip>
-      ))}
+      {entries.map((e) => {
+        const logo = gpuLogo(e.gpu_config);
+        return (
+          <Chip key={e.gpu_config} className="h-6 px-2 font-mono text-[12px]">
+            {logo && <LogoGlyph logo={logo} className="size-3 text-muted" />}
+            {e.gpu_config}
+            <span className="text-muted">×{e.count}</span>
+          </Chip>
+        );
+      })}
     </span>
   );
 }
@@ -36,7 +42,7 @@ function SimProgress({ run }: { run: RunSummary }) {
   const { done, total } = finishedSims(run.sim_counts);
   return (
     <span className="flex min-w-0 flex-col gap-1">
-      <SimStateBlocks counts={run.sim_counts} slots={14} className="flex-nowrap" />
+      <SimStateBlocks counts={run.sim_counts} slots={14} />
       <span className="text-[12px] leading-4 text-muted tabular-nums">
         {done === total ? plural(total, "sim") : `${done} of ${plural(total, "sim")} finished`}
       </span>

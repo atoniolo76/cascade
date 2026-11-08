@@ -8,6 +8,8 @@ import { EmptyState, ErrorNote, Panel, Skeleton } from "../components/ui";
 import { ICON, buttonClass } from "../components/styles";
 import { cx } from "../components/cx";
 import { RUN_STATE } from "../domain/status";
+import { LogoTile } from "../components/BrandLogo";
+import { logoByKey } from "../domain/logos";
 import { paths } from "../paths";
 
 type Filter = "all" | RunState;
@@ -48,7 +50,13 @@ export function RunsPage() {
           </Link>
         }
       >
-        <p className="max-w-2xl text-[15px] text-muted">Each run replays one trace on a set of GPU configs, one sailbox per sim.</p>
+        <p className="max-w-2xl text-[15px] text-muted">
+          Each run replays one trace on a set of GPU configs, one{" "}
+          <span className="inline-flex translate-y-[3px] items-center">
+            <LogoTile logo={logoByKey("sail")} fallback="Sail" size="sm" />
+          </span>{" "}
+          Sail sailbox per sim.
+        </p>
       </PageHeader>
 
       {forTrace !== undefined && runs.data !== undefined && runs.data.length > 0 && (

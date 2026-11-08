@@ -1,16 +1,17 @@
 import { Boxes, CircleAlert } from "lucide-react";
 import type { SimState, SimSummary } from "../../api/types";
 import { formatInt, formatPercent } from "../../domain/format";
-import type { Series } from "../../domain/stats";
+import { aggregateProgress, kernelProgress, type Series } from "../../domain/stats";
 import { SIM_BLOCK_ORDER, SIM_STATE, TONE_VARS, countSimStates } from "../../domain/status";
 import { cx } from "../cx";
 import { Status } from "../meters";
 import { Panel, PanelHeader, Swatch } from "../ui";
+import { LogoTile } from "../BrandLogo";
+import { gpuLogo } from "../../domain/logos";
 import { ICON } from "../styles";
 
 function progressOf(sim: SimSummary): number {
-  if (sim.state === "succeeded") return 1;
-  return sim.kernels_total > 0 ? sim.kernels_done / sim.kernels_total : 0;
+  return sim.state === "succeeded" ? 1 : kernelProgress(sim).fraction;
 }
 
 function tileLabel(sim: SimSummary): string {
@@ -50,16 +51,18 @@ function SimTile({ sim, selected, onSelect }: { sim: SimSummary; selected: boole
 
 function ConfigRow({ series, sims, selectedId, onSelect }: { series: Series; sims: SimSummary[]; selectedId: string | null; onSelect: (id: string) => void }) {
   const finished = sims.filter((s) => SIM_STATE[s.state].terminal).length;
-  const done = sims.reduce((n, s) => n + s.kernels_done, 0);
-  const total = sims.reduce((n, s) => n + s.kernels_total, 0);
+  const progress = aggregateProgress(sims);
   return (
     <div className="grid gap-x-6 gap-y-3 py-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <Swatch color={series.color} />
+      <div className="flex min-w-0 items-center gap-3">
+        <LogoTile logo={gpuLogo(series.key)} fallback={series.label} size="lg" />
         <span className="min-w-0">
-          <span className="block truncate font-mono text-[14px] font-medium text-fg">{series.label}</span>
+          <span className="flex items-center gap-2 font-mono text-[14px] font-medium text-fg">
+            <span className="truncate">{series.label}</span>
+            <Swatch color={series.color} />
+          </span>
           <span className="block text-[12px] leading-4 text-muted tabular-nums">
-            {finished}/{sims.length} finished · {total > 0 ? formatPercent(done / total) : "0%"} of kernels
+            {finished}/{sims.length} finished · {formatPercent(progress.fraction)} of kernels
           </span>
         </span>
       </div>

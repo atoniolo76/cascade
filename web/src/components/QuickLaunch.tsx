@@ -5,6 +5,8 @@ import { Play, Rocket } from "lucide-react";
 import { useCreateRun, useGpuConfigs } from "../api/queries";
 import type { TraceSummary } from "../api/types";
 import { suggestedConfig } from "../domain/configs";
+import { gpuLogo } from "../domain/logos";
+import { LogoTile } from "./BrandLogo";
 import { toast } from "../lib/toast";
 import { paths } from "../paths";
 import { Button, ErrorNote, Stepper } from "./ui";
@@ -126,7 +128,8 @@ function LaunchPopover({
         <div className="text-[13px] text-muted">{configs.isPending ? "Loading configs…" : `No config matches ${trace.trace_gpu_arch}.`}</div>
       ) : (
         <div className="flex items-center justify-between gap-3">
-          <span className="min-w-0">
+          <LogoTile logo={gpuLogo(config.name)} fallback={config.name} />
+          <span className="min-w-0 flex-1">
             <span className="block truncate font-mono text-[14px] font-medium text-fg">{config.name}</span>
             <span className="block text-[12px] leading-4 text-muted">{config.core_clock_mhz} MHz · replicas</span>
           </span>

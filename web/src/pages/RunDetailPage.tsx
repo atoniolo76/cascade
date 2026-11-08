@@ -17,7 +17,7 @@ import { ICON, buttonClass } from "../components/styles";
 import { cx } from "../components/cx";
 import { formatDuration, formatInt, formatPercent, ms } from "../domain/format";
 import type { RunLive } from "../domain/runLive";
-import { aggregateProgress, configSeries, estimateRemaining, orderedSims } from "../domain/stats";
+import { OVER_HINT, aggregateProgress, configSeries, estimateRemaining, orderedSims } from "../domain/stats";
 import { RUN_STATE, SIM_STATE, TONE_VARS, deriveRunState, type Tone } from "../domain/status";
 import { useNow } from "../hooks/useNow";
 import { useRunStream, type Connection } from "../hooks/useRunStream";
@@ -288,8 +288,7 @@ function SummaryItem({ label, children, className }: { label: string; children: 
 function RunSummaryCard({ run, runState }: { run: RunDetail; runState: ReturnType<typeof deriveRunState> }) {
   const now = useNow();
   const terminal = runState !== "active";
-  const { done, total } = aggregateProgress(run.sims);
-  const fraction = total > 0 ? done / total : 0;
+  const { done, total, fraction, over } = aggregateProgress(run.sims);
   const finishedAt = run.sims.reduce((t, s) => (s.finished_at === null ? t : Math.max(t, ms(s.finished_at))), 0);
   const elapsed = (terminal && finishedAt > 0 ? finishedAt : now) - ms(run.created_at);
   const eta = estimateRemaining(run.sims, now, (s) => SIM_STATE[s.state].terminal);
@@ -303,7 +302,7 @@ function RunSummaryCard({ run, runState }: { run: RunDetail; runState: ReturnTyp
           <span className="flex flex-col gap-1">
             <BlockMeter value={fraction} blocks={24} tone={terminal ? RUN_STATE[runState].tone : "active"} label="Kernels simulated" />
             <span className="text-[12px] leading-4 text-muted tabular-nums">
-              {formatInt(done)} of {formatInt(total)} kernels
+              {formatInt(done)} of {formatInt(total)} kernels{over && ` · ${OVER_HINT}`}
             </span>
           </span>
         </div>

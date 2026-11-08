@@ -4,12 +4,15 @@ import { apiText, downloadFile } from "../../api/client";
 import type { SimState, SimSummary } from "../../api/types";
 import { formatAge, formatCompact, formatDuration, formatExact, formatInt, formatPercent, ms } from "../../domain/format";
 import { linesReceivedSince, type SimLog } from "../../domain/runLive";
+import { OVER_HINT, kernelProgress } from "../../domain/stats";
 import { SIM_STATE } from "../../domain/status";
 import { useNow } from "../../hooks/useNow";
 import { BlockMeter, Status } from "../meters";
 import { Button, CopyButton, ErrorNote, IconButton, Skeleton, Swatch } from "../ui";
 import { ICON } from "../styles";
 import { LogLines } from "./LogLines";
+import { LogoTile } from "../BrandLogo";
+import { gpuLogo, logoByKey } from "../../domain/logos";
 
 const MAX_RENDERED = 5000;
 const STALE_HEARTBEAT_MS = 30_000;
@@ -81,7 +84,7 @@ export function SimPanel({
 }) {
   const now = useNow();
   const meta = SIM_STATE[sim.state];
-  const progress = sim.kernels_total > 0 ? sim.kernels_done / sim.kernels_total : 0;
+  const progress = kernelProgress(sim);
   const heartbeatAge = sim.last_heartbeat_at === null ? null : now - ms(sim.last_heartbeat_at);
   const stale = sim.state === "lost" || (heartbeatAge !== null && heartbeatAge > STALE_HEARTBEAT_MS && !meta.terminal);
 
@@ -92,8 +95,9 @@ export function SimPanel({
         <div className="flex items-start gap-3 border-b border-border px-5 pt-4 pb-3.5">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-              <Swatch color={color} />
+              <LogoTile logo={gpuLogo(sim.gpu_config)} fallback={sim.gpu_config} />
               <span className="font-mono text-[15px] font-medium text-fg">{sim.gpu_config}</span>
+              <Swatch color={color} />
               <span className="text-[15px] text-muted">Replica {sim.replica}</span>
               <Status tone={meta.tone} live={meta.live} label={meta.label} />
             </div>
@@ -125,9 +129,9 @@ export function SimPanel({
                 Kernel <span className="font-medium text-fg tabular-nums">{formatInt(sim.kernels_done)}</span>
                 <span className="tabular-nums"> / {formatInt(sim.kernels_total)}</span>
               </span>
-              <span className="text-muted tabular-nums">{formatPercent(progress)}</span>
+              <span className="text-muted tabular-nums">{progress.over ? OVER_HINT : formatPercent(progress.fraction)}</span>
             </div>
-            <BlockMeter value={progress} blocks={24} tone={meta.tone === "pending" ? "active" : meta.tone} label="Kernel progress" />
+            <BlockMeter value={progress.fraction} blocks={24} tone={meta.tone === "pending" ? "active" : meta.tone} label="Kernel progress" />
             <div className="mt-2.5 min-h-5 text-[13px]">
               {sim.error !== null ? (
                 <span className="block break-words" style={{ color: "var(--st-bad-ink)" }}>
@@ -158,7 +162,8 @@ export function SimPanel({
             )}
           </dl>
           {sim.launcher_ref !== null && (
-            <div className="flex items-center gap-1 text-[13px] text-muted">
+            <div className="flex items-center gap-1.5 text-[13px] text-muted">
+              <LogoTile logo={logoByKey("sail")} fallback="Sail" size="sm" />
               Sailbox <span className="truncate font-mono text-[12px] text-fg-2">{sim.launcher_ref}</span>
               <CopyButton value={sim.launcher_ref} label="sailbox id" />
             </div>

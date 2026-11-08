@@ -9,10 +9,14 @@ import { dismissToast, toast, useToasts } from "../lib/toast";
 import { themeStore, useThemePref, type ThemePref } from "../lib/theme";
 import { paths } from "../paths";
 import { BrandTile } from "./Logo";
+import { LogoGlyph } from "./BrandLogo";
+import { logoByKey } from "../domain/logos";
 import { Status } from "./meters";
 import { IconButton } from "./ui";
 import { ICON } from "./styles";
 import { cx } from "./cx";
+
+const DOCS_ON_GITHUB = new URL(DOCS_URL).hostname === "github.com" ? logoByKey("github") : undefined;
 
 type NavId = "traces" | "runs" | "new";
 
@@ -78,8 +82,8 @@ function Rail() {
       </RailLink>
       <div className="ml-auto flex items-center gap-1 md:mt-auto md:ml-0 md:flex-col md:gap-2.5">
         <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" aria-label="Docs (opens in a new tab)" className={RAIL_ITEM}>
-          <BookOpen {...ICON} />
-          <Tip>Docs</Tip>
+          {DOCS_ON_GITHUB ? <LogoGlyph logo={DOCS_ON_GITHUB} className="size-[18px]" /> : <BookOpen {...ICON} />}
+          <Tip>{DOCS_ON_GITHUB ? "Docs on GitHub" : "Docs"}</Tip>
         </a>
         <button type="button" aria-label={THEME_META[theme].label} onClick={themeStore.cycle} className={RAIL_ITEM}>
           {THEME_META[theme].icon}

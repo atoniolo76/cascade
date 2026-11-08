@@ -6,7 +6,9 @@ import type { KernelLaunch, TraceDetail } from "../api/types";
 import { PageHeader } from "../components/AppShell";
 import { QuickLaunch } from "../components/QuickLaunch";
 import { RunsTable } from "../components/RunsTable";
-import { TraceState } from "../components/TraceState";
+import { ModelTile, TraceState } from "../components/TraceState";
+import { LogoGlyph, LogoTile } from "../components/BrandLogo";
+import { gpuLogo } from "../domain/logos";
 import { Card, CopyButton, EmptyState, ErrorNote, Mono, Panel, PanelHeader, RelTime, Skeleton, Stat, Th, Button } from "../components/ui";
 import { ICON, THEAD, buttonClass } from "../components/styles";
 import { formatBytes, formatDims, formatInt } from "../domain/format";
@@ -30,7 +32,14 @@ export function TraceDetailPage() {
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "Traces", to: paths.traces }, { label: <span className="block truncate">{trace.data?.model ?? traceId}</span> }]}
+        crumbs={[{ label: "Traces", to: paths.traces }, {
+            label: (
+              <span className="flex min-w-0 items-center gap-2.5">
+                {trace.data && <ModelTile model={trace.data.model} fallback={trace.data.id} />}
+                <span className="truncate">{trace.data?.model ?? traceId}</span>
+              </span>
+            ),
+          }]}
         status={trace.data ? <TraceState trace={trace.data} detail={false} /> : <Skeleton className="h-5 w-20" />}
         actions={
           trace.data && (
@@ -67,16 +76,41 @@ function TraceBody({ trace }: { trace: TraceDetail }) {
   return (
     <div className="flex flex-col gap-8">
       <Card className="grid grid-cols-2 gap-x-8 gap-y-5 p-5 sm:grid-cols-3 sm:p-6 lg:grid-cols-6">
-        <Stat label="Source GPU" value={trace.source_gpu ?? "—"} />
+        <Stat
+          label="Source GPU"
+          value={
+            <span className="flex min-w-0 items-center gap-2">
+              <LogoTile logo={gpuLogo(trace.source_gpu)} fallback={trace.source_gpu ?? "?"} size="sm" />
+              <span className="truncate">{trace.source_gpu ?? "—"}</span>
+            </span>
+          }
+        />
         <Stat label="Arch" value={<span className="font-mono text-[14px]">{trace.trace_gpu_arch}</span>} />
-        <Stat label="Suggested config" value={<span className="font-mono text-[14px]">{trace.suggested_sim_config ?? "—"}</span>} />
+        <Stat
+          label="Suggested config"
+          value={
+            <span className="flex items-center gap-1.5 font-mono text-[14px]">
+              {(() => {
+                const logo = gpuLogo(trace.suggested_sim_config);
+                return logo && <LogoGlyph logo={logo} className="text-muted" />;
+              })()}
+              {trace.suggested_sim_config ?? "—"}
+            </span>
+          }
+        />
         <Stat label="Kernels" value={formatInt(trace.kernel_count)} />
         <Stat label="Size" value={formatBytes(trace.bytes)} />
         <Stat label="Created" value={<RelTime iso={trace.created_at} />} />
         <Stat
           className="col-span-2 sm:col-span-3 lg:col-span-6"
           label="Layers"
-          value={trace.layers.length > 0 ? <Mono className="text-[13px] text-fg-2">{trace.layers.join(", ")}</Mono> : "—"}
+          value={
+            trace.layers.length > 0 ? (
+              <Mono className="text-[13px] text-fg-2">{trace.layers.join(", ")}</Mono>
+            ) : (
+              <span className="text-[14px] font-normal text-muted">{trace.metadata === null ? "Listed once metadata.json lands" : "Not listed in metadata.json"}</span>
+            )
+          }
         />
       </Card>
 

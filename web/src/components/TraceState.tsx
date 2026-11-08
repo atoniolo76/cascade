@@ -1,10 +1,10 @@
-import { Layers } from "lucide-react";
 import type { TraceSummary } from "../api/types";
 import { formatBytes, plural } from "../domain/format";
 import { TRACE_STATE } from "../domain/status";
 import { Status } from "./meters";
-import { EntityChip, EntityIcon } from "./ui";
-import { ICON } from "./styles";
+import { EntityChip } from "./ui";
+import { LogoTile } from "./BrandLogo";
+import { modelLogo } from "../domain/logos";
 import { paths } from "../paths";
 
 export function TraceState({ trace, detail = true }: { trace: TraceSummary; detail?: boolean }) {
@@ -27,18 +27,14 @@ export function TraceState({ trace, detail = true }: { trace: TraceSummary; deta
   );
 }
 
-export function TraceIcon() {
-  return (
-    <EntityIcon tone="active">
-      <Layers {...ICON} />
-    </EntityIcon>
-  );
+export function ModelTile({ model, fallback, size = "md" }: { model: string | null; fallback: string; size?: "sm" | "md" | "lg" }) {
+  return <LogoTile logo={modelLogo(model)} fallback={model ?? fallback} size={size} />;
 }
 
 export function TraceChip({ trace, link = true }: { trace: Pick<TraceSummary, "id" | "model">; link?: boolean }) {
   return (
     <EntityChip
-      icon={<Layers className="size-4 shrink-0 text-accent-ink" {...ICON} />}
+      icon={<ModelTile model={trace.model} fallback={trace.id} size="sm" />}
       to={link ? paths.trace(trace.id) : undefined}
       title={trace.id}
     >

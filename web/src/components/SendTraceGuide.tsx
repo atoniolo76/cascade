@@ -2,6 +2,8 @@ import { useState } from "react";
 import { S3_BUCKET } from "../config";
 import { Status } from "./meters";
 import { CopyButton } from "./ui";
+import { LogoTile } from "./BrandLogo";
+import { logoByKey } from "../domain/logos";
 
 const ENDPOINT_KEY = "cascade.s3Endpoint";
 
@@ -29,6 +31,15 @@ function profilerCommand({ endpoint, model, layers }: { endpoint: string; model:
 
 const FIELD =
   "h-10 w-full min-w-0 rounded-[12px] bg-surface px-3 font-mono text-[13px] text-fg ring-1 ring-border-strong outline-none ring-inset placeholder:font-sans placeholder:text-faint focus:ring-2 focus:ring-accent";
+
+function Brand({ k, name }: { k: string; name: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 align-middle text-fg-2">
+      <LogoTile logo={logoByKey(k)} fallback={name} size="sm" />
+      {name}
+    </span>
+  );
+}
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
@@ -74,9 +85,12 @@ export function SendTraceGuide({ waiting }: { waiting: boolean }) {
         </div>
       </Step>
       <Step n={2} title="Run the profiler on a GPU">
+        <p className="text-[14px] leading-7 text-muted">
+          It runs on <Brand k="modal" name="Modal" />, serves the model with <Brand k="vllm" name="vLLM" /> and pulls weights from <Brand k="huggingface" name="Hugging Face" />.
+        </p>
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="flex min-w-0 flex-col gap-1">
-            <span className="text-[13px] text-muted">Model</span>
+            <span className="text-[13px] text-muted">Hugging Face model id</span>
             <input value={model} spellCheck={false} onChange={(e) => { setModel(e.target.value); }} className={FIELD} />
           </label>
           <label className="flex min-w-0 flex-col gap-1">

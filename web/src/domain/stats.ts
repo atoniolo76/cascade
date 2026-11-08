@@ -78,15 +78,32 @@ export function relativeError(sim: number | null | undefined, real: number | nul
   return (sim - real) / real;
 }
 
-export function aggregateProgress(sims: readonly SimSummary[]): { done: number; total: number } {
+export interface KernelProgress {
+  done: number;
+  total: number;
+  fraction: number;
+  over: boolean;
+}
+
+/** A simulator can log more kernels than the trace lists; the fraction caps at 1 and `over` keeps the fact. */
+export function kernelProgress(sim: Pick<SimSummary, "kernels_done" | "kernels_total">): KernelProgress {
+  const { kernels_done: done, kernels_total: total } = sim;
+  return { done, total, fraction: total > 0 ? Math.min(1, done / total) : 0, over: done > total };
+}
+
+export function aggregateProgress(sims: readonly SimSummary[]): KernelProgress {
   let done = 0;
+  let capped = 0;
   let total = 0;
   for (const s of sims) {
     done += s.kernels_done;
+    capped += Math.min(s.kernels_done, s.kernels_total);
     total += s.kernels_total;
   }
-  return { done, total };
+  return { done, total, fraction: total > 0 ? capped / total : 0, over: sims.some((s) => s.kernels_done > s.kernels_total) };
 }
+
+export const OVER_HINT = "more kernels than the trace lists";
 
 export function orderedSims(sims: readonly SimSummary[], entries: readonly RunEntry[]): SimSummary[] {
   const rank = new Map(configSeries(entries).map((s, i) => [s.key, i]));
@@ -104,7 +121,7 @@ export function estimateRemaining(sims: readonly SimSummary[], now: number, isTe
     open++;
     if (s.started_at === null || s.kernels_done === 0 || s.kernels_total === 0) return { kind: "unknown" };
     const elapsed = now - Date.parse(s.started_at);
-    worst = Math.max(worst, (elapsed * (s.kernels_total - s.kernels_done)) / s.kernels_done);
+    worst = Math.max(worst, (elapsed * Math.max(0, s.kernels_total - s.kernels_done)) / s.kernels_done);
   }
   return open === 0 ? { kind: "done" } : { kind: "remaining", ms: worst };
 }
