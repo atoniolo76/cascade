@@ -24,7 +24,6 @@ from cascade.store import Store
 log = logging.getLogger(__name__)
 
 POLL_S = 2.0
-STEP_TIMELINE_FILES = ("corrected_timeline.json", "kernel_mapping.json")
 RAW_KERNEL_RE = re.compile(r"^kernel-(\d+)(?:-ctx_0x[0-9a-f]+)?\.trace(?:\.xz)?$")
 STATS_LINE_RE = re.compile(
     r"^kernel-(\d+)[^,]*,\s*(.+?),"
@@ -128,9 +127,10 @@ def load_real_timing(run_dir: Path, metadata: dict) -> list[dict] | None:
 
 
 def has_step_timeline(run_dir: Path) -> bool:
-    """The profiler's phases output and its kernel mapping, which `cascade worker` needs for
-    step timing. Either can land after the trace is ready."""
-    return all((run_dir / name).is_file() for name in STEP_TIMELINE_FILES)
+    """The timeline plus either legacy mapping or profiler alignment; files may arrive late."""
+    return (run_dir / "corrected_timeline.json").is_file() and any(
+        (run_dir / name).is_file() for name in ("kernel_mapping.json", "trace_alignment.json")
+    )
 
 
 def kernelslist_kernel_count(path: Path) -> int:

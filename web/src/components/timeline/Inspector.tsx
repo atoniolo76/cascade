@@ -15,7 +15,7 @@ function lead(ns: number): string {
 const TH = "h-8 px-3 text-left text-[11px] font-medium whitespace-nowrap text-muted";
 const TD = "h-9 px-3 text-[12px] whitespace-nowrap tabular-nums text-fg-2";
 
-export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; meta: (t: Track) => TrackMeta; linkable: boolean }) {
+export function Inspector({ ctl, meta, linkable, showDifferences }: { ctl: TimelineController; meta: (t: Track) => TrackMeta; linkable: boolean; showDifferences: boolean }) {
   useSyncExternalStore(ctl.subscribeRead, ctl.getReadVersion);
   const coarse = useSyncExternalStore(ctl.subscribe, ctl.getCoarse);
   const scene = ctl.currentScene;
@@ -32,7 +32,7 @@ export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; me
   const all = rows.map(({ track }) => {
     const reading = readTrack(track, pos, scene.mode, scene.align);
     const other = k === null ? undefined : clipForKernel(track, k);
-    const diff = linkable && focusClip && other && !other.pending && !focusClip.pending && track !== focus ? other.start - focusClip.start : null;
+    const diff = showDifferences && linkable && focusClip && other && !other.pending && !focusClip.pending && track !== focus ? other.start - focusClip.start : null;
     return { track, reading, diff };
   });
 
@@ -64,6 +64,8 @@ export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; me
             <span className="text-muted">
               Kernel <span className="font-mono">#{focusClip.kernelIndex}</span> is still simulating on <span className="font-mono">{focus.label}</span>
             </span>
+          ) : !showDifferences ? (
+            <span className="text-muted">Simulated metrics per track · no cross-hardware differences</span>
           ) : !linkable ? (
             <span className="text-muted">Different traces, so kernels aren't compared across tracks</span>
           ) : (
@@ -81,9 +83,9 @@ export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; me
               <th className={cx(TH, "hidden sm:table-cell")}>Elapsed</th>
               <th className={cx(TH, "hidden md:table-cell")}>Cycles</th>
               <th className={cx(TH, "hidden md:table-cell")}>IPC</th>
-              <th className={TH} title={`Start of this kernel vs ${focus.label}`}>
+              {showDifferences && <th className={TH} title={`Start of this kernel vs ${focus.label}`}>
                 vs <span className="font-mono">{focus.label}</span>
-              </th>
+              </th>}
               {span && focusRange && (
                 <th className={cx(TH, "hidden lg:table-cell")}>
                   Kernels #{span[0]}–#{span[1]}
@@ -132,13 +134,13 @@ export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; me
                   <td className={cx(TD, "hidden sm:table-cell")}>{reading ? formatNs(reading.elapsed) : "—"}</td>
                   <td className={cx(TD, "hidden md:table-cell")}>{clip?.cycles != null ? formatInt(Math.round(clip.cycles)) : "—"}</td>
                   <td className={cx(TD, "hidden md:table-cell")}>{clip?.ipc != null ? clip.ipc.toFixed(2) : "—"}</td>
-                  <td className={TD}>{track === focus ? <span className="text-faint">reference</span> : diff === null ? <span className="text-faint">—</span> : lead(diff)}</td>
+                  {showDifferences && <td className={TD}>{track === focus ? <span className="text-faint">reference</span> : diff === null ? <span className="text-faint">—</span> : lead(diff)}</td>}
                   {span && focusRange && (
                     <td className={cx(TD, "hidden lg:table-cell")}>
                       {r && r.kernels > 0 ? (
                         <span>
                           {formatNs(r.ns)}
-                          {track !== focus && focusRange.ns > 0 && <span className="ml-1.5 text-muted">{formatSigned((r.ns - focusRange.ns) / focusRange.ns)}</span>}
+                          {showDifferences && track !== focus && focusRange.ns > 0 && <span className="ml-1.5 text-muted">{formatSigned((r.ns - focusRange.ns) / focusRange.ns)}</span>}
                         </span>
                       ) : (
                         "—"

@@ -100,6 +100,13 @@ export function useStepTimelines(runId: string, { live }: { live: boolean }) {
   });
 }
 
+export function useSampleStepTimelines(runIds: readonly string[]) {
+  return useQueries({ queries: runIds.map((id) => ({
+    queryKey: keys.stepTimelines(id),
+    queryFn: () => apiJson<SimStepTimeline[]>(`/api/runs/${enc(id)}/step-timelines`),
+  })) });
+}
+
 /** A sim uploads its files just before its final heartbeat, so the poll ends with one last fetch once it settles. */
 function usePollUntilSettled<T>(queryKey: readonly unknown[], path: string, live: boolean) {
   const q = useQuery({ queryKey, queryFn: () => apiJson<T>(path), refetchInterval: live ? 5000 : false });
