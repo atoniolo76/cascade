@@ -4,6 +4,9 @@ Follows Alessio's Accel-Sim export (results/20261108-021007-opt125m-h100-accelsi
 opt125m_H100_perfetto.json.gz): `X` slices named `k<uid> <kernel>`, ts and dur in µs, and
 cumulative start/end cycles in args. Kernels run one after another, so each sim's slices are laid
 end to end in simulated time.
+
+Slice bounds are whole nanoseconds: Perfetto reads ts and dur as decimals, and a fractional
+nanosecond lets one slice end after the next begins, which it reports as an import error.
 """
 
 from __future__ import annotations
@@ -27,6 +30,11 @@ def _label(uid: int | None, name: str) -> str:
     return readable if uid is None else f"k{uid} {readable}"
 
 
+def _span(start_ns: float, dur_ns: float) -> dict:
+    begin, end = round(start_ns), round(start_ns + dur_ns)
+    return {"ts": begin / 1000, "dur": (end - begin) / 1000}
+
+
 def _sim_slices(pid: int, tid: int, kernels: list[KernelStat]) -> list[dict]:
     events = []
     start_ns, cycle = 0.0, 0
@@ -41,8 +49,7 @@ def _sim_slices(pid: int, tid: int, kernels: list[KernelStat]) -> list[dict]:
                 "tid": tid,
                 "cat": "kernel",
                 "name": _label(k.kernel_launch_uid, k.kernel_name),
-                "ts": start_ns / 1000,
-                "dur": k.sim_time_ns / 1000,
+                **_span(start_ns, k.sim_time_ns),
                 "args": {
                     "kernel_index": k.kernel_index,
                     "uid": k.kernel_launch_uid,
@@ -75,8 +82,7 @@ def _real_slices(pid: int, rows: list[dict]) -> list[dict]:
                 "tid": 1,
                 "cat": "kernel",
                 "name": _label(row.get("kernel_id"), str(row.get("kernel_name") or "")),
-                "ts": start_ns / 1000,
-                "dur": float(duration) / 1000,
+                **_span(start_ns, float(duration)),
                 "args": {
                     k: row[k]
                     for k in ("kernel_id", "kernel_name", "duration_ns", "grid", "block")

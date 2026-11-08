@@ -451,6 +451,12 @@ function attachFiles(run) {
 const publicFile = ({ _bytes, ...f }) => f;
 
 // cascade/perfetto.py's run_trace, with raw kernel names (the readable-name port lives in TypeScript and Python only).
+// Whole-nanosecond bounds, as cascade/perfetto.py writes them, so Perfetto sees no overlaps.
+const span = (startNs, durNs) => {
+  const begin = Math.round(startNs);
+  return { ts: begin / 1000, dur: (Math.round(startNs + durNs) - begin) / 1000 };
+};
+
 function perfettoTrace(run) {
   const meta = (name, pid, value, tid) => ({ ph: "M", pid, name, args: { [name.endsWith("sort_index") ? "sort_index" : "name"]: value }, ...(tid === undefined ? {} : { tid }) });
   const label = (uid, name) => (uid == null ? name : `k${uid} ${name}`);
@@ -468,7 +474,7 @@ function perfettoTrace(run) {
         if (k.sim_time_ns == null) continue;
         const cycles = k.gpu_sim_cycle ?? 0;
         events.push({
-          ph: "X", pid, tid, cat: "kernel", name: label(k.kernel_launch_uid, k.kernel_name), ts: startNs / 1000, dur: k.sim_time_ns / 1000,
+          ph: "X", pid, tid, cat: "kernel", name: label(k.kernel_launch_uid, k.kernel_name), ...span(startNs, k.sim_time_ns),
           args: { kernel_index: k.kernel_index, uid: k.kernel_launch_uid, kernel_name: k.kernel_name, gpu_sim_cycle: k.gpu_sim_cycle, gpu_sim_insn: k.gpu_sim_insn, ipc: k.gpu_ipc, sim_time_ns: k.sim_time_ns, start_cycle: cycle, end_cycle: cycle + cycles },
         });
         startNs += k.sim_time_ns;
@@ -482,7 +488,7 @@ function perfettoTrace(run) {
     events.push(meta("process_name", pid, trace.source_gpu ? `Real hardware · ${trace.source_gpu}` : "Real hardware"), meta("process_sort_index", pid, pid), meta("thread_name", pid, "measured kernels", 1));
     let startNs = 0;
     for (const row of trace._real) {
-      events.push({ ph: "X", pid, tid: 1, cat: "kernel", name: label(row.kernel_id, row.kernel_name), ts: startNs / 1000, dur: row.duration_ns / 1000, args: row });
+      events.push({ ph: "X", pid, tid: 1, cat: "kernel", name: label(row.kernel_id, row.kernel_name), ...span(startNs, row.duration_ns), args: row });
       startNs += row.duration_ns;
     }
   }

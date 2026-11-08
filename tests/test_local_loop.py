@@ -278,10 +278,11 @@ def test_perfetto_has_one_slice_per_kernel_laid_end_to_end_in_simulated_time(opt
     for tid in (1, 2):
         slices = [e for e in events if e["ph"] == "X" and (e["pid"], e["tid"]) == (1, tid)]
         assert len(slices) == len(rows) == 20
-        assert [s["dur"] for s in slices] == pytest.approx(expected_us)
-        starts = [s["ts"] for s in slices]
-        ends = [s["ts"] + s["dur"] for s in slices]
-        assert starts[0] == 0 and starts[1:] == pytest.approx(ends[:-1])
+        assert [s["dur"] for s in slices] == pytest.approx(expected_us, abs=0.001)
+        bounds_ns = [(s["ts"] * 1000, (s["ts"] + s["dur"]) * 1000) for s in slices]
+        assert all(round(a, 6).is_integer() and round(b, 6).is_integer() for a, b in bounds_ns)
+        starts = [round(a) for a, _ in bounds_ns]
+        assert starts[0] == 0 and starts[1:] == [round(b) for _, b in bounds_ns[:-1]]
         assert [s["args"]["uid"] for s in slices] == [int(r["uid"]) for r in rows]
         assert [s["args"]["kernel_name"] for s in slices] == [r["name"] for r in rows]
         assert [s["args"]["kernel_index"] for s in slices] == list(range(20))
