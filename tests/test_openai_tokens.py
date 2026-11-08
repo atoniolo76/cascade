@@ -68,6 +68,126 @@ def test_no_nonspecial_vocab_falls_back(tmp_path):
     assert Tokenizers(tmp_path).get("test/model") is None
 
 
+@pytest.fixture
+def bpe_downloads(monkeypatch):
+    resources = {
+        "tokenizer.json": (404, None),
+        "tokenizer_config.json": (
+            200,
+            {
+                "tokenizer_class": "GPT2Tokenizer",
+                "add_bos_token": True,
+                "add_prefix_space": False,
+                "bos_token": {"content": "</s>", "normalized": True},
+                "unk_token": "<unk>",
+            },
+        ),
+        "vocab.json": (
+            200,
+            {
+                "<s>": 0,
+                "<pad>": 1,
+                "</s>": 2,
+                "<unk>": 3,
+                "h": 4,
+                "i": 5,
+                "hi": 6,
+                "Ġ": 7,
+                "Ġhi": 8,
+                "#": 9,
+                "##": 10,
+            },
+        ),
+        "merges.txt": (200, "#version: 0.2\nh i\nĠ hi\n# #\n"),
+        "special_tokens_map.json": (
+            200,
+            {
+                "eos_token": "</s>",
+                "pad_token": {"content": "<pad>", "normalized": True},
+                "additional_special_tokens": ["<s>"],
+            },
+        ),
+    }
+    calls = []
+
+    def fetch(url, **kwargs):
+        name = url.rsplit("/", 1)[-1]
+        calls.append(name)
+        status, value = resources[name]
+        return httpx.Response(
+            status,
+            text=value if isinstance(value, str) else json.dumps(value),
+            request=httpx.Request("GET", url),
+        )
+
+    monkeypatch.setattr("cascade.openai_tokens.httpx.get", fetch)
+    return resources, calls
+
+
+@pytest.mark.parametrize("add_bos", [False, True])
+def test_bpe_download_bos_decode_and_disk_cache(tmp_path, monkeypatch, bpe_downloads, add_bos):
+    resources, calls = bpe_downloads
+    resources["tokenizer_config.json"][1]["add_bos_token"] = add_bos
+    cache = Tokenizers(tmp_path)
+    loaded = cache.get("test/model")
+    prefix = [2] if add_bos else []
+    assert loaded[0].encode("hi hi").ids == prefix + [6, 8]
+    assert loaded[0].encode("##").ids == prefix + [10]
+    assert loaded[0].encode("").ids == prefix
+    assert loaded[0].encode("hi", add_special_tokens=False).ids == [6]
+    assert loaded[1] == tuple(range(4, 11))
+    sampled = sample_tokens(loaded, 32, 123, "hi hi")
+    assert sampled["source"] == "vocab_uniform"
+    assert sampled["text"] == "".join(sampled["pieces"]) == loaded[0].decode(sampled["ids"])
+    assert set(sampled["text"]) <= set("hi #")
+    assert len(sampled["ids"]) == 32
+    assert sample_tokens(loaded, 0, 123, "hi")["text"] == ""
+    assert len(calls) == 5
+    assert cache.get("test/model") is loaded and len(calls) == 5
+    monkeypatch.setattr("cascade.openai_tokens.httpx.get", lambda *a, **k: 1 / 0)
+    restarted = Tokenizers(tmp_path)
+    assert restarted.get("test/model")[0].encode("hi hi").ids == prefix + [6, 8]
+    assert restarted.prepare_prompt("test/model", "hi", [{"content": "hi"}])[:3] == (
+        "hi",
+        len(prefix) + 1,
+        "tokenizer:joined",
+    )
+
+
+@pytest.mark.parametrize("resource", ["vocab.json", "merges.txt", "tokenizer_config.json"])
+def test_bpe_missing_required_download_falls_back(tmp_path, bpe_downloads, resource):
+    resources, calls = bpe_downloads
+    resources[resource] = (404, None)
+    cache = Tokenizers(tmp_path)
+    assert cache.prepare_prompt("test/model", "hi")[:3] == (
+        "hi",
+        1,
+        "estimated:utf8-bytes/4",
+    )
+    count = len(calls)
+    assert cache.get("test/model") is None and len(calls) == count
+    assert sample_tokens(cache.get("test/model"), 2, 123, "hi")["source"] == "placeholder"
+
+
+def test_bpe_optional_special_map_can_be_absent(tmp_path, bpe_downloads):
+    resources, _ = bpe_downloads
+    resources["special_tokens_map.json"] = (404, None)
+    assert Tokenizers(tmp_path).get("test/model")[0].encode("hi").ids == [2, 6]
+
+
+@pytest.mark.parametrize("invalid", ["missing_bos", "vocab", "config", "merges", "class"])
+def test_bpe_invalid_resources_fall_back(tmp_path, bpe_downloads, invalid):
+    resources, _ = bpe_downloads
+    if invalid == "missing_bos":
+        resources["tokenizer_config.json"][1].pop("bos_token")
+    elif invalid == "class":
+        resources["tokenizer_config.json"][1]["tokenizer_class"] = "RobertaTokenizer"
+    else:
+        name = {"vocab": "vocab.json", "config": "tokenizer_config.json", "merges": "merges.txt"}
+        resources[name[invalid]] = (200, "invalid")
+    assert Tokenizers(tmp_path).get("test/model") is None
+
+
 def test_chat_config_download_disk_cache_and_render(tmp_path, monkeypatch):
     model = "test/model"
     loaded = (vocabulary(), (1, 2))

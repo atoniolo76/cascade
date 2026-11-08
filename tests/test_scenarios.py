@@ -326,4 +326,60 @@ def test_openai_fallback_and_model_limit(sample_api):
         "/v1/completions", json={"model": TRACE, "prompt": "x" * 8192, "max_tokens": 1}
     )
     assert invalid.status_code == 422
+    assert invalid.json()["error"] == {
+        "message": "request exceeds max_model_len=2048: "
+        "prompt_tokens=2048 (estimated:utf8-bytes/4) + output_tokens=1 = 2049",
+        "type": "invalid_request_error",
+        "code": "invalid_request",
+    }
     assert not launcher.launched
+
+
+def test_openai_tokenizer_limit_error_includes_counts(sample_api, monkeypatch):
+    client, _, launcher = sample_api
+    monkeypatch.setattr(Tokenizers, "get", lambda self, model: (vocabulary(), (1, 2)))
+    response = client.post(
+        "/v1/completions",
+        json={"model": TRACE, "prompt": "hello " * 1900, "max_tokens": 200},
+    )
+    assert response.status_code == 422
+    assert response.json()["error"] == {
+        "message": "request exceeds max_model_len=2048: "
+        "prompt_tokens=1900 (tokenizer) + output_tokens=200 = 2100",
+        "type": "invalid_request_error",
+        "code": "invalid_request",
+    }
+    assert not launcher.launched
+
+
+def test_scenario_limit_error_includes_explicit_counts(sample_api):
+    client, _, launcher = sample_api
+    response = client.post(
+        "/api/scenarios", json={**SCENARIO, "prompt_tokens": 1900, "output_tokens": 200}
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "message": "request exceeds max_model_len=2048: "
+        "prompt_tokens=1900 + output_tokens=200 = 2100",
+        "type": "invalid_request_error",
+        "code": "invalid_request",
+    }
+    assert not launcher.launched
+
+
+@pytest.mark.parametrize(
+    "prompt,output,message",
+    [(0, 0, "prompt_tokens must be >= 1; got 0"), (1, -1, "output_tokens must be >= 0; got -1")],
+)
+def test_shape_validation_distinguishes_invalid_counts(sample_api, prompt, output, message):
+    _, app, _ = sample_api
+    service = app.state.scenarios
+    real = service.metadata(service.trace(TRACE))
+    with pytest.raises(scenario_module.HTTPException) as exc:
+        service.validate_shape(real, prompt, output)
+    assert exc.value.status_code == 422
+    assert exc.value.detail == {
+        "message": message,
+        "type": "invalid_request_error",
+        "code": "invalid_request",
+    }

@@ -313,18 +313,51 @@ def test_vocabulary_content_and_tokenized_prompt_usage(endpoint, monkeypatch):
     assert response["cascade"]["profile_match"] is False
 
 
-def test_conflicting_chat_token_counts_are_rejected(endpoint):
+@pytest.mark.parametrize("chat", [False, True])
+def test_conflicting_token_counts_are_rejected(endpoint, chat):
     client, _, _ = endpoint
     response = client.post(
-        "/v1/chat/completions",
+        "/v1/chat/completions" if chat else "/v1/completions",
         json={
             "model": "trace-opt",
             "messages": [{"role": "user", "content": PROMPT}],
+            "prompt": PROMPT,
             "max_tokens": 3,
             "max_completion_tokens": 4,
         },
     )
     assert response.status_code == 422 and response.json()["error"]["code"] == "invalid_request"
+
+
+@pytest.mark.parametrize("chat", [False, True])
+@pytest.mark.parametrize("count", [0, 3])
+@pytest.mark.parametrize("equal_max_tokens", [False, True])
+def test_max_completion_tokens_on_both_endpoints(endpoint, chat, count, equal_max_tokens):
+    client, hub, _ = endpoint
+    cached(hub)
+    response = client.post(
+        "/v1/chat/completions" if chat else "/v1/completions",
+        json={
+            "model": "trace-opt",
+            "prompt": PROMPT,
+            "messages": [{"role": "user", "content": PROMPT}],
+            "max_completion_tokens": count,
+            **({"max_tokens": count} if equal_max_tokens else {}),
+        },
+    )
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["usage"]["completion_tokens"] == count
+    assert result["cascade"]["timing"]["output_tokens"] == count
+
+
+def test_completion_alias_respects_model_limit(endpoint):
+    client, _, launcher = endpoint
+    response = client.post("/v1/completions", json={**BODY, "max_completion_tokens": 2048})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_request"
+    assert "output_tokens=2048" in response.json()["error"]["message"]
+    assert not launcher.launched
 
 
 @pytest.mark.parametrize(
