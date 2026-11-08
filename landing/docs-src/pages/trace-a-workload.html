@@ -70,6 +70,7 @@ uv run python scripts/upload_trace.py ./my-run --run-name my-run \
 <p>Add `--status failed` to mark the upload as failed. The app then marks the trace `failed` without processing it.</p>
 
 <h2>Profile, trace and simulate in your own Modal app</h2>
+<p>See the [OPT-125m sample analysis](sample-analysis-opt125m.html) for measured pipeline costs, kernel and request replay errors, coverage, and limitations of an existing run.</p>
 <p>Install with `pip install "git+https://github.com/atoniolo76/cascade@profiler"`, using Python 3.12 locally because `register()` uses serialized Modal functions.</p>
 <p>`prof.profile` runs on GPU: baseline (no profiler), nsys capture, then NVBit tracing of the chosen steps, writing `corrected_timeline.json` and `trace_alignment.json`.</p>
 <p>`prof.simulate` runs Accel-Sim on CPU and writes `sim_durations.json`.</p>
