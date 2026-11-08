@@ -55,7 +55,7 @@
 
 <h2 id="set-it-up">Set it up<a class="anchor" href="#set-it-up" aria-label="Link to this section">#</a></h2>
 <ol class="steps">
-<li><strong>Put the app's URL and token in the agent's environment.</strong> Run this in the shell your agent runs commands in, or in the terminal you start the agent from. The prompt tells the agent to read the token from <code>$CASCADE_TOKEN</code> and never print it.
+<li><strong>Put the app's URL and token in the agent's environment.</strong> Run this in the terminal you start the agent from, then start the agent. The prompt tells the agent to read the token from <code>$CASCADE_TOKEN</code> and never print it.
 <div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>export CASCADE_URL=https://&lt;your-app&gt;
 export CASCADE_TOKEN=&lt;your token&gt;</code></pre></div><p>The URL is the one <code>deploy_sail.py</code> prints as <code>app:</code>. Locally it is <code>http://127.0.0.1:8000</code>.</p>
 </li>
@@ -68,7 +68,7 @@ Why did sims fail in my last run?</code></pre></div></li>
 
 <h2 id="the-setup-prompt">The setup prompt<a class="anchor" href="#the-setup-prompt" aria-label="Link to this section">#</a></h2>
 <p>The build generates the API, state and type sections of this prompt from <code>landing/docs-src/endpoints.py</code> and <code>cascade/models.py</code>, the same sources as the <a href="api.html">API reference</a>. It always matches the API these docs describe. If you saved a copy, copy it again after you update Cascade.</p>
-<div class="prompt-block" id="prompt-code"><div class="code"><div class="code-bar"><span>agent-prompt.md</span><button class="copy" type="button">Copy</button></div><pre><code># Cascade
+<div class="prompt-block" id="prompt-code"><div class="code"><div class="code-bar"><span>agent-prompt.md</span><button class="copy" type="button">Copy prompt</button></div><pre><code># Cascade
 
 You are working with a Cascade app. Cascade takes a trace of a GPU workload, captured once on a real GPU, and simulates it with Accel-Sim on other GPU configs, many sims at once. You drive the app over its HTTP API. You can check traces, launch runs, watch them, pull results and comparisons, and explain the numbers to the user.
 
@@ -502,8 +502,14 @@ cp <span class="tk-s">"$CASCADE/landing/docs/cascade-skill/SKILL.md"</span> .cla
 <h3 id="cursor">Cursor<a class="anchor" href="#cursor" aria-label="Link to this section">#</a></h3>
 <p>Save the prompt as a project rule in <code>.cursor/rules/</code>. This rule has a description, so the agent can pull it in when a request is about Cascade. Cursor's docs list the other ways a rule can apply.</p>
 <div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>mkdir -p .cursor/rules
-{ printf -- <span class="tk-s">'---\ndescription: Drive the Cascade app API for traces, runs and simulation results\nalwaysApply: false\n---\n\n'</span>
-  cat <span class="tk-s">"$CASCADE/landing/docs/agent-prompt.md"</span>; } &gt; .cursor/rules/cascade.mdc</code></pre></div>
+cat &gt; .cursor/rules/cascade.mdc &lt;&lt;<span class="tk-s">'EOF'</span>
+---
+description: Drive the Cascade app API for traces, runs and simulation results
+alwaysApply: false
+---
+
+EOF
+cat <span class="tk-s">"$CASCADE/landing/docs/agent-prompt.md"</span> &gt;&gt; .cursor/rules/cascade.mdc</code></pre></div>
 <h3 id="other-agents">Other agents<a class="anchor" href="#other-agents" aria-label="Link to this section">#</a></h3>
 <p>Paste the prompt at the start of the conversation. If your agent loads skills from <code>SKILL.md</code> folders, use <a href="cascade-skill/SKILL.md">cascade-skill/SKILL.md</a>. Otherwise, save <a href="agent-prompt.md">agent-prompt.md</a> wherever your agent reads project instructions. Check your agent's docs for where that is.</p>
 

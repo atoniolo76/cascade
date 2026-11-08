@@ -23,7 +23,7 @@ description: Connect Claude Code, Codex, Cursor or another AI agent to your Casc
 
 <h2>Set it up</h2>
 <ol class="steps">
-<li><strong>Put the app's URL and token in the agent's environment.</strong> Run this in the shell your agent runs commands in, or in the terminal you start the agent from. The prompt tells the agent to read the token from `$CASCADE_TOKEN` and never print it.
+<li><strong>Put the app's URL and token in the agent's environment.</strong> Run this in the terminal you start the agent from, then start the agent. The prompt tells the agent to read the token from `$CASCADE_TOKEN` and never print it.
 ```bash
 export CASCADE_URL=https://<your-app>
 export CASCADE_TOKEN=<your token>
@@ -69,8 +69,14 @@ cat "$CASCADE/landing/docs/agent-prompt.md" >> AGENTS.md
 <p>Save the prompt as a project rule in `.cursor/rules/`. This rule has a description, so the agent can pull it in when a request is about Cascade. Cursor's docs list the other ways a rule can apply.</p>
 ```bash
 mkdir -p .cursor/rules
-{ printf -- '---\ndescription: Drive the Cascade app API for traces, runs and simulation results\nalwaysApply: false\n---\n\n'
-  cat "$CASCADE/landing/docs/agent-prompt.md"; } > .cursor/rules/cascade.mdc
+cat > .cursor/rules/cascade.mdc <<'EOF'
+---
+description: Drive the Cascade app API for traces, runs and simulation results
+alwaysApply: false
+---
+
+EOF
+cat "$CASCADE/landing/docs/agent-prompt.md" >> .cursor/rules/cascade.mdc
 ```
 
 <h3>Other agents</h3>

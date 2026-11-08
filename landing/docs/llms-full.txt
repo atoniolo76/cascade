@@ -181,7 +181,7 @@ The agent can't trace a workload. Tracing runs on a real GPU under the Modal pro
 
 ## Set it up
 
-1. **Put the app's URL and token in the agent's environment.** Run this in the shell your agent runs commands in, or in the terminal you start the agent from. The prompt tells the agent to read the token from `$CASCADE_TOKEN` and never print it.
+1. **Put the app's URL and token in the agent's environment.** Run this in the terminal you start the agent from, then start the agent. The prompt tells the agent to read the token from `$CASCADE_TOKEN` and never print it.
 
    ```bash
    export CASCADE_URL=https://<your-app>
@@ -662,8 +662,14 @@ Save the prompt as a project rule in `.cursor/rules/`. This rule has a descripti
 
 ```bash
 mkdir -p .cursor/rules
-{ printf -- '---\ndescription: Drive the Cascade app API for traces, runs and simulation results\nalwaysApply: false\n---\n\n'
-  cat "$CASCADE/landing/docs/agent-prompt.md"; } > .cursor/rules/cascade.mdc
+cat > .cursor/rules/cascade.mdc <<'EOF'
+---
+description: Drive the Cascade app API for traces, runs and simulation results
+alwaysApply: false
+---
+
+EOF
+cat "$CASCADE/landing/docs/agent-prompt.md" >> .cursor/rules/cascade.mdc
 ```
 
 ### Other agents

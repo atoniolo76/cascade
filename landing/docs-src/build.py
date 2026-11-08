@@ -1102,7 +1102,9 @@ def skill_file() -> str:
 def prompt_block(arg: str | None = None) -> str:
     return (
         '<div class="prompt-block" id="prompt-code">'
-        + code_block(agent_prompt(), label="agent-prompt.md")
+        + code_block(agent_prompt(), label="agent-prompt.md").replace(
+            ">Copy</button>", ">Copy prompt</button>"
+        )
         + "</div>"
     )
 
