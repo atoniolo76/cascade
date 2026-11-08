@@ -2,10 +2,11 @@
 
     SAIL_API_KEY=... CASCADE_TOKEN=... uv run --extra sail python scripts/deploy_sail.py
 
-With no --sim-cmd, each sim runs `cascade worker --replay` on the vendored RTX 3070 log, and
---accelsim-dir defaults to the vendored configs, so the loop works before the Accel-Sim base
-image exists. With an Accel-Sim base image, pass `--sim-cmd /app/.venv/bin/cascade worker` and
-its `--accelsim-dir`. Prints the app URL (port 8000) and the S3 endpoint (port 9000).
+With no --sim-cmd, each sim runs `cascade worker --replay` on Alessio's OPT-125m H100 log and
+uploads that run's output files (`--replay-outputs`), and --accelsim-dir defaults to the vendored
+configs, so the loop works before the Accel-Sim base image exists. With an Accel-Sim base image,
+pass `--sim-cmd /app/.venv/bin/cascade worker` and its `--accelsim-dir`. Prints the app URL
+(port 8000) and the S3 endpoint (port 9000).
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 APP_PORT, S3_PORT = 8000, 9000
 STAND_IN_SIM_CMD = (
     "/app/.venv/bin/cascade worker --replay /app/tests/fixtures/logs/opt125m_sm90_h100.log"
+    " --replay-outputs /app/results/20261108-021007-opt125m-h100-accelsim/outputs"
 )
 
 

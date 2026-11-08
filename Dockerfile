@@ -41,6 +41,9 @@ COPY cascade ./cascade
 COPY scripts ./scripts
 # Real Accel-Sim configs and logs, so a Sail deploy can run end to end with `cascade worker --replay`.
 COPY tests/fixtures ./tests/fixtures
+# Alessio's real OPT-125m output files, which the stand-in replays with --replay-outputs.
+COPY results/20261108-021007-opt125m-h100-accelsim/outputs \
+    ./results/20261108-021007-opt125m-h100-accelsim/outputs
 COPY --from=web /src/cascade/static ./cascade/static
 RUN uv sync --frozen --no-dev --extra sail
 
