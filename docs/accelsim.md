@@ -51,3 +51,15 @@ uv run cascade compare /data/phases/my-run/corrected_timeline.json \
   /data/phases/my-run/sim/simulated_timeline.json \
   --output /data/phases/my-run/sim/compare.json
 ```
+
+Legacy trace-only runs without corrected timing can instead use:
+
+```sh
+uv run --python 3.12 --extra modal modal run scripts/simulate_traces.py \
+  --run-name legacy-run --gpu-config SM90_H100 --verify-dedup 2
+```
+
+This reads `legacy-run/traces/` at the volume root and writes per-UID cycles to
+`sim_durations.json` with `scope="tracer_uid_only"` and `alignment=null`. These
+records deliberately have no repeat/step/seq and cannot be used for timeline
+replay until a real timing alignment exists. No timeline or alignment is fabricated.

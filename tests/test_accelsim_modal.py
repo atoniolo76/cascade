@@ -47,14 +47,19 @@ def test_registration():
         assert remote("fixture") == {}
         assert simulate.call_args.args == (Path("/traces/phases/fixture"),)
         assert simulate.call_args.kwargs["jobs"] == 32
+        with patch(
+            "cascade.sim.trace_simulation.simulate_traces", return_value={"legacy": True}
+        ) as legacy:
+            assert remote("old", gpu_config="SM90_H100", traces_only=True) == {"legacy": True}
+            assert legacy.call_args.args == (Path("/traces/phases/old"),)
         simulate.side_effect = RuntimeError("failed")
         with pytest.raises(RuntimeError, match="failed"):
             remote("fixture")
         for name in ("", "../escape", ".", ".."):
             with pytest.raises(ValueError):
                 remote(name)
-    assert volume.commit.call_count == 2
-    assert volume.reload.call_count == 2
+    assert volume.commit.call_count == 3
+    assert volume.reload.call_count == 3
     assert options[0]["serialized"]
     assert "gpu" not in options[0]
     assert options[0]["volumes"] == {"/traces": volume}

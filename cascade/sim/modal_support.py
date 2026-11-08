@@ -89,11 +89,24 @@ def register(
         uids=None,
         dedup=True,
         verify_dedup=0,
+        traces_only=False,
     ):
         if not run_name or Path(run_name).name != run_name or run_name in {".", ".."}:
             raise ValueError("run_name must be a single directory name")
         volume.reload()
         try:
+            if traces_only:
+                from cascade.sim.trace_simulation import simulate_traces
+
+                return simulate_traces(
+                    Path(mount) / run_subdir / run_name,
+                    gpu_config=gpu_config,
+                    accelsim_root=accelsim_root,
+                    jobs=cpu if jobs is None else jobs,
+                    kernel_timeout_s=kernel_timeout_s,
+                    dedup=dedup,
+                    verify_dedup=verify_dedup,
+                )
             return simulate_accelsim(
                 Path(mount) / run_subdir / run_name,
                 gpu_config=gpu_config,
