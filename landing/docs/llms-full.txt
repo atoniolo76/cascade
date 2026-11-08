@@ -177,7 +177,7 @@ The agent works through the same [HTTP API](api.html) as the web UI. With the pr
 
 The agent can't trace a workload. Tracing runs on a real GPU under the Modal profiler, outside the API. [Trace a workload](trace-a-workload.html) covers that part. Once the trace is in your app, the agent takes it from there.
 
-> A default deploy runs the stand-in simulator, which replays one recorded BabelStream log for every trace. The prompt tells the agent to say so when the numbers look like the stand-in's, so a report never passes them off as a simulation of your trace.
+> A default deploy runs the stand-in simulator, which replays one recorded Accel-Sim run of OPT-125m on an H100 for every trace. The prompt tells the agent to say so when the numbers look like the stand-in's, so a report never passes them off as a simulation of your trace.
 
 ## Set it up
 
@@ -303,7 +303,7 @@ Give times in the largest unit that keeps the number above 1, such as 5.2 µs or
 - Launch a run only when the user asked for one. Above 4 sims in total, get the user's yes to the entries first.
 - Cancel a run only when the user asks. `POST /api/runs/{run_id}/cancel` stops every sim that has not finished. It is safe to repeat.
 - Use `GET /api/runs/{run_id}/kernels` for per-kernel numbers. Use `GET /api/runs/{run_id}/results` only for the full stats maps.
-- Check whether the numbers come from Cascade's stand-in simulator, unless the user has said the app runs a real Accel-Sim image. A default deploy runs the stand-in, `cascade worker --replay`, which replays one recorded Accel-Sim log of the BabelStream benchmark on an RTX 3070, whatever the trace. The signs are BabelStream's kernel names (`init_kernel`, `copy_kernel`, `mul_kernel`, `add_kernel`, `triad_kernel` and `dot_kernel`) for a trace of something else, the same kernels for every trace, and `kernels_done` different from `kernels_total`. When you see these signs, say at the top of the report that the numbers come from the stand-in and do not describe the trace.
+- Check whether the numbers come from Cascade's stand-in simulator, unless the user has said the app runs a real Accel-Sim image. A default deploy runs the stand-in, `cascade worker --replay`, which replays one recorded Accel-Sim run of `facebook/opt-125m` on SM90_H100 (20 vLLM kernels), whatever the trace. A local dev server may replay a BabelStream log instead, whose kernels are named init, copy, mul, add, triad and dot. The signs are the same kernels for every trace (`nvjet_sm90_hsh_64x8_64x16_4x1_v_bz_bias_TNT`, `vllm::reshape_and_cache_flash_kernel`, `cutlass::device_kernel` and `at::native::vectorized_elementwise_kernel` on a default deploy), OPT-125m kernels for a trace of another model, and `kernels_done` different from `kernels_total`. When you see these signs, say at the top of the report that the numbers come from the stand-in and do not describe the trace.
 - Never call `POST /api/sims/{sim_id}/heartbeat`, `POST /api/sims/{sim_id}/logs` or `POST /api/sims/{sim_id}/step-timeline`. Those routes are for simulators, and a heartbeat changes a sim's state.
 - Lists come back whole, with no pagination.
 
@@ -844,7 +844,7 @@ Leave the three flags out to try the UI and the API first.
 uv run --extra sail python scripts/deploy_sail.py
 ```
 
-> Without `--base-image`, `--sim-cmd` and `--accelsim-dir`, every sim runs `cascade worker --replay`, which replays a recorded Accel-Sim log of BabelStream on an RTX 3070. It doesn't simulate your trace, and its numbers are the same for every trace. The image is plain `ubuntu:22.04`, so it has no post-processor. Upload traces that already contain `traces/kernelslist.g`, or they fail in `processing`.
+> Without `--base-image`, `--sim-cmd` and `--accelsim-dir`, every sim runs `cascade worker --replay`, which replays a real Accel-Sim run of `facebook/opt-125m` on SM90_H100 (20 vLLM kernels, from `results/20261108-021007-opt125m-h100-accelsim/`). It doesn't simulate your trace, and its numbers are the same for every trace. The image is plain `ubuntu:22.04`, so it has no post-processor. Upload traces that already contain `traces/kernelslist.g`, or they fail in `processing`.
 
 ## What the script prints
 
@@ -872,7 +872,7 @@ If `CASCADE_TOKEN` isn't set, the script makes one and prints it as `token:`. Sa
 | `--app` | `cascade` | The Sail app to create the sandbox in. The script creates it if it doesn't exist. |
 | `--name` | `cascade-main` | The app sandbox's name. |
 | `--base-image` | `ubuntu:22.04` | The Dockerfile's `BASE_IMAGE`, the image the app is layered on. |
-| `--sim-cmd` | `cascade worker --replay` on the BabelStream log | `CASCADE_SIM_CMD`, the command each sim runs. |
+| `--sim-cmd` | `cascade worker --replay` on the OPT-125m H100 log | `CASCADE_SIM_CMD`, the command each sim runs. |
 | `--accelsim-dir` | `/app/tests/fixtures/accelsim` | `CASCADE_ACCELSIM_DIR`. The default holds real Accel-Sim configs but no simulator. |
 | `--postprocess-cmd` | derived from `--accelsim-dir` | `CASCADE_POSTPROCESS_CMD`. |
 | `--disk-gib` | Sail's default | The app sandbox's disk limit. Sims fork this disk, so size it for your traces. |

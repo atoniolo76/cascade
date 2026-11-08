@@ -1,7 +1,9 @@
+import csv
+
 import pytest
 
 from cascade.stats import LogParser
-from tests.conftest import BABELSTREAM_LOG, H100_LOG
+from tests.conftest import BABELSTREAM_LOG, H100_LOG, OPT_H100_LOG, OPT_H100_STATS
 
 BABELSTREAM_KERNELS = [
     ("_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_", 6174, 19456),
@@ -72,3 +74,13 @@ def test_h100_log():
 def test_unknown_clock_leaves_sim_time_empty():
     _, stats = parse(H100_LOG, None, 200)
     assert stats[0].sim_time_ns is None
+
+
+def test_real_opt125m_h100_run_matches_accelsims_own_kernel_stats():
+    _, stats = parse(OPT_H100_LOG, 1980.0, 4096)
+    expected = [
+        (int(r["uid"]), r["name"], int(r["gpu_sim_cycle"]), int(r["gpu_sim_insn"]))
+        for r in csv.DictReader(OPT_H100_STATS.open())
+    ]
+    got = [(s.kernel_launch_uid, s.kernel_name, s.gpu_sim_cycle, s.gpu_sim_insn) for s in stats]
+    assert got == expected

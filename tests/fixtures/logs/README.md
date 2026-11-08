@@ -1,6 +1,13 @@
-Real Accel-Sim stdout logs, copied byte for byte from public repositories. Neither was written or
-edited by hand. Neither upstream repository states a license; they are used here only as parser
-test input.
+Real Accel-Sim stdout logs. None was written or edited by hand.
+
+- `opt125m_sm90_h100.log`: Alessio's Accel-Sim v2.0.1 run (GPGPU-Sim 4.2.0, commit `4195dd4f`) of 20
+  vLLM kernels of `facebook/opt-125m` on SM90_H100. It is the stand-in a Sail deploy replays.
+  Inputs, configs and Accel-Sim's own `kernel-stats.csv` are in
+  `results/20261108-021007-opt125m-h100-accelsim/`.
+
+The two below are copied byte for byte from public repositories. Neither upstream repository
+states a license; they are used here only as parser test input.
+
 
 - `babelstream_sm86_rtx3070.log`: trace-driven Accel-Sim (`accelsim-commit-e02c99db`, GPGPU-Sim
   4.2.0) on the SM86_RTX3070 config, 6 kernels. About 17 lines of `setup_environment` output precede

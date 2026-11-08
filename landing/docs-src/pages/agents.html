@@ -19,7 +19,7 @@ description: Connect Claude Code, Codex, Cursor or another AI agent to your Casc
 <li>Explain the numbers. It reports simulated time per config, the error against real hardware when the trace has real timing, the worst kernels by readable name, and why any sim failed.</li>
 </ul>
 <p>The agent can't trace a workload. Tracing runs on a real GPU under the Modal profiler, outside the API. [Trace a workload](trace-a-workload.html) covers that part. Once the trace is in your app, the agent takes it from there.</p>
-<div class="note"><p>A default deploy runs the stand-in simulator, which replays one recorded BabelStream log for every trace. The prompt tells the agent to say so when the numbers look like the stand-in's, so a report never passes them off as a simulation of your trace.</p></div>
+<div class="note"><p>A default deploy runs the stand-in simulator, which replays one recorded Accel-Sim run of OPT-125m on an H100 for every trace. The prompt tells the agent to say so when the numbers look like the stand-in's, so a report never passes them off as a simulation of your trace.</p></div>
 
 <h2>Set it up</h2>
 <ol class="steps">

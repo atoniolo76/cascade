@@ -22,7 +22,7 @@ import sail
 ROOT = Path(__file__).resolve().parent.parent
 APP_PORT, S3_PORT = 8000, 9000
 STAND_IN_SIM_CMD = (
-    "/app/.venv/bin/cascade worker --replay /app/tests/fixtures/logs/babelstream_sm86_rtx3070.log"
+    "/app/.venv/bin/cascade worker --replay /app/tests/fixtures/logs/opt125m_sm90_h100.log"
 )
 
 

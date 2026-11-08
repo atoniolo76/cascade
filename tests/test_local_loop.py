@@ -9,7 +9,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from tests.conftest import BABELSTREAM_LOG
+from tests.conftest import BABELSTREAM_LOG, OPT_H100_LOG
 from tests.helpers import (
     CASCADE,
     TOKEN,
@@ -180,3 +180,19 @@ def test_replay_worker_succeeds_when_the_app_runs_without_a_token(tmp_path, monk
             lambda: (d := run_detail(client, run["id"]))["state"] != "active" and d, timeout=60
         )
         assert done["state"] == "succeeded", done["sims"][0]["error"]
+
+
+def test_real_h100_replay_covers_every_mapped_kernel_in_step_timing(tmp_path, monkeypatch):
+    monkeypatch.setenv("TMPDIR", str(tmp_path / "tmp"))
+    (tmp_path / "tmp").mkdir()
+    cmd = f"{CASCADE} worker --replay {OPT_H100_LOG} --delay 0 --heartbeat-s 0.3"
+    with running_app(tmp_path, CASCADE_SIM_CMD=cmd) as (client, _, settings):
+        write_processed_trace(settings, "trace-opt", arch="sm_90", kernels=20)
+        add_step_files(settings, "trace-opt", TIMELINE / "mapping.json")
+        wait_for(lambda: client.get("/api/traces/trace-opt").json().get("has_step_timeline"))
+        run = finished_run(client, launch(client, "trace-opt", "SM90_H100")["id"], timeout=120)
+        assert run["state"] == "succeeded"
+        assert run["sims"][0]["kernels_done"] == 20
+        (timeline,) = client.get(f"/api/runs/{run['id']}/step-timelines").json()
+        coverage = timeline["simulated"]["summary"]["simulation"]["coverage"]
+        assert coverage["simulated_kernels"] == 20

@@ -52,7 +52,8 @@ NAV: tuple[tuple[str, tuple[str, ...]], ...] = (
 GITHUB = "https://github.com/atoniolo76/cascade"
 ROOT = HERE.parent.parent
 PROMPT_TEMPLATE = HERE / "agent-prompt.md"
-STAND_IN_LOG = ROOT / "tests/fixtures/logs/babelstream_sm86_rtx3070.log"
+STAND_IN_LOG = ROOT / "tests/fixtures/logs/opt125m_sm90_h100.log"
+DEPLOY_SCRIPT = ROOT / "scripts/deploy_sail.py"
 SIMULATOR_PAGE = "api-simulator"
 
 
@@ -1042,10 +1043,28 @@ def prompt_types() -> str:
     return "\n\n".join(prompt_type(n) for n in prompt_type_names())
 
 
+def readable_kernel(mangled: str) -> str:
+    rest = mangled[3:] if mangled.startswith("_ZN") else mangled[2:]
+    if not mangled.startswith("_Z"):
+        return mangled
+    parts: list[str] = []
+    while m := re.match(r"(\d+)", rest):
+        size = int(m.group(1))
+        parts.append(rest[m.end() : m.end() + size])
+        rest = rest[m.end() + size :]
+        if not mangled.startswith("_ZN"):
+            break
+    return "::".join(parts) or mangled
+
+
 def stand_in_kernels() -> str:
+    if STAND_IN_LOG.name not in DEPLOY_SCRIPT.read_text():
+        raise SystemExit(
+            f"{DEPLOY_SCRIPT} no longer replays {STAND_IN_LOG.name}; update STAND_IN_LOG"
+        )
     names: list[str] = []
-    for m in re.finditer(r"^kernel_name = _Z(\d+)(\w+)", STAND_IN_LOG.read_text(), re.M):
-        ident = m.group(2)[: int(m.group(1))]
+    for m in re.finditer(r"^kernel_name = (\S+)", STAND_IN_LOG.read_text(), re.M):
+        ident = readable_kernel(m.group(1))
         if ident not in names:
             names.append(ident)
     if not names:
@@ -1071,7 +1090,11 @@ def check_prompt_template(template: str) -> None:
         if (method, path) not in served:
             raise SystemExit(f"agent-prompt.md names {method} {path}, which no Endpoint documents")
     fields = {f.name for info in MODELS.values() for f in info.fields}
-    kernels = set(re.findall(r"`(\w+)`", stand_in_kernels()))
+    kernels = {
+        readable_kernel(m).split("::")[-1]
+        for log in (STAND_IN_LOG, ROOT / "tests/fixtures/logs/babelstream_sm86_rtx3070.log")
+        for m in re.findall(r"^kernel_name = (\S+)", log.read_text(), re.M)
+    }
     for token in re.findall(r"`([^`\n]+)`", template):
         for part in token.split("."):
             if re.fullmatch(r"[a-z]+(?:_[a-z0-9]+)+", part) and part not in fields | kernels:
