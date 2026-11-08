@@ -1,146 +1,140 @@
-import { Link, useNavigate } from "react-router";
-import { Layers } from "lucide-react";
-import { useRuns } from "../api/queries";
-import type { RunSummary } from "../api/types";
+import { Link, useSearchParams } from "react-router";
+import { Activity, Plus, X } from "lucide-react";
+import { useRuns, useTraces } from "../api/queries";
+import type { RunState } from "../api/types";
 import { PageHeader } from "../components/AppShell";
-import { SimCountsBar, SimCountsText } from "../components/SimCounts";
-import { Card, EmptyState, ErrorNote, Mono, Skeleton, StatusPill } from "../components/ui";
-import { entriesLabel, formatAge, ms } from "../domain/format";
+import { RunsTable } from "../components/RunsTable";
+import { EmptyState, ErrorNote, Panel, Skeleton } from "../components/ui";
+import { ICON, buttonClass } from "../components/styles";
+import { cx } from "../components/cx";
 import { RUN_STATE } from "../domain/status";
-import { useNow } from "../hooks/useNow";
+import { LogoTile } from "../components/BrandLogo";
+import { logoByKey } from "../domain/logos";
 import { paths } from "../paths";
 
-const HEAD = "px-3 py-2.5 text-left text-[11px] font-medium tracking-wide text-muted uppercase whitespace-nowrap";
-const CELL = "px-3 h-14 align-middle";
+type Filter = "all" | RunState;
+const FILTERS: readonly Filter[] = ["all", "active", "succeeded", "partial", "failed", "cancelled"];
+
+function isFilter(v: string | null): v is Filter {
+  return v !== null && (FILTERS as readonly string[]).includes(v);
+}
 
 export function RunsPage() {
   const runs = useRuns();
+  const traces = useTraces();
+  const [params, setParams] = useSearchParams();
+  const traceId = params.get("trace");
+  const stateParam = params.get("state");
+  const filter: Filter = isFilter(stateParam) ? stateParam : "all";
+  const trace = traceId === null ? undefined : traces.data?.find((t) => t.id === traceId);
+
+  const forTrace = runs.data?.filter((r) => traceId === null || r.trace_id === traceId);
+  const shown = forTrace?.filter((r) => filter === "all" || r.state === filter);
+
+  const setParam = (key: string, value: string | null) => {
+    const next = new URLSearchParams(params);
+    if (value === null) next.delete(key);
+    else next.set(key, value);
+    setParams(next, { replace: true });
+  };
+
   return (
     <>
-      <PageHeader title="Runs" subtitle="Simulation runs, one sailbox per sim." />
+      <PageHeader
+        crumbs={[{ label: "Runs" }]}
+        status={runs.data !== undefined && runs.data.length > 0 ? <span className="text-[15px] text-muted tabular-nums">{runs.data.length}</span> : undefined}
+        actions={
+          <Link to={paths.newRun(traceId ?? undefined)} className={buttonClass({ variant: "primary" })}>
+            <Plus className="size-4" {...ICON} />
+            New run
+          </Link>
+        }
+      >
+        <p className="max-w-2xl text-[15px] text-muted">
+          Each run replays one trace on a set of GPU configs, one{" "}
+          <span className="inline-flex translate-y-[3px] items-center">
+            <LogoTile logo={logoByKey("sail")} fallback="Sail" size="sm" />
+          </span>{" "}
+          Sail sailbox per sim.
+        </p>
+      </PageHeader>
+
+      {forTrace !== undefined && runs.data !== undefined && runs.data.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {FILTERS.map((f) => {
+            const n = f === "all" ? forTrace.length : forTrace.filter((r) => r.state === f).length;
+            if (f !== "all" && n === 0) return null;
+            return (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={filter === f}
+                onClick={() => {
+                  setParam("state", f === "all" ? null : f);
+                }}
+                className={cx(
+                  "inline-flex h-8 items-center gap-1.5 rounded-[10px] px-3 text-[13px] font-medium transition-colors duration-150",
+                  filter === f ? "bg-surface text-fg shadow-tile ring-1 ring-border" : "text-muted hover:text-fg",
+                )}
+              >
+                {f === "all" ? "All" : RUN_STATE[f].label}
+                <span className="text-faint tabular-nums">{n}</span>
+              </button>
+            );
+          })}
+          {traceId !== null && (
+            <span className="ml-auto inline-flex h-8 max-w-full items-center gap-1.5 rounded-[10px] bg-surface pr-1 pl-3 text-[13px] text-fg-2 ring-1 ring-border">
+              <span className="text-muted">Trace</span>
+              <span className="truncate font-medium text-fg">{trace?.model ?? traceId}</span>
+              <button
+                type="button"
+                aria-label="Clear trace filter"
+                onClick={() => {
+                  setParam("trace", null);
+                }}
+                className="grid size-6 place-items-center rounded-[7px] text-faint hover:bg-surface-2 hover:text-fg"
+              >
+                <X className="size-3.5" {...ICON} />
+              </button>
+            </span>
+          )}
+        </div>
+      )}
+
       {runs.isError && runs.data === undefined ? (
         <ErrorNote error={runs.error} />
       ) : (
-        <Card className="overflow-hidden">
-          {runs.data === undefined ? (
+        <Panel className="overflow-hidden">
+          {shown === undefined ? (
             <div className="divide-y divide-border">
-              <div className="h-10 bg-surface-2/50" />
+              <div className="h-11 bg-surface-2/60" />
               {Array.from({ length: 4 }, (_, i) => (
-                <div key={i} className="flex h-14 items-center gap-6 px-3">
+                <div key={i} className="flex h-[60px] items-center gap-6 px-4">
+                  <Skeleton className="size-6 rounded-[7px]" />
                   <Skeleton className="h-3 w-24" />
-                  <Skeleton className="h-5 w-20 rounded-full" />
                   <Skeleton className="h-3 w-[30%]" />
-                  <Skeleton className="ml-auto h-1.5 w-28 rounded-full" />
+                  <Skeleton className="ml-auto h-2.5 w-36" />
                 </div>
               ))}
             </div>
-          ) : runs.data.length === 0 ? (
+          ) : shown.length === 0 ? (
             <EmptyState
-              icon={<Layers className="size-5" />}
-              title="No runs yet"
-              body="Open a ready trace and start a run to simulate it on other GPUs."
+              icon={<Activity {...ICON} />}
+              title={runs.data?.length === 0 ? "No runs yet" : "No runs match"}
+              body={runs.data?.length === 0 ? "Pick a ready trace and press Run to simulate it on its suggested GPU config." : "Try another state or clear the trace filter."}
               action={
-                <Link to={paths.newRun()} className="text-[13px] font-medium text-accent-ink hover:underline">
-                  Start a run
-                </Link>
+                runs.data?.length === 0 ? (
+                  <Link to={paths.traces} className={buttonClass({})}>
+                    Browse traces
+                  </Link>
+                ) : undefined
               }
             />
           ) : (
-            <RunTable runs={runs.data} />
+            <RunsTable runs={shown} traces={traces.data} showTrace={traceId === null} />
           )}
-        </Card>
+        </Panel>
       )}
-    </>
-  );
-}
-
-function RunTable({ runs }: { runs: RunSummary[] }) {
-  const now = useNow();
-  const navigate = useNavigate();
-  return (
-    <>
-      <table className="hidden w-full table-fixed border-collapse lg:table">
-        <colgroup>
-          <col className="w-[150px]" />
-          <col className="w-[124px]" />
-          <col />
-          <col className="w-[22%]" />
-          <col className="w-[26%]" />
-          <col className="w-[60px]" />
-        </colgroup>
-        <thead className="border-b border-border bg-surface-2/50">
-          <tr>
-            <th className={HEAD}>Run</th>
-            <th className={HEAD}>State</th>
-            <th className={HEAD}>Trace</th>
-            <th className={HEAD}>Configs</th>
-            <th className={HEAD}>Sims</th>
-            <th className={`${HEAD} text-right`}>Age</th>
-          </tr>
-        </thead>
-        <tbody>
-          {runs.map((r) => {
-            const meta = RUN_STATE[r.state];
-            return (
-              <tr
-                key={r.id}
-                onClick={() => {
-                  void navigate(paths.run(r.id));
-                }}
-                className="cursor-pointer border-b border-border transition-colors duration-150 last:border-b-0 hover:bg-surface-2/60"
-              >
-                <td className={CELL}>
-                  <Link to={paths.run(r.id)} onClick={(e) => { e.stopPropagation(); }} className="block">
-                    <Mono className="font-medium text-fg">{r.id}</Mono>
-                  </Link>
-                </td>
-                <td className={CELL}>
-                  <StatusPill tone={meta.tone} live={meta.live} label={meta.label} />
-                </td>
-                <td className={CELL}>
-                  <Mono className="text-fg-2">{r.trace_id}</Mono>
-                </td>
-                <td className={CELL}>
-                  <span className="block truncate font-mono text-[12px] text-fg-2" title={entriesLabel(r.entries)}>
-                    {entriesLabel(r.entries)}
-                  </span>
-                </td>
-                <td className={CELL}>
-                  <div className="flex flex-col gap-1.5">
-                    <SimCountsBar counts={r.sim_counts} className="w-full max-w-[200px]" />
-                    <span className="truncate text-[12px] text-muted">
-                      <SimCountsText counts={r.sim_counts} />
-                    </span>
-                  </div>
-                </td>
-                <td className={`${CELL} text-right text-[13px] text-muted tabular-nums`}>{formatAge(now - ms(r.created_at))}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <ul className="divide-y divide-border lg:hidden">
-        {runs.map((r) => {
-          const meta = RUN_STATE[r.state];
-          return (
-            <li key={r.id}>
-              <Link to={paths.run(r.id)} className="flex flex-col gap-2 px-4 py-3 transition-colors duration-150 hover:bg-surface-2/60">
-                <div className="flex items-center gap-3">
-                  <Mono className="flex-1 font-medium text-fg">{r.id}</Mono>
-                  <StatusPill tone={meta.tone} live={meta.live} label={meta.label} />
-                  <span className="w-8 shrink-0 text-right text-[12px] text-muted tabular-nums">{formatAge(now - ms(r.created_at))}</span>
-                </div>
-                <Mono className="text-muted">{r.trace_id}</Mono>
-                <span className="truncate font-mono text-[12px] text-fg-2">{entriesLabel(r.entries)}</span>
-                <SimCountsBar counts={r.sim_counts} />
-                <span className="text-[12px] text-muted">
-                  <SimCountsText counts={r.sim_counts} />
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
     </>
   );
 }

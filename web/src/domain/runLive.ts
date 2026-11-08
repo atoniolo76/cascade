@@ -14,7 +14,7 @@ export type RunLive =
   | { kind: "waiting" }
   | { kind: "live"; run: RunDetail; logs: Record<string, SimLog>; kernels: KernelsBySim };
 
-export type RunAction = RunEvent | { type: "kernels"; stats: KernelStat[] } | { type: "run"; run: RunDetail };
+export type RunAction = RunEvent | { type: "run"; run: RunDetail };
 
 export const initialRunLive: RunLive = { kind: "waiting" };
 
@@ -41,8 +41,8 @@ function logsFromSnapshot(run: RunDetail, prev: Record<string, SimLog>): Record<
 
 export function runLiveReducer(state: RunLive, action: RunAction): RunLive {
   if (action.type === "snapshot") {
-    const prev = state.kind === "live" ? state : { logs: {}, kernels: {} };
-    return { kind: "live", run: action.run, logs: logsFromSnapshot(action.run, prev.logs), kernels: prev.kernels };
+    const prevLogs = state.kind === "live" ? state.logs : {};
+    return { kind: "live", run: action.run, logs: logsFromSnapshot(action.run, prevLogs), kernels: mergeKernels({}, action.kernels) };
   }
   if (state.kind === "waiting") return state;
   switch (action.type) {
@@ -63,8 +63,6 @@ export function runLiveReducer(state: RunLive, action: RunAction): RunLive {
     }
     case "kernel":
       return { ...state, kernels: mergeKernels(state.kernels, [action.stat]) };
-    case "kernels":
-      return { ...state, kernels: mergeKernels(state.kernels, action.stats) };
     default: {
       const exhaustive: never = action;
       return exhaustive;

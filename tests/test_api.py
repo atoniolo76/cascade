@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from cascade.api import create_app
 from cascade.models import RunEntry, SimState, TraceState
+from cascade.settings import SettingsError
 from cascade.store import Store
 from tests.conftest import BABELSTREAM_LOG
 from tests.helpers import AUTH, make_settings, wait_for, write_processed_trace
@@ -52,11 +53,26 @@ def setup(tmp_path):
 
 def test_auth(setup):
     client, _, _ = setup
-    assert client.get("/api/health").json() == {"ok": True}
+    assert client.get("/api/health").json() == {"ok": True, "auth": True}
     assert client.get("/api/traces").status_code == 401
     assert client.get("/api/traces", headers={"Authorization": "Bearer nope"}).status_code == 401
     assert client.get("/api/runs/x/events?token=nope").status_code == 401
     assert client.get("/api/nope", headers=AUTH).status_code == 404
+
+
+def test_no_auth_dev_mode_skips_tokens(tmp_path):
+    settings = make_settings(tmp_path, CASCADE_TOKEN="", CASCADE_NO_AUTH="1")
+    with TestClient(create_app(settings, RecordingLauncher())) as client:
+        assert client.get("/api/health").json() == {"ok": True, "auth": False}
+        assert client.get("/api/traces").status_code == 200
+        assert (
+            client.get("/api/traces", headers={"Authorization": "Bearer nope"}).status_code == 200
+        )
+
+
+def test_token_is_required_unless_no_auth(tmp_path):
+    with pytest.raises(SettingsError, match="CASCADE_NO_AUTH"):
+        make_settings(tmp_path, CASCADE_TOKEN="")
 
 
 def test_run_validation(setup, tmp_path):
@@ -157,6 +173,11 @@ def test_run_lifecycle(setup):
         [c / 1980 * 1000 for c in BABELSTREAM_CYCLES]
     )
     assert all(r["sim_ns"]["SM90_H200"] is None for r in comparison["rows"])
+
+    kernels = client.get(f"/api/runs/{run_id}/kernels", headers=AUTH).json()
+    assert [k["gpu_sim_cycle"] for k in kernels if k["sim_id"] == h100] == BABELSTREAM_CYCLES
+    assert all(k["stats"] == {} for k in kernels)
+    assert client.get("/api/runs/nope/kernels", headers=AUTH).status_code == 404
 
     h200 = sims[("SM90_H200", 0)]
     cancelled = client.post(f"/api/runs/{run_id}/cancel", headers=AUTH).json()

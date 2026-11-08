@@ -142,7 +142,7 @@ export interface RunResults {
 }
 
 export type RunEvent =
-  | { type: "snapshot"; run: RunDetail }
+  | { type: "snapshot"; run: RunDetail; kernels: KernelStat[] }
   | { type: "sim"; sim: SimSummary }
   | { type: "log"; sim_id: string; lines: string[] }
   | { type: "kernel"; stat: KernelStat };

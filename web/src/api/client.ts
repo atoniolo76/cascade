@@ -81,9 +81,7 @@ export async function apiText(path: string): Promise<string> {
   return res.text();
 }
 
-export async function downloadFile({ path, filename }: { path: string; filename: string }) {
-  const res = await request(path);
-  const blob = await res.blob();
+function saveBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -108,4 +106,13 @@ export async function checkToken(token: string): Promise<TokenCheck> {
   } catch {
     return "unreachable";
   }
+}
+
+export async function downloadFile({ path, filename }: { path: string; filename: string }) {
+  const res = await request(path);
+  saveBlob(await res.blob(), filename);
+}
+
+export function saveText({ text, filename, type }: { text: string; filename: string; type: string }) {
+  saveBlob(new Blob([text], { type }), filename);
 }

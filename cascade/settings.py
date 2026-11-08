@@ -25,6 +25,7 @@ def _bool(value: str) -> bool:
 class Settings:
     data_dir: Path
     token: str
+    no_auth: bool
     launcher: Literal["local", "sail"]
     public_url: str
     s3_bucket: str
@@ -39,8 +40,9 @@ class Settings:
     def from_env(cls, env: dict[str, str] | None = None) -> Settings:
         env = dict(os.environ if env is None else env)
         token = env.get("CASCADE_TOKEN", "")
-        if not token:
-            raise SettingsError("CASCADE_TOKEN is required")
+        no_auth = _bool(env.get("CASCADE_NO_AUTH", "false"))
+        if not token and not no_auth:
+            raise SettingsError("CASCADE_TOKEN is required (or CASCADE_NO_AUTH=1 for local dev)")
         launcher = env.get("CASCADE_LAUNCHER", "local")
         if launcher not in ("local", "sail"):
             raise SettingsError(f"CASCADE_LAUNCHER must be local or sail, got {launcher!r}")
@@ -48,6 +50,7 @@ class Settings:
         return cls(
             data_dir=Path(env.get("CASCADE_DATA_DIR", "/data")),
             token=token,
+            no_auth=no_auth,
             launcher=launcher,
             public_url=env.get("CASCADE_PUBLIC_URL", "http://127.0.0.1:8000").rstrip("/"),
             s3_bucket=env.get("CASCADE_S3_BUCKET", "cascade"),
