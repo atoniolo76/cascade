@@ -8,6 +8,7 @@
   "content_type": "application/json",
   "body": {
     "ok": true,
-    "auth": true
+    "auth": true,
+    "workspace": "acme-lab"
   }
 }

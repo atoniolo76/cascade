@@ -13,7 +13,7 @@ To drive a Cascade app from an AI agent, give the agent [agent-prompt.md](agent-
 
 ## Guides
 
-- [Deploy the app](deploy.html): Deploy the Cascade app to a Sail sandbox with scripts/deploy_sail.py, with the stand-in simulator or a real Accel-Sim image.
+- [Deploy the app](deploy.html): Create a Cascade workspace on Sail from the Get started page or with cascade deploy, with the stand-in simulator or a real Accel-Sim image.
 - [Trace a workload](trace-a-workload.html): Trace a vLLM model on a Modal H100 with Accel-Sim's NVBit tracer and stream the trace into your Cascade app over S3.
 - [Traces](traces.html): How the Cascade app notices an upload, decides it is complete, post-processes it, and marks it ready to simulate.
 - [Runs](runs.html): Launch a Cascade run on a ready trace, choose GPU configs and counts, follow its sims, and cancel it.

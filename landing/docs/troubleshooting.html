@@ -58,7 +58,7 @@
 <p>You're running the older profiler at the root of the app branch. Use <code>accelsim_trace.py</code> from the <code>validate-accelsim-modal</code> branch, commit <code>b348d7d</code>.</p>
 
 <h2 id="the-token-is-rejected">The token is rejected<a class="anchor" href="#the-token-is-rejected" aria-label="Link to this section">#</a></h2>
-<p>Use the exact <code>CASCADE_TOKEN</code> the app was started with. If you deployed without setting one, <code>deploy_sail.py</code> printed the one it made as <code>token:</code>. Check for a trailing newline or space if you pasted it.</p>
+<p>Use the exact <code>CASCADE_TOKEN</code> the app was started with. If you deployed without setting one, rerun <code>cascade deploy --workspace &lt;name&gt;</code> (or create the same workspace again on <a href="../start.html">Get started</a>). It finds the running workspace and prints its token again. Check for a trailing newline or space if you pasted it.</p>
 
 <h2 id="a-config-is-disabled-or-the-run-gets-422">A config is disabled or the run gets 422<a class="anchor" href="#a-config-is-disabled-or-the-run-gets-422" aria-label="Link to this section">#</a></h2>
 <p>The config's architecture differs from the trace's <code>trace_gpu_arch</code>. A trace only runs on configs of the GPU architecture it was captured on, so trace on that GPU instead. If a config you expect isn't listed at all, check that its <code>gpgpusim.config</code> is under <code>$CASCADE_ACCELSIM_DIR/gpu-simulator/gpgpu-sim/configs/tested-cfgs/</code> and has a <code>-gpgpu_clock_domains</code> line, then restart the app.</p>

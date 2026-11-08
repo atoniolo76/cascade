@@ -31,12 +31,13 @@ description: Cascade traces an ML workload once on a real GPU and simulates it o
 <h2>What works today</h2>
 <p>Two things are still in progress, and they change what you see.</p>
 <ul>
-<li>A default deploy runs a stand-in simulator, `cascade worker --replay`, which replays a recorded Accel-Sim log instead of simulating your trace. To simulate your trace, deploy with `--base-image`, `--sim-cmd` and `--accelsim-dir` pointing at an image that has Accel-Sim built in. See [Deploy the app](deploy.html).</li>
+<li>A default deploy runs a stand-in simulator, `cascade worker --replay`, which replays a recorded Accel-Sim log instead of simulating your trace. To simulate your trace, deploy with `cascade deploy --from-source --base-image`, `--sim-cmd` and `--accelsim-dir` pointing at an image that has Accel-Sim built in. See [Deploy the app](deploy.html).</li>
 <li>The profiler doesn't capture real hardware timing (`real_timing.json`) yet. Until it does, the real-against-simulated comparison shows simulated time only.</li>
 </ul>
 
 <h2>Where to go next</h2>
 <div class="cards">
+<a class="card" href="../start.html"><strong>Get started</strong><span>Create your own Cascade app on Sail from the browser with a workspace name and a Sail API key. No clone.</span></a>
 <a class="card" href="quickstart.html"><strong>Quickstart</strong><span>Run the app on your laptop with the stand-in simulator and finish a run in a few minutes.</span></a>
 <a class="card" href="concepts.html"><strong>Concepts</strong><span>Traces, runs, sims and GPU configs, their state machines, and how forking works.</span></a>
 <a class="card" href="trace-a-workload.html"><strong>Trace a workload</strong><span>Capture a vLLM model on a Modal H100 and stream it into your app.</span></a>

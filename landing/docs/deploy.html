@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deploy the app · Cascade docs</title>
-<meta name="description" content="Deploy the Cascade app to a Sail sandbox with scripts/deploy_sail.py, with the stand-in simulator or a real Accel-Sim image.">
+<meta name="description" content="Create a Cascade workspace on Sail from the Get started page or with cascade deploy, with the stand-in simulator or a real Accel-Sim image.">
 <meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -34,47 +34,49 @@
   <main id="content" class="content">
     <p class="eyebrow">Guides</p>
     <h1>Deploy the app</h1>
-<p class="lede"><code>scripts/deploy_sail.py</code> builds the app's image, starts it in a Sail sandbox, and prints the two URLs you need: the app, and the S3 endpoint the profiler uploads to.</p>
+<p class="lede">A workspace is your own Cascade app in your Sail account: the Sail app <code>cascade-&lt;name&gt;</code> with one sandbox, <code>cascade-main</code>, that runs the app and forks a sandbox per sim. Create it from the browser, or with <code>cascade deploy</code> from a checkout.</p>
 
-<h2 id="before-you-deploy">Before you deploy<a class="anchor" href="#before-you-deploy" aria-label="Link to this section">#</a></h2>
+<h2 id="get-started-in-the-browser">Get started in the browser<a class="anchor" href="#get-started-in-the-browser" aria-label="Link to this section">#</a></h2>
+<p>Open <a href="../start.html">Get started</a>, pick a workspace name, and paste a Sail API key from the <a href="https://app.sailresearch.com" target="_blank" rel="noopener">Sail dashboard</a>. The page shows each step as it happens and ends with an Open my workspace link that logs you in, the token, the S3 endpoint and ready-made upload commands. Nothing to clone.</p>
 <ul>
-<li>A <a href="https://docs.sailresearch.com/quickstart" target="_blank" rel="noopener">Sail</a> account and API key.</li>
-<li>A Cascade token. Pick any long random string. The UI, the profiler and every sim use it.</li>
-<li>For real simulation, a simulator image: a Docker image with Accel-Sim and its trace post-processor built in. Without one, the app runs the stand-in simulator.</li>
+<li>The key creates the workspace in your Sail account. Cascade doesn't store it. It is copied into the workspace, because the app needs it to checkpoint itself and fork sims.</li>
+<li>The workspace boots the published image, <code>ghcr.io/atoniolo76/cascade:latest</code>, with the stand-in simulator. Set another public image under advanced.</li>
+<li>Manage, at the bottom of the page, shows a workspace's status, pauses and resumes it, and deletes it.</li>
 </ul>
 
-<h2 id="deploy-with-a-simulator-image">Deploy with a simulator image<a class="anchor" href="#deploy-with-a-simulator-image" aria-label="Link to this section">#</a></h2>
-<p>To simulate your traces, pass the simulator image and tell the app where things are inside it.</p>
+<h2 id="deploy-from-the-command-line">Deploy from the command line<a class="anchor" href="#deploy-from-the-command-line" aria-label="Link to this section">#</a></h2>
+<p><code>cascade deploy</code> does the same from a checkout. It is safe to rerun: it finds the workspace's sandbox, resumes it if it's paused, and prints the same URLs and token again.</p>
 <div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>git clone https://github.com/atoniolo76/cascade.git
 cd cascade
 export SAIL_API_KEY=...
-export CASCADE_TOKEN=$(openssl rand -hex 24)
-uv run --extra sail python scripts/deploy_sail.py \
-  --base-image &lt;simulator-image&gt; \
-  --sim-cmd <span class="tk-s">"/app/.venv/bin/cascade worker"</span> \
-  --accelsim-dir &lt;path to accel-sim in that image&gt;</code></pre></div><p><code>cascade worker</code> runs <code>&lt;accelsim-dir&gt;/gpu-simulator/bin/release/accel-sim.out</code> on the trace with the sim's config. If the image keeps the post-processor somewhere other than <code>&lt;accelsim-dir&gt;/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing</code>, add <code>--postprocess-cmd</code>. <a href="simulator.html#what-the-image-needs">Bring your own simulator</a> lists what the image needs.</p>
-
-<h2 id="deploy-with-the-stand-in-simulator">Deploy with the stand-in simulator<a class="anchor" href="#deploy-with-the-stand-in-simulator" aria-label="Link to this section">#</a></h2>
-<p>Leave the three flags out to try the UI and the API first.</p>
-<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>uv run --extra sail python scripts/deploy_sail.py</code></pre></div><div class="warn"><p>Without <code>--base-image</code>, <code>--sim-cmd</code> and <code>--accelsim-dir</code>, every sim runs <code>cascade worker --replay</code>, which replays a real Accel-Sim run of <code>facebook/opt-125m</code> on SM90_H100 (20 vLLM kernels, from <code>results/20261108-021007-opt125m-h100-accelsim/</code>). It doesn't simulate your trace, and its numbers are the same for every trace. The image is plain <code>ubuntu:22.04</code>, so it has no post-processor. Upload traces that already contain <code>traces/kernelslist.g</code>, or they fail in <code>processing</code>.</p></div>
-
-<h2 id="what-the-script-prints">What the script prints<a class="anchor" href="#what-the-script-prints" aria-label="Link to this section">#</a></h2>
-<p>The script builds the image if needed, creates the sandbox, starts <code>cascade serve</code> in it, and waits for the app's port.</p>
-<div class="code"><div class="code-bar"><span>text</span><button class="copy" type="button">Copy</button></div><pre><code>creating sailbox 'cascade-main' in app 'cascade' (builds the image if needed)
+uv run --extra sail cascade deploy --workspace acme-lab</code></pre></div><p>When the app answers, it prints what you need.</p>
+<div class="code"><div class="code-bar"><span>text</span><button class="copy" type="button">Copy</button></div><pre><code>cascade-acme-lab: starting Cascade
+cascade-acme-lab: healthy
 sailbox:  &lt;sailbox id&gt;
 app:      https://&lt;app url&gt;
 s3:       https://&lt;s3 url&gt;  (bucket cascade, prefix accelsim-traces, path-style, unsigned)
-logs:     /data/cascade-serve.log inside the sailbox</code></pre></div><div class="table-wrap"><table class="table"><thead><tr><th>url</th><th>use it for</th></tr></thead><tbody>
-<tr><td>app (port 8000)</td><td>Open it in a browser and paste your token. The same URL serves the API.</td></tr>
+token:    &lt;token&gt;
+open:     https://&lt;app url&gt;/#token=&lt;token&gt;
+logs:     /data/cascade-serve.log inside the sailbox</code></pre></div><div class="table-wrap"><table class="table"><thead><tr><th>output</th><th>use it for</th></tr></thead><tbody>
+<tr><td>app (port 8000)</td><td>The web UI and the API. The <code>open:</code> link logs the browser in with the token.</td></tr>
 <tr><td>s3 (port 9000)</td><td>Pass it to the profiler as <code>--s3-endpoint</code>. Traces upload here, unsigned and path-style.</td></tr>
+<tr><td>token</td><td>The <code>CASCADE_TOKEN</code> for the UI, the API and your agent. Set <code>CASCADE_TOKEN</code> before the first deploy to choose it.</td></tr>
 </tbody></table></div>
-<p>If <code>CASCADE_TOKEN</code> isn't set, the script makes one and prints it as <code>token:</code>. Save it, because the app accepts nothing else.</p>
 
-<h2 id="script-flags">Script flags<a class="anchor" href="#script-flags" aria-label="Link to this section">#</a></h2>
+<h2 id="deploy-with-a-simulator-image">Deploy with a simulator image<a class="anchor" href="#deploy-with-a-simulator-image" aria-label="Link to this section">#</a></h2>
+<p>To simulate your traces instead of replaying the stand-in, build the app on top of a simulator image and tell it where things are inside it. <code>--from-source</code> builds this checkout's <code>Dockerfile</code> on Sail, which takes a few minutes the first time.</p>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>uv run --extra sail cascade deploy --workspace acme-lab --from-source \
+  --base-image &lt;simulator-image&gt; \
+  --sim-cmd <span class="tk-s">"/app/.venv/bin/cascade worker"</span> \
+  --accelsim-dir &lt;path to accel-sim in that image&gt;</code></pre></div><p><code>cascade worker</code> runs <code>&lt;accelsim-dir&gt;/gpu-simulator/bin/release/accel-sim.out</code> on the trace with the sim's config. If the image keeps the post-processor somewhere other than <code>&lt;accelsim-dir&gt;/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing</code>, add <code>--postprocess-cmd</code>. <a href="simulator.html#what-the-image-needs">Bring your own simulator</a> lists what the image needs. The simulator settings are written once, when the workspace is first created. To change them, delete the workspace and deploy again.</p>
+<div class="warn"><p>Without <code>--base-image</code>, <code>--sim-cmd</code> and <code>--accelsim-dir</code>, every sim runs <code>cascade worker --replay</code>, which replays a real Accel-Sim run of <code>facebook/opt-125m</code> on SM90_H100 (20 vLLM kernels, from <code>results/20261108-021007-opt125m-h100-accelsim/</code>). It doesn't simulate your trace, and its numbers are the same for every trace. The image is plain <code>ubuntu:22.04</code>, so it has no post-processor. Upload traces that already contain <code>traces/kernelslist.g</code>, or they fail in <code>processing</code>.</p></div>
+
+<h2 id="flags">Flags<a class="anchor" href="#flags" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table class="table"><thead><tr><th>flag</th><th>default</th><th>what it sets</th></tr></thead><tbody>
-<tr><td><code>--app</code></td><td><code>cascade</code></td><td>The Sail app to create the sandbox in. The script creates it if it doesn't exist.</td></tr>
-<tr><td><code>--name</code></td><td><code>cascade-main</code></td><td>The app sandbox's name.</td></tr>
-<tr><td><code>--base-image</code></td><td><code>ubuntu:22.04</code></td><td>The Dockerfile's <code>BASE_IMAGE</code>, the image the app is layered on.</td></tr>
+<tr><td><code>--workspace</code></td><td>required</td><td>3 to 32 lowercase letters, digits and hyphens. The Sail app is <code>cascade-&lt;workspace&gt;</code>, and the UI shows the name in its rail.</td></tr>
+<tr><td><code>--image</code></td><td><code>ghcr.io/atoniolo76/cascade:latest</code></td><td>The public app image to boot.</td></tr>
+<tr><td><code>--from-source</code></td><td>off</td><td>Build this checkout's <code>Dockerfile</code> on Sail instead of pulling <code>--image</code>.</td></tr>
+<tr><td><code>--base-image</code></td><td><code>ubuntu:22.04</code></td><td>The Dockerfile's <code>BASE_IMAGE</code>. Only with <code>--from-source</code>.</td></tr>
 <tr><td><code>--sim-cmd</code></td><td><code>cascade worker --replay</code> on the OPT-125m H100 log</td><td><code>CASCADE_SIM_CMD</code>, the command each sim runs.</td></tr>
 <tr><td><code>--accelsim-dir</code></td><td><code>/app/tests/fixtures/accelsim</code></td><td><code>CASCADE_ACCELSIM_DIR</code>. The default holds real Accel-Sim configs but no simulator.</td></tr>
 <tr><td><code>--postprocess-cmd</code></td><td>derived from <code>--accelsim-dir</code></td><td><code>CASCADE_POSTPROCESS_CMD</code>.</td></tr>
@@ -82,8 +84,8 @@ logs:     /data/cascade-serve.log inside the sailbox</code></pre></div><div clas
 </tbody></table></div>
 
 <h2 id="what-s-in-the-image">What's in the image<a class="anchor" href="#what-s-in-the-image" aria-label="Link to this section">#</a></h2>
-<p>The <code>Dockerfile</code> builds the web UI with Node 22, then layers the app onto <code>BASE_IMAGE</code>: rclone 1.76.0, uv with Python 3.12, the app at <code>/app</code>, and the Accel-Sim configs and logs from <code>tests/fixtures</code>. The app sandbox and every sim fork run this one image. Sail doesn't run the image's <code>CMD</code>, so the script starts <code>cascade serve --sims sail</code> itself, with your <code>SAIL_API_KEY</code>, which the app needs to checkpoint and fork itself.</p>
-<p>The sandbox has auto-sleep turned off, so the app keeps running while sims report in.</p>
+<p>The <code>Dockerfile</code> builds the web UI with Node 22, then layers the app onto <code>BASE_IMAGE</code>: rclone 1.76.0, uv with Python 3.12, the app at <code>/app</code>, and the Accel-Sim configs and logs from <code>tests/fixtures</code>. CI publishes it to <code>ghcr.io/atoniolo76/cascade</code> on every push to <code>amani</code> that changes the app. The app sandbox and every sim fork run this one image. Sail doesn't run the image's <code>CMD</code>, so the deploy writes the app's settings, including your <code>SAIL_API_KEY</code>, to <code>/data/cascade.env</code> (mode 600) and starts <code>cascade serve --sims sail</code> with them.</p>
+<p>The sandbox has auto-sleep turned off, so the app keeps running while sims report in. Pause it from Manage on <a href="../start.html">Get started</a> when you aren't using it.</p>
 
 <h2 id="configuration">Configuration<a class="anchor" href="#configuration" aria-label="Link to this section">#</a></h2>
 <p><code>cascade serve</code> reads these environment variables. The table is generated from <code>cascade/settings.py</code>.</p>
@@ -94,7 +96,7 @@ logs:     /data/cascade-serve.log inside the sailbox</code></pre></div><div clas
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="concepts.html"><span>Previous</span>Concepts</a><a class="next" href="trace-a-workload.html"><span>Next</span>Trace a workload</a></nav>
     <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#before-you-deploy">Before you deploy</a></li><li class="l2"><a href="#deploy-with-a-simulator-image">Deploy with a simulator image</a></li><li class="l2"><a href="#deploy-with-the-stand-in-simulator">Deploy with the stand-in simulator</a></li><li class="l2"><a href="#what-the-script-prints">What the script prints</a></li><li class="l2"><a href="#script-flags">Script flags</a></li><li class="l2"><a href="#what-s-in-the-image">What's in the image</a></li><li class="l2"><a href="#configuration">Configuration</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#get-started-in-the-browser">Get started in the browser</a></li><li class="l2"><a href="#deploy-from-the-command-line">Deploy from the command line</a></li><li class="l2"><a href="#deploy-with-a-simulator-image">Deploy with a simulator image</a></li><li class="l2"><a href="#flags">Flags</a></li><li class="l2"><a href="#what-s-in-the-image">What's in the image</a></li><li class="l2"><a href="#configuration">Configuration</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">

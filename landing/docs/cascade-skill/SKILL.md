@@ -46,7 +46,7 @@ For a request with a JSON body, add `-X POST -H "Content-Type: application/json"
 
 Check the connection before anything else.
 
-1. `GET /api/health` needs no token. Expect `{"ok": true, "auth": true}`. Anything else means `CASCADE_URL` is wrong or the app is down. `"auth": false` means the app runs without a token check, which is fine.
+1. `GET /api/health` needs no token. Expect `"ok": true` and `"auth": true`. `workspace` names the workspace, or is `null`. Anything else means `CASCADE_URL` is wrong or the app is down. `"auth": false` means the app runs without a token check, which is fine.
 2. `GET /api/traces` with the token. A `401` means the token is wrong. Stop and ask the user to check `CASCADE_TOKEN`.
 
 The connection is good when both calls succeed.
@@ -137,10 +137,10 @@ Every route takes the bearer token except `GET /api/health`. Bodies are JSON, an
 
 ### GET /api/health
 
-Check health. Returns `{"ok": true, "auth": true}` while the app process is serving requests. `auth` is `false` only when the app runs with `CASCADE_NO_AUTH=1`, a local-dev mode where no token is needed and the web UI skips its token screen. Health does not check the database, the S3 endpoint or the launcher.
+Check health. Returns `{"ok": true, "auth": true, "workspace": ...}` while the app process is serving requests. `auth` is `false` only when the app runs with `CASCADE_NO_AUTH=1`, a local-dev mode where no token is needed and the web UI skips its token screen. `workspace` is `CASCADE_WORKSPACE`, the name the web UI shows in its rail, or `null`. Health does not check the database, the S3 endpoint or the launcher.
 
 - Auth: No token needed.
-- Returns: `200` with `{"ok": true, "auth": true}`.
+- Returns: `200` with `{"ok": true, "auth": true, "workspace": "<name or null>"}`.
 
 ### GET /api/traces
 

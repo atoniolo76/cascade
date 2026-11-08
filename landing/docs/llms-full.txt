@@ -23,11 +23,12 @@ Diagram: The profiler uploads to the app's S3 endpoint. The app forks one simula
 
 Two things are still in progress, and they change what you see.
 
-- A default deploy runs a stand-in simulator, `cascade worker --replay`, which replays a recorded Accel-Sim log instead of simulating your trace. To simulate your trace, deploy with `--base-image`, `--sim-cmd` and `--accelsim-dir` pointing at an image that has Accel-Sim built in. See [Deploy the app](deploy.html).
+- A default deploy runs a stand-in simulator, `cascade worker --replay`, which replays a recorded Accel-Sim log instead of simulating your trace. To simulate your trace, deploy with `cascade deploy --from-source --base-image`, `--sim-cmd` and `--accelsim-dir` pointing at an image that has Accel-Sim built in. See [Deploy the app](deploy.html).
 - The profiler doesn't capture real hardware timing (`real_timing.json`) yet. Until it does, the real-against-simulated comparison shows simulated time only.
 
 ## Where to go next
 
+- [Get started](../start.html): Create your own Cascade app on Sail from the browser with a workspace name and a Sail API key. No clone.
 - [Quickstart](quickstart.html): Run the app on your laptop with the stand-in simulator and finish a run in a few minutes.
 - [Concepts](concepts.html): Traces, runs, sims and GPU configs, their state machines, and how forking works.
 - [Trace a workload](trace-a-workload.html): Capture a vLLM model on a Modal H100 and stream it into your app.
@@ -39,6 +40,8 @@ Two things are still in progress, and they change what you see.
 # Quickstart
 
 Page: quickstart.html
+
+> To run Cascade on Sail without cloning anything, use [Get started](../start.html): name a workspace, paste a Sail API key, and open your app a few minutes later. This page runs the app on your laptop instead.
 
 In this quickstart, we run the Cascade app on your laptop, upload a small stand-in trace, simulate it on two copies of the `SM86_RTX3070` config, and download the results.
 
@@ -188,7 +191,7 @@ The agent can't trace a workload. Tracing runs on a real GPU under the Modal pro
    export CASCADE_TOKEN=<your token>
    ```
 
-   The URL is the one `deploy_sail.py` prints as `app:`. Locally it is `http://127.0.0.1:8000`.
+   The URL and token are the ones [Get started](../start.html) shows when your workspace is ready, or the `app:` and `token:` lines `cascade deploy` prints. Locally the URL is `http://127.0.0.1:8000`.
 
 2. **Give the agent the prompt.** Copy the [setup prompt](agents.html#the-setup-prompt) and paste it into the chat, or save it where your agent reads instructions, as [Set up your tool](agents.html#set-up-your-tool) shows.
 
@@ -250,7 +253,7 @@ For a request with a JSON body, add `-X POST -H "Content-Type: application/json"
 
 Check the connection before anything else.
 
-1. `GET /api/health` needs no token. Expect `{"ok": true, "auth": true}`. Anything else means `CASCADE_URL` is wrong or the app is down. `"auth": false` means the app runs without a token check, which is fine.
+1. `GET /api/health` needs no token. Expect `"ok": true` and `"auth": true`. `workspace` names the workspace, or is `null`. Anything else means `CASCADE_URL` is wrong or the app is down. `"auth": false` means the app runs without a token check, which is fine.
 2. `GET /api/traces` with the token. A `401` means the token is wrong. Stop and ask the user to check `CASCADE_TOKEN`.
 
 The connection is good when both calls succeed.
@@ -341,10 +344,10 @@ Every route takes the bearer token except `GET /api/health`. Bodies are JSON, an
 
 ### GET /api/health
 
-Check health. Returns `{"ok": true, "auth": true}` while the app process is serving requests. `auth` is `false` only when the app runs with `CASCADE_NO_AUTH=1`, a local-dev mode where no token is needed and the web UI skips its token screen. Health does not check the database, the S3 endpoint or the launcher.
+Check health. Returns `{"ok": true, "auth": true, "workspace": ...}` while the app process is serving requests. `auth` is `false` only when the app runs with `CASCADE_NO_AUTH=1`, a local-dev mode where no token is needed and the web UI skips its token screen. `workspace` is `CASCADE_WORKSPACE`, the name the web UI shows in its rail, or `null`. Health does not check the database, the S3 endpoint or the launcher.
 
 - Auth: No token needed.
-- Returns: `200` with `{"ok": true, "auth": true}`.
+- Returns: `200` with `{"ok": true, "auth": true, "workspace": "<name or null>"}`.
 
 ### GET /api/traces
 
@@ -811,67 +814,69 @@ The app stores every chunk, so you can download a sim's full log at any point. I
 
 Page: deploy.html
 
-`scripts/deploy_sail.py` builds the app's image, starts it in a Sail sandbox, and prints the two URLs you need: the app, and the S3 endpoint the profiler uploads to.
+A workspace is your own Cascade app in your Sail account: the Sail app `cascade-<name>` with one sandbox, `cascade-main`, that runs the app and forks a sandbox per sim. Create it from the browser, or with `cascade deploy` from a checkout.
 
-## Before you deploy
+## Get started in the browser
 
-- A [Sail](https://docs.sailresearch.com/quickstart) account and API key.
-- A Cascade token. Pick any long random string. The UI, the profiler and every sim use it.
-- For real simulation, a simulator image: a Docker image with Accel-Sim and its trace post-processor built in. Without one, the app runs the stand-in simulator.
+Open [Get started](../start.html), pick a workspace name, and paste a Sail API key from the [Sail dashboard](https://app.sailresearch.com). The page shows each step as it happens and ends with an Open my workspace link that logs you in, the token, the S3 endpoint and ready-made upload commands. Nothing to clone.
 
-## Deploy with a simulator image
+- The key creates the workspace in your Sail account. Cascade doesn't store it. It is copied into the workspace, because the app needs it to checkpoint itself and fork sims.
+- The workspace boots the published image, `ghcr.io/atoniolo76/cascade:latest`, with the stand-in simulator. Set another public image under advanced.
+- Manage, at the bottom of the page, shows a workspace's status, pauses and resumes it, and deletes it.
 
-To simulate your traces, pass the simulator image and tell the app where things are inside it.
+## Deploy from the command line
+
+`cascade deploy` does the same from a checkout. It is safe to rerun: it finds the workspace's sandbox, resumes it if it's paused, and prints the same URLs and token again.
 
 ```bash
 git clone https://github.com/atoniolo76/cascade.git
 cd cascade
 export SAIL_API_KEY=...
-export CASCADE_TOKEN=$(openssl rand -hex 24)
-uv run --extra sail python scripts/deploy_sail.py \
+uv run --extra sail cascade deploy --workspace acme-lab
+```
+
+When the app answers, it prints what you need.
+
+```text
+cascade-acme-lab: starting Cascade
+cascade-acme-lab: healthy
+sailbox:  <sailbox id>
+app:      https://<app url>
+s3:       https://<s3 url>  (bucket cascade, prefix accelsim-traces, path-style, unsigned)
+token:    <token>
+open:     https://<app url>/#token=<token>
+logs:     /data/cascade-serve.log inside the sailbox
+```
+
+| output | use it for |
+|---|---|
+| app (port 8000) | The web UI and the API. The `open:` link logs the browser in with the token. |
+| s3 (port 9000) | Pass it to the profiler as `--s3-endpoint`. Traces upload here, unsigned and path-style. |
+| token | The `CASCADE_TOKEN` for the UI, the API and your agent. Set `CASCADE_TOKEN` before the first deploy to choose it. |
+
+## Deploy with a simulator image
+
+To simulate your traces instead of replaying the stand-in, build the app on top of a simulator image and tell it where things are inside it. `--from-source` builds this checkout's `Dockerfile` on Sail, which takes a few minutes the first time.
+
+```bash
+uv run --extra sail cascade deploy --workspace acme-lab --from-source \
   --base-image <simulator-image> \
   --sim-cmd "/app/.venv/bin/cascade worker" \
   --accelsim-dir <path to accel-sim in that image>
 ```
 
-`cascade worker` runs `<accelsim-dir>/gpu-simulator/bin/release/accel-sim.out` on the trace with the sim's config. If the image keeps the post-processor somewhere other than `<accelsim-dir>/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing`, add `--postprocess-cmd`. [Bring your own simulator](simulator.html#what-the-image-needs) lists what the image needs.
-
-## Deploy with the stand-in simulator
-
-Leave the three flags out to try the UI and the API first.
-
-```bash
-uv run --extra sail python scripts/deploy_sail.py
-```
+`cascade worker` runs `<accelsim-dir>/gpu-simulator/bin/release/accel-sim.out` on the trace with the sim's config. If the image keeps the post-processor somewhere other than `<accelsim-dir>/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing`, add `--postprocess-cmd`. [Bring your own simulator](simulator.html#what-the-image-needs) lists what the image needs. The simulator settings are written once, when the workspace is first created. To change them, delete the workspace and deploy again.
 
 > Without `--base-image`, `--sim-cmd` and `--accelsim-dir`, every sim runs `cascade worker --replay`, which replays a real Accel-Sim run of `facebook/opt-125m` on SM90_H100 (20 vLLM kernels, from `results/20261108-021007-opt125m-h100-accelsim/`). It doesn't simulate your trace, and its numbers are the same for every trace. The image is plain `ubuntu:22.04`, so it has no post-processor. Upload traces that already contain `traces/kernelslist.g`, or they fail in `processing`.
 
-## What the script prints
-
-The script builds the image if needed, creates the sandbox, starts `cascade serve` in it, and waits for the app's port.
-
-```text
-creating sailbox 'cascade-main' in app 'cascade' (builds the image if needed)
-sailbox:  <sailbox id>
-app:      https://<app url>
-s3:       https://<s3 url>  (bucket cascade, prefix accelsim-traces, path-style, unsigned)
-logs:     /data/cascade-serve.log inside the sailbox
-```
-
-| url | use it for |
-|---|---|
-| app (port 8000) | Open it in a browser and paste your token. The same URL serves the API. |
-| s3 (port 9000) | Pass it to the profiler as `--s3-endpoint`. Traces upload here, unsigned and path-style. |
-
-If `CASCADE_TOKEN` isn't set, the script makes one and prints it as `token:`. Save it, because the app accepts nothing else.
-
-## Script flags
+## Flags
 
 | flag | default | what it sets |
 |---|---|---|
-| `--app` | `cascade` | The Sail app to create the sandbox in. The script creates it if it doesn't exist. |
-| `--name` | `cascade-main` | The app sandbox's name. |
-| `--base-image` | `ubuntu:22.04` | The Dockerfile's `BASE_IMAGE`, the image the app is layered on. |
+| `--workspace` | required | 3 to 32 lowercase letters, digits and hyphens. The Sail app is `cascade-<workspace>`, and the UI shows the name in its rail. |
+| `--image` | `ghcr.io/atoniolo76/cascade:latest` | The public app image to boot. |
+| `--from-source` | off | Build this checkout's `Dockerfile` on Sail instead of pulling `--image`. |
+| `--base-image` | `ubuntu:22.04` | The Dockerfile's `BASE_IMAGE`. Only with `--from-source`. |
 | `--sim-cmd` | `cascade worker --replay` on the OPT-125m H100 log | `CASCADE_SIM_CMD`, the command each sim runs. |
 | `--accelsim-dir` | `/app/tests/fixtures/accelsim` | `CASCADE_ACCELSIM_DIR`. The default holds real Accel-Sim configs but no simulator. |
 | `--postprocess-cmd` | derived from `--accelsim-dir` | `CASCADE_POSTPROCESS_CMD`. |
@@ -879,9 +884,9 @@ If `CASCADE_TOKEN` isn't set, the script makes one and prints it as `token:`. Sa
 
 ## What's in the image
 
-The `Dockerfile` builds the web UI with Node 22, then layers the app onto `BASE_IMAGE`: rclone 1.76.0, uv with Python 3.12, the app at `/app`, and the Accel-Sim configs and logs from `tests/fixtures`. The app sandbox and every sim fork run this one image. Sail doesn't run the image's `CMD`, so the script starts `cascade serve --sims sail` itself, with your `SAIL_API_KEY`, which the app needs to checkpoint and fork itself.
+The `Dockerfile` builds the web UI with Node 22, then layers the app onto `BASE_IMAGE`: rclone 1.76.0, uv with Python 3.12, the app at `/app`, and the Accel-Sim configs and logs from `tests/fixtures`. CI publishes it to `ghcr.io/atoniolo76/cascade` on every push to `amani` that changes the app. The app sandbox and every sim fork run this one image. Sail doesn't run the image's `CMD`, so the deploy writes the app's settings, including your `SAIL_API_KEY`, to `/data/cascade.env` (mode 600) and starts `cascade serve --sims sail` with them.
 
-The sandbox has auto-sleep turned off, so the app keeps running while sims report in.
+The sandbox has auto-sleep turned off, so the app keeps running while sims report in. Pause it from Manage on [Get started](../start.html) when you aren't using it.
 
 ## Configuration
 
@@ -1343,7 +1348,7 @@ Anything your command prints to stdout or stderr is also saved to `$CASCADE_DATA
 
 Page: api.html
 
-Everything the UI does goes through this HTTP API. It serves JSON over the app's URL, the one `deploy_sail.py` prints as `app:`.
+Everything the UI does goes through this HTTP API. It serves JSON over the app's URL, the one [Get started](../start.html) opens, which `cascade deploy` prints as `app:`.
 
 > Every response on these pages was captured from a running server, by `landing/docs-src/capture_examples.py`. The sims in that run replayed a recorded Accel-Sim log of BabelStream on an RTX 3070, so the cycles, IPC and kernel names come from that log, not from the uploaded trace. That's also why a finished sim shows `kernels_done` 6 against `kernels_total` 4: the log has six kernels and the uploaded trace has four. Long lists and maps are trimmed, and each cut is marked with a `/* ... trimmed */` comment.
 
@@ -1410,11 +1415,11 @@ Any other path under `/api/` returns `404` with `{"detail": "Not Found"}`, witho
 
 `GET /api/health` (no auth)
 
-Returns `{"ok": true, "auth": true}` while the app process is serving requests. `auth` is `false` only when the app runs with `CASCADE_NO_AUTH=1`, a local-dev mode where no token is needed and the web UI skips its token screen. Health does not check the database, the S3 endpoint or the launcher.
+Returns `{"ok": true, "auth": true, "workspace": ...}` while the app process is serving requests. `auth` is `false` only when the app runs with `CASCADE_NO_AUTH=1`, a local-dev mode where no token is needed and the web UI skips its token screen. `workspace` is `CASCADE_WORKSPACE`, the name the web UI shows in its rail, or `null`. Health does not check the database, the S3 endpoint or the launcher.
 
 ### Returns
 
-`200` with `{"ok": true, "auth": true}`.
+`200` with `{"ok": true, "auth": true, "workspace": "<name or null>"}`.
 
 ### Example
 
@@ -1442,7 +1447,8 @@ Response · 200 OK · application/json:
 ```json
 {
   "ok": true,
-  "auth": true
+  "auth": true,
+  "workspace": "acme-lab"
 }
 ```
 
@@ -4532,7 +4538,7 @@ You're running the older profiler at the root of the app branch. Use `accelsim_t
 
 ## The token is rejected
 
-Use the exact `CASCADE_TOKEN` the app was started with. If you deployed without setting one, `deploy_sail.py` printed the one it made as `token:`. Check for a trailing newline or space if you pasted it.
+Use the exact `CASCADE_TOKEN` the app was started with. If you deployed without setting one, rerun `cascade deploy --workspace <name>` (or create the same workspace again on [Get started](../start.html)). It finds the running workspace and prints its token again. Check for a trailing newline or space if you pasted it.
 
 ## A config is disabled or the run gets 422
 

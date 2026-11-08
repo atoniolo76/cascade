@@ -26,7 +26,7 @@ description: Fixes for traces stuck uploading or failing, rejected tokens, disab
 <p>You're running the older profiler at the root of the app branch. Use `accelsim_trace.py` from the `validate-accelsim-modal` branch, commit `b348d7d`.</p>
 
 <h2>The token is rejected</h2>
-<p>Use the exact `CASCADE_TOKEN` the app was started with. If you deployed without setting one, `deploy_sail.py` printed the one it made as `token:`. Check for a trailing newline or space if you pasted it.</p>
+<p>Use the exact `CASCADE_TOKEN` the app was started with. If you deployed without setting one, rerun `cascade deploy --workspace <name>` (or create the same workspace again on [Get started](../start.html)). It finds the running workspace and prints its token again. Check for a trailing newline or space if you pasted it.</p>
 
 <h2>A config is disabled or the run gets 422</h2>
 <p>The config's architecture differs from the trace's `trace_gpu_arch`. A trace only runs on configs of the GPU architecture it was captured on, so trace on that GPU instead. If a config you expect isn't listed at all, check that its `gpgpusim.config` is under `$CASCADE_ACCELSIM_DIR/gpu-simulator/gpgpu-sim/configs/tested-cfgs/` and has a `-gpgpu_clock_domains` line, then restart the app.</p>

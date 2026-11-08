@@ -41,7 +41,7 @@ For a request with a JSON body, add `-X POST -H "Content-Type: application/json"
 
 Check the connection before anything else.
 
-1. `GET /api/health` needs no token. Expect `{"ok": true, "auth": true}`. Anything else means `CASCADE_URL` is wrong or the app is down. `"auth": false` means the app runs without a token check, which is fine.
+1. `GET /api/health` needs no token. Expect `"ok": true` and `"auth": true`. `workspace` names the workspace, or is `null`. Anything else means `CASCADE_URL` is wrong or the app is down. `"auth": false` means the app runs without a token check, which is fine.
 2. `GET /api/traces` with the token. A `401` means the token is wrong. Stop and ask the user to check `CASCADE_TOKEN`.
 
 The connection is good when both calls succeed.

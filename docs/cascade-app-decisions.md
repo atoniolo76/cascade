@@ -111,7 +111,7 @@ Superseded 2026-11-07: per-kernel real-vs-simulated comparison is now in scope (
 ## Defaults (not separately discussed)
 
 - State lives in SQLite at `/data/cascade.db` on main's local disk.
-- A `scripts/deploy_sail.py` creates the main sailbox from the image, sets env/secrets, and exposes ports 8000 (app) and 9000 (rclone S3).
+- ~~A `scripts/deploy_sail.py` creates the main sailbox from the image, sets env/secrets, and exposes ports 8000 (app) and 9000 (rclone S3).~~ Superseded 2026-11-07 by `cascade deploy` and the Get started page (see Self-serve onboarding).
 - The sim command is configurable (`CASCADE_SIM_CMD`). `cascade worker --replay <log>` replays a real Accel-Sim log against the API for local dev, and `cascade worker` runs real Accel-Sim.
 
 ## Lost sims
@@ -135,3 +135,15 @@ Ownership change: Amani now also owns the simulator *process* (`cascade worker`)
   - Both stream log chunks and heartbeats to main and stop on a cancel ack (the contract in docs/api.md).
 - Step timing: if the trace dir holds `corrected_timeline.json` (from the profiler's phases run) and `kernel_mapping.json` (uid/name/repeat/step/seq), the worker runs Alessio's importer and `simulate`, plus `compare` against the corrected timeline, and posts the result to main. Otherwise it skips that step. Building the mapping automatically stays Alessio's.
 - Contract additions: `TraceSummary.has_step_timeline`, `POST /api/sims/{id}/step-timeline` (worker → main), `GET /api/runs/{id}/step-timelines`.
+
+## Self-serve onboarding (2026-11-07)
+
+A visitor gets their own running app from the landing site's Get started page (`landing/start.html`) with a workspace name and a Sail API key. No clone.
+
+- A workspace is the Sail app `cascade-<name>` (3-32 lowercase letters, digits, hyphens) holding one sailbox, `cascade-main`, with ingress 8000 and 9000 and auto-sleep off. `/api/health` returns `CASCADE_WORKSPACE` and the UI shows it in the rail.
+- One module, `cascade/deploy.py`, does every lifecycle step: `advance` (one bounded step toward healthy), `deploy_workspace` (loops `advance`), `workspace_status`, `pause`, `resume`, `delete`. `cascade deploy` and the Vercel function `landing/api/workspaces.py` both call it. It imports only `sail` and the standard library, and the docs build copies it to `landing/api/_cascade_deploy.py` because Vercel deploys `landing/` alone. A test fails when the copy drifts. `scripts/deploy_sail.py` is deleted.
+- Idempotent: every call reads state from Sail. An existing sailbox is reused and resumed if paused, never duplicated. The app's settings are written once to `/data/cascade.env` (mode 600, linked into place so a concurrent writer can't replace the token), and `cascade serve` is started only when its pid file doesn't name a live `cascade serve`. A rerun recovers the token by sourcing that file and running `printenv CASCADE_TOKEN` in the sailbox. A paused sailbox resumes with its processes. One that comes back cold gets `cascade serve` restarted from the same file.
+- Trust model for the key: the browser keeps it in JS memory only (never localStorage) and sends it over HTTPS in a POST body on each call. The function sets it as `SAIL_API_KEY` for that one call (calls in one process take turns behind a lock) and removes it afterwards. Nothing logs bodies, and every error message is scrubbed of the key and token. The key is copied into the workspace, because `SailLauncher` checkpoints main and forks sims with it, so it also sits on the disk that sims fork from. Sail Secrets can't carry it: in SDK 0.17.2 a Secret is only inserted into egress HTTPS requests by an egress policy, not into an exec's env, so the key goes into the env file instead.
+- Polling: Vercel functions are time-limited, so the page calls `deploy` repeatedly (the key re-sent from memory) and each call does one step. An image build gives up after 25 s and the next call picks it up. `Sailbox.create` blocks until the sandbox runs, so the call that creates it returns right after.
+- Image source: `.github/workflows/image.yml` builds the `Dockerfile` for linux/amd64 and pushes `ghcr.io/atoniolo76/cascade:latest` and `:<short sha>` on pushes to `amani` that touch the app. Sail pulls only public images in SDK 0.17.2, so the package must be public. Sail pins a tag to a digest per organization on first use, so a workspace created later can keep an older `:latest` until someone force-builds it; pass a `:<sha>` tag under advanced to pick a version. `cascade deploy --from-source` still builds the Dockerfile on Sail, for simulator images.
+- Delete terminates every sailbox in the workspace's app (main and sim forks) and deletes its checkpoints. Sail has no API to delete an app; an empty app costs nothing.

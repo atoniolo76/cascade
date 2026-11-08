@@ -57,7 +57,7 @@
 <ol class="steps">
 <li><strong>Put the app's URL and token in the agent's environment.</strong> Run this in the terminal you start the agent from, then start the agent. The prompt tells the agent to read the token from <code>$CASCADE_TOKEN</code> and never print it.
 <div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>export CASCADE_URL=https://&lt;your-app&gt;
-export CASCADE_TOKEN=&lt;your token&gt;</code></pre></div><p>The URL is the one <code>deploy_sail.py</code> prints as <code>app:</code>. Locally it is <code>http://127.0.0.1:8000</code>.</p>
+export CASCADE_TOKEN=&lt;your token&gt;</code></pre></div><p>The URL and token are the ones <a href="../start.html">Get started</a> shows when your workspace is ready, or the <code>app:</code> and <code>token:</code> lines <code>cascade deploy</code> prints. Locally the URL is <code>http://127.0.0.1:8000</code>.</p>
 </li>
 <li><strong>Give the agent the prompt.</strong> Copy the <a href="#the-setup-prompt">setup prompt</a> and paste it into the chat, or save it where your agent reads instructions, as <a href="#set-up-your-tool">Set up your tool</a> shows.</li>
 <li><strong>Ask for what you want.</strong> For example:
@@ -111,7 +111,7 @@ For a request with a JSON body, add `-X POST -H "Content-Type: application/json"
 
 Check the connection before anything else.
 
-1. `GET /api/health` needs no token. Expect `{"ok": true, "auth": true}`. Anything else means `CASCADE_URL` is wrong or the app is down. `"auth": false` means the app runs without a token check, which is fine.
+1. `GET /api/health` needs no token. Expect `"ok": true` and `"auth": true`. `workspace` names the workspace, or is `null`. Anything else means `CASCADE_URL` is wrong or the app is down. `"auth": false` means the app runs without a token check, which is fine.
 2. `GET /api/traces` with the token. A `401` means the token is wrong. Stop and ask the user to check `CASCADE_TOKEN`.
 
 The connection is good when both calls succeed.
@@ -202,10 +202,10 @@ Every route takes the bearer token except `GET /api/health`. Bodies are JSON, an
 
 ### GET /api/health
 
-Check health. Returns `{"ok": true, "auth": true}` while the app process is serving requests. `auth` is `false` only when the app runs with `CASCADE_NO_AUTH=1`, a local-dev mode where no token is needed and the web UI skips its token screen. Health does not check the database, the S3 endpoint or the launcher.
+Check health. Returns `{"ok": true, "auth": true, "workspace": ...}` while the app process is serving requests. `auth` is `false` only when the app runs with `CASCADE_NO_AUTH=1`, a local-dev mode where no token is needed and the web UI skips its token screen. `workspace` is `CASCADE_WORKSPACE`, the name the web UI shows in its rail, or `null`. Health does not check the database, the S3 endpoint or the launcher.
 
 - Auth: No token needed.
-- Returns: `200` with `{"ok": true, "auth": true}`.
+- Returns: `200` with `{"ok": true, "auth": true, "workspace": "&lt;name or null&gt;"}`.
 
 ### GET /api/traces
 

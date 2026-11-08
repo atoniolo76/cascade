@@ -34,7 +34,7 @@
   <main id="content" class="content">
     <p class="eyebrow">API reference</p>
     <h1>API overview and auth</h1>
-<p class="lede">Everything the UI does goes through this HTTP API. It serves JSON over the app's URL, the one <code>deploy_sail.py</code> prints as <code>app:</code>.</p>
+<p class="lede">Everything the UI does goes through this HTTP API. It serves JSON over the app's URL, the one <a href="../start.html">Get started</a> opens, which <code>cascade deploy</code> prints as <code>app:</code>.</p>
 
 <div class="note"><p>Every response on these pages was captured from a running server, by <code>landing/docs-src/capture_examples.py</code>. The sims in that run replayed a recorded Accel-Sim log of BabelStream on an RTX 3070, so the cycles, IPC and kernel names come from that log, not from the uploaded trace. That's also why a finished sim shows <code>kernels_done</code> 6 against <code>kernels_total</code> 4: the log has six kernels and the uploaded trace has four. Long lists and maps are trimmed, and each cut is marked with a <code>/* ... trimmed */</code> comment.</p></div>
 
@@ -67,8 +67,8 @@ export CASCADE_TOKEN=&lt;your token&gt;</code></pre></div><p>Locally, the app's 
 
 <section class="endpoint"><h2 id="health">Check health<a class="anchor" href="#health" aria-label="Link to this section">#</a></h2>
 <div class="route"><span class="method get">GET</span><span class="path">/api/health</span><span class="auth">no auth</span></div>
-<p>Returns <code>{"ok": true, "auth": true}</code> while the app process is serving requests. <code>auth</code> is <code>false</code> only when the app runs with <code>CASCADE_NO_AUTH=1</code>, a local-dev mode where no token is needed and the web UI skips its token screen. Health does not check the database, the S3 endpoint or the launcher.</p>
-<h3 id="returns">Returns<a class="anchor" href="#returns" aria-label="Link to this section">#</a></h3><p><code>200</code> with <code>{"ok": true, "auth": true}</code>.</p>
+<p>Returns <code>{"ok": true, "auth": true, "workspace": ...}</code> while the app process is serving requests. <code>auth</code> is <code>false</code> only when the app runs with <code>CASCADE_NO_AUTH=1</code>, a local-dev mode where no token is needed and the web UI skips its token screen. <code>workspace</code> is <code>CASCADE_WORKSPACE</code>, the name the web UI shows in its rail, or <code>null</code>. Health does not check the database, the S3 endpoint or the launcher.</p>
+<h3 id="returns">Returns<a class="anchor" href="#returns" aria-label="Link to this section">#</a></h3><p><code>200</code> with <code>{"ok": true, "auth": true, "workspace": "&lt;name or null&gt;"}</code>.</p>
 <h3 id="example">Example<a class="anchor" href="#example" aria-label="Link to this section">#</a></h3>
 <div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/health"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
@@ -80,7 +80,8 @@ resp.raise_for_status()
 console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
 <div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"ok"</span>: <span class="tk-l">true</span>,
-  <span class="tk-k">"auth"</span>: <span class="tk-l">true</span>
+  <span class="tk-k">"auth"</span>: <span class="tk-l">true</span>,
+  <span class="tk-k">"workspace"</span>: <span class="tk-s">"acme-lab"</span>
 }</code></pre></div>
 </section>
 

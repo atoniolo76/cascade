@@ -140,8 +140,13 @@ window.DOCS_INDEX = [
 "g": "Guides"
 },
 {
-"t": "Before you deploy",
-"u": "deploy.html#before-you-deploy",
+"t": "Get started in the browser",
+"u": "deploy.html#get-started-in-the-browser",
+"g": "Deploy the app"
+},
+{
+"t": "Deploy from the command line",
+"u": "deploy.html#deploy-from-the-command-line",
 "g": "Deploy the app"
 },
 {
@@ -150,18 +155,8 @@ window.DOCS_INDEX = [
 "g": "Deploy the app"
 },
 {
-"t": "Deploy with the stand-in simulator",
-"u": "deploy.html#deploy-with-the-stand-in-simulator",
-"g": "Deploy the app"
-},
-{
-"t": "What the script prints",
-"u": "deploy.html#what-the-script-prints",
-"g": "Deploy the app"
-},
-{
-"t": "Script flags",
-"u": "deploy.html#script-flags",
+"t": "Flags",
+"u": "deploy.html#flags",
 "g": "Deploy the app"
 },
 {
