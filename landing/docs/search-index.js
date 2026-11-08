@@ -170,38 +170,18 @@ window.DOCS_INDEX = [
 "g": "Guides"
 },
 {
-"t": "Set up Modal",
-"u": "trace-a-workload.html#set-up-modal",
+"t": "Run and download",
+"u": "trace-a-workload.html#run-and-download",
 "g": "Trace a workload"
 },
 {
-"t": "Pick the layers",
-"u": "trace-a-workload.html#pick-the-layers",
+"t": "Legacy streaming into Cascade",
+"u": "trace-a-workload.html#legacy-streaming-into-cascade",
 "g": "Trace a workload"
 },
 {
-"t": "Trace and stream",
-"u": "trace-a-workload.html#trace-and-stream",
-"g": "Trace a workload"
-},
-{
-"t": "What gets uploaded",
-"u": "trace-a-workload.html#what-gets-uploaded",
-"g": "Trace a workload"
-},
-{
-"t": "Profiler flags",
-"u": "trace-a-workload.html#profiler-flags",
-"g": "Trace a workload"
-},
-{
-"t": "Upload a trace you already have",
-"u": "trace-a-workload.html#upload-a-trace-you-already-have",
-"g": "Trace a workload"
-},
-{
-"t": "Profile, trace and simulate in your own Modal app",
-"u": "trace-a-workload.html#profile-trace-and-simulate-in-your-own-modal-app",
+"t": "Upload a legacy trace you already have",
+"u": "trace-a-workload.html#upload-a-legacy-trace-you-already-have",
 "g": "Trace a workload"
 },
 {

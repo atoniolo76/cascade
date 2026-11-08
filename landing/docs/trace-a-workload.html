@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trace a workload · Cascade docs</title>
-<meta name="description" content="Trace a vLLM model on a Modal H100 with Accel-Sim&#x27;s NVBit tracer and stream the trace into your Cascade app over S3.">
+<meta name="description" content="Profile a vLLM workload in your own Modal app, collect selected NVBit traces, and download the run or upload it to S3-compatible storage.">
 <meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -34,63 +34,7 @@
   <main id="content" class="content">
     <p class="eyebrow">Guides</p>
     <h1>Trace a workload</h1>
-<p class="lede">The profiler, <code>accelsim_trace.py</code>, runs a vLLM model on a Modal H100 under Accel-Sim's NVBit tracer and uploads each kernel's trace to your app's S3 endpoint as soon as that kernel finishes.</p>
-
-<div class="note"><p>Use the streaming profiler from the <code>validate-accelsim-modal</code> branch (<code>accelsim_trace.py</code> at commit <code>b348d7d</code>). The copy at the root of the app branch is an older version that saves to a Modal Volume and has no <code>--s3-*</code> flags.</p></div>
-
-<h2 id="set-up-modal">Set up Modal<a class="anchor" href="#set-up-modal" aria-label="Link to this section">#</a></h2>
-<p>The profiler runs on <a href="https://modal.com" target="_blank" rel="noopener">Modal</a>. Install the client and log in once.</p>
-<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>pip install modal
-modal setup</code></pre></div><p>The first run builds an image with NVBit, the tracer and vLLM, which takes a while. Later runs reuse it.</p>
-
-<h2 id="pick-the-layers">Pick the layers<a class="anchor" href="#pick-the-layers" aria-label="Link to this section">#</a></h2>
-<p>Tracing every instruction is slow, so trace one or a few layers, not the whole model. List the layer names first.</p>
-<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>modal run accelsim_trace.py --model facebook/opt-125m --list-layers</code></pre></div>
-<h2 id="trace-and-stream">Trace and stream<a class="anchor" href="#trace-and-stream" aria-label="Link to this section">#</a></h2>
-<p>Pass the S3 endpoint that <a href="deploy.html">Deploy the app</a> printed. The bucket is <code>cascade</code> and the endpoint needs path-style addressing.</p>
-<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>modal run accelsim_trace.py \
-  --model facebook/opt-125m \
-  --layers model.decoder.layers.10.self_attn \
-  --prompt <span class="tk-s">"Hello, my name is"</span> \
-  --max-tokens 4 \
-  --s3-endpoint https://&lt;your-s3-endpoint&gt; \
-  --s3-bucket cascade \
-  --s3-addressing-style path</code></pre></div><p>Before it starts tracing, the profiler checks that the bucket is reachable and stops if it isn't. When it finishes, it prints where the trace went.</p>
-<div class="code"><div class="code-bar"><span>text</span><button class="copy" type="button">Copy</button></div><pre><code>Done. Traces at s3://cascade/accelsim-traces/&lt;run name&gt;</code></pre></div>
-<h2 id="what-gets-uploaded">What gets uploaded<a class="anchor" href="#what-gets-uploaded" aria-label="Link to this section">#</a></h2>
-<p>The tracer writes one <code>kernel-&lt;N&gt;-ctx_&lt;0x..&gt;.trace.xz</code> file per kernel and closes it before the next kernel starts. A background thread uploads each closed file and deletes it locally, so the Modal container only ever holds the kernel being traced plus any upload backlog.</p>
-<p>After tracing ends, the profiler uploads the rest of the run: the logs, <code>metadata.json</code>, <code>spinlock_detection/spinlock_instructions.txt</code>, <code>traces/kernelslist_ctx_*</code> and <code>traces/stats_ctx_*</code>. It goes in sorted path order, so <code>metadata.json</code> arrives before the <code>traces/</code> files. It uploads them even when tracing failed, so a partial run is as complete as it can be. Everything lands under <code>s3://cascade/accelsim-traces/&lt;run name&gt;/</code>.</p>
-<p><code>metadata.json</code> holds <code>model</code>, <code>layers</code>, <code>prompts</code>, <code>max_tokens</code>, <code>max_model_len</code>, <code>spinlock_handling</code>, <code>status</code> (<code>ok</code> or <code>failed</code>), <code>gpu</code> (from <code>nvidia-smi</code>), <code>accelsim_commit</code>, and upload counts. It doesn't set <code>trace_gpu_arch</code>, so the app uses its default <code>sm_90</code>, which is right for an H100.</p>
-<p>The profiler doesn't post-process. The app runs Accel-Sim's post-processor once the upload is complete. See <a href="traces.html">Traces</a>.</p>
-
-<h2 id="profiler-flags">Profiler flags<a class="anchor" href="#profiler-flags" aria-label="Link to this section">#</a></h2>
-<div class="table-wrap"><table class="table"><thead><tr><th>flag</th><th>default</th><th>what it sets</th></tr></thead><tbody>
-<tr><td><code>--model</code></td><td><code>facebook/opt-125m</code></td><td>The Hugging Face model vLLM loads.</td></tr>
-<tr><td><code>--layers</code></td><td><code>model.decoder.layers.10.self_attn</code></td><td>Comma-separated module names to trace.</td></tr>
-<tr><td><code>--prompt</code></td><td><code>Hello, my name is</code></td><td>The one prompt to generate from.</td></tr>
-<tr><td><code>--max-tokens</code></td><td>4</td><td>Tokens to generate. Each token is another forward pass to trace.</td></tr>
-<tr><td><code>--max-model-len</code></td><td>2048</td><td>vLLM's <code>max_model_len</code>.</td></tr>
-<tr><td><code>--run-name</code></td><td>time, model and layers</td><td>The trace's id in Cascade. The default looks like <code>20261107-120000__facebook_opt-125m__model.decoder.layers.10.self_attn</code>.</td></tr>
-<tr><td><code>--list-layers</code></td><td>off</td><td>Print layer names and exit without tracing.</td></tr>
-<tr><td><code>--spinlock-handling</code></td><td><code>mark_region</code></td><td><code>mark_region</code>, <code>fast_forward</code> or <code>none</code>. Any mode but <code>none</code> first runs Accel-Sim's two-pass spinlock detection.</td></tr>
-<tr><td><code>--s3-endpoint</code></td><td>none</td><td>Your app's S3 endpoint.</td></tr>
-<tr><td><code>--s3-bucket</code></td><td>none, required</td><td>Use <code>cascade</code>.</td></tr>
-<tr><td><code>--s3-prefix</code></td><td><code>accelsim-traces</code></td><td>Must match the app's <code>CASCADE_S3_PREFIX</code>.</td></tr>
-<tr><td><code>--s3-region</code></td><td><code>auto</code></td><td>Region name for the S3 client.</td></tr>
-<tr><td><code>--s3-addressing-style</code></td><td><code>auto</code></td><td>Use <code>path</code> for the Cascade endpoint.</td></tr>
-</tbody></table></div>
-<p>The Modal function has 8 CPUs, 64 GiB of memory and 512 GiB of scratch disk, and times out after 4 hours. Tracing stops after 3.5 hours to leave time for uploads to drain.</p>
-
-<h2 id="upload-a-trace-you-already-have">Upload a trace you already have<a class="anchor" href="#upload-a-trace-you-already-have" aria-label="Link to this section">#</a></h2>
-<p><code>scripts/upload_trace.py</code> uploads a local directory with the same client settings as the profiler and sends <code>metadata.json</code> last, with <code>status</code> and a <code>files</code> list. Use <code>--meta key=value</code> to add fields such as <code>trace_gpu_arch</code> for a trace from another GPU. Values are strings.</p>
-<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>uv run python scripts/upload_trace.py ./my-run --run-name my-run \
-  --endpoint https://&lt;your-s3-endpoint&gt; --meta trace_gpu_arch=sm_80</code></pre></div><p>Add <code>--status failed</code> to mark the upload as failed. The app then marks the trace <code>failed</code> without processing it.</p>
-
-<h2 id="profile-trace-and-simulate-in-your-own-modal-app">Profile, trace and simulate in your own Modal app<a class="anchor" href="#profile-trace-and-simulate-in-your-own-modal-app" aria-label="Link to this section">#</a></h2>
-<p>See the <a href="sample-analysis-opt125m.html">OPT-125m sample analysis</a> for measured pipeline costs, kernel and request replay errors, coverage, and limitations of an existing run.</p>
-<p>Install with <code>pip install "git+https://github.com/atoniolo76/cascade@profiler"</code>, using Python 3.12 locally because <code>register()</code> uses serialized Modal functions.</p>
-<p><code>prof.profile</code> runs on GPU: baseline (no profiler), nsys capture, then NVBit tracing of the chosen steps, writing <code>corrected_timeline.json</code> and <code>trace_alignment.json</code>.</p>
-<p><code>prof.simulate</code> runs Accel-Sim on CPU and writes <code>sim_durations.json</code>.</p>
+<p class="lede">Profile GPU timings and selected NVBit steps in your own Modal app; the package does not run CPU simulation.</p>
 <div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-c"># app.py</span>
 <span class="tk-k">import</span> modal
 <span class="tk-k">from</span> cascade_profiler <span class="tk-k">import</span> Workload, register
@@ -104,13 +48,44 @@ prof = register(app, runs, gpu=<span class="tk-s">"H100!"</span>, hf_cache=hf)
 <span class="tk-k">def</span> main():
     wl = Workload(<span class="tk-s">"facebook/opt-125m"</span>, [<span class="tk-s">"Hello, my name is"</span>], max_tokens=32, repeats=4)
     run = prof.profile.remote(wl.to_dict(), trace_steps=[0, 5])   <span class="tk-c"># GPU: baseline -&gt; nsys -&gt; NVBit on steps 0,5</span>
-    sim = prof.simulate.remote(run[<span class="tk-s">"run_name"</span>], verify_dedup=2)    <span class="tk-c"># CPU: Accel-Sim on the traced kernels</span>
-    <span class="tk-k">print</span>(run[<span class="tk-s">"run_name"</span>], run[<span class="tk-s">"stage_wall_s"</span>], sim[<span class="tk-s">"coverage"</span>])</code></pre></div><p>Run with <code>modal run app.py</code>, then download with <code>modal volume get my-profiler-runs &lt;run_name&gt; ./&lt;run_name&gt;</code>.</p>
+    <span class="tk-k">print</span>(run[<span class="tk-s">"run_name"</span>], run[<span class="tk-s">"stage_wall_s"</span>])
+    <span class="tk-k">print</span>(<span class="tk-s">f"modal volume get my-profiler-runs {run['run_name']} ./{run['run_name']}"</span>)</code></pre></div>
+<p>Optional S3 output: replace the registration above with:</p>
+<div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code>prof = register(app, runs, gpu=<span class="tk-s">"H100!"</span>, hf_cache=hf,
+    s3={<span class="tk-s">"endpoint"</span>: <span class="tk-s">"https://s3.example.com"</span>, <span class="tk-s">"bucket"</span>: <span class="tk-s">"my-runs"</span>, <span class="tk-s">"prefix"</span>: <span class="tk-s">"profiles"</span>,
+        <span class="tk-s">"region"</span>: <span class="tk-s">"auto"</span>, <span class="tk-s">"addressing_style"</span>: <span class="tk-s">"path"</span>},
+    secrets=[modal.Secret.from_name(<span class="tk-s">"my-s3-credentials"</span>)])</code></pre></div><p>Put <code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code> and optionally <code>AWS_SESSION_TOKEN</code> in that app-owned secret or the GPU runtime environment, never in destination options or files. The finished run uploads to <code>s3://my-runs/profiles/&lt;run_name&gt;/</code>, retaining the volume copy; <code>run.json</code> and <code>traced/metadata.json</code> record the destination and URI.</p>
+
+<h2 id="run-and-download">Run and download<a class="anchor" href="#run-and-download" aria-label="Link to this section">#</a></h2>
+<p>Use Python 3.12 locally: <code>register()</code> serializes Modal functions, so client and container Python minor versions must match.</p>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>pip install <span class="tk-s">"cascade-profiler[modal] @ git+https://github.com/atoniolo76/cascade@profiler"</span>
+modal setup
+modal run app.py</code></pre></div><p>The example prints the <code>modal volume get</code> command to download the run. The first invocation builds the GPU image; later runs reuse it.</p>
+<p>The GPU function runs baseline (no profiler), nsys capture, then NVBit tracing of the selected steps. Outputs include <code>corrected_timeline.json</code>, <code>trace_alignment.json</code> and <code>traced/traces/</code>; traced-run timings are not used for reconciliation. S3 uploads happen at the end, with <code>run.json</code> last; <code>keep_nsys_rep=True</code> is rejected with S3 output to avoid exporting an unscrubbed environment capture.</p>
+<p>See the <a href="sample-analysis-opt125m.html">OPT-125m sample analysis</a> for measured costs, replay errors and limitations; its CPU simulation uses our own tooling, not the profiling package.</p>
+
+<h2 id="legacy-streaming-into-cascade">Legacy streaming into Cascade<a class="anchor" href="#legacy-streaming-into-cascade" aria-label="Link to this section">#</a></h2>
+<p>For the app's streaming trace layout, use <code>accelsim_trace.py</code> from <code>validate-accelsim-modal</code> (commit <code>b348d7d</code>), not the package example above. Pass the endpoint from <a href="deploy.html">Deploy the app</a>: bucket <code>cascade</code>, path-style addressing.</p>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>modal run accelsim_trace.py --model facebook/opt-125m --list-layers
+modal run accelsim_trace.py \
+  --model facebook/opt-125m \
+  --layers model.decoder.layers.10.self_attn \
+  --prompt <span class="tk-s">"Hello, my name is"</span> \
+  --max-tokens 4 \
+  --s3-endpoint https://&lt;your-s3-endpoint&gt; \
+  --s3-bucket cascade \
+  --s3-addressing-style path</code></pre></div><p>Choose layer paths from <code>--list-layers</code>. <code>--s3-prefix</code> defaults to <code>accelsim-traces</code> and must match the app's <code>CASCADE_S3_PREFIX</code>; <code>--s3-region</code> defaults to <code>auto</code>. Use <code>--run-name</code> for an explicit identifier. <code>--spinlock-handling</code> defaults to <code>mark_region</code>; alternatives are <code>fast_forward</code> and <code>none</code>.</p>
+<p>This legacy CLI checks bucket access before tracing, streams closed kernel files and deletes the local copies. It also uploads logs, spinlock data and <code>metadata.json</code>, including on failure, under <code>s3://cascade/accelsim-traces/&lt;run_name&gt;/</code>. The app post-processes this layout; see <a href="traces.html">Traces</a>. Package uploads instead retain the full profiling run layout.</p>
+
+<h2 id="upload-a-legacy-trace-you-already-have">Upload a legacy trace you already have<a class="anchor" href="#upload-a-legacy-trace-you-already-have" aria-label="Link to this section">#</a></h2>
+<p><code>scripts/upload_trace.py</code> sends <code>metadata.json</code> last with <code>status</code> and a <code>files</code> list. Use <code>--meta key=value</code> for trace metadata, such as the GPU architecture (the app defaults to <code>sm_90</code> for H100):</p>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>uv run python scripts/upload_trace.py ./my-run --run-name my-run \
+  --endpoint https://&lt;your-s3-endpoint&gt; --meta trace_gpu_arch=sm_80</code></pre></div><p>Add <code>--status failed</code> to mark the trace failed without processing it.</p>
 
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="deploy.html"><span>Previous</span>Deploy the app</a><a class="next" href="sample-analysis-opt125m.html"><span>Next</span>OPT-125m sample analysis</a></nav>
     <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#set-up-modal">Set up Modal</a></li><li class="l2"><a href="#pick-the-layers">Pick the layers</a></li><li class="l2"><a href="#trace-and-stream">Trace and stream</a></li><li class="l2"><a href="#what-gets-uploaded">What gets uploaded</a></li><li class="l2"><a href="#profiler-flags">Profiler flags</a></li><li class="l2"><a href="#upload-a-trace-you-already-have">Upload a trace you already have</a></li><li class="l2"><a href="#profile-trace-and-simulate-in-your-own-modal-app">Profile, trace and simulate in your own Modal app</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#run-and-download">Run and download</a></li><li class="l2"><a href="#legacy-streaming-into-cascade">Legacy streaming into Cascade</a></li><li class="l2"><a href="#upload-a-legacy-trace-you-already-have">Upload a legacy trace you already have</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">
