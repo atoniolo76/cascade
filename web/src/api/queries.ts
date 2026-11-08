@@ -5,7 +5,6 @@ import type {
   GpuConfig,
   RunCreate,
   RunDetail,
-  RunResults,
   RunSummary,
   TraceDetail,
   TraceSummary,
@@ -20,7 +19,6 @@ export const keys = {
   runs: ["runs"] as const,
   run: (id: string) => ["runs", id] as const,
   comparison: (id: string) => ["runs", id, "comparison"] as const,
-  results: (id: string) => ["runs", id, "results"] as const,
   gpuConfigs: ["gpu-configs"] as const,
   simLog: (id: string) => ["sims", id, "log"] as const,
 };
@@ -66,10 +64,6 @@ export function useComparison(runId: string, { live }: { live: boolean }) {
     queryFn: () => apiJson<Comparison>(`/api/runs/${enc(runId)}/comparison`),
     refetchInterval: live ? 5000 : false,
   });
-}
-
-export function fetchRunResults(runId: string) {
-  return apiJson<RunResults>(`/api/runs/${enc(runId)}/results`);
 }
 
 export function useCreateRun() {

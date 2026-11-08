@@ -1,6 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { ApiError, apiJson, eventsUrl } from "../api/client";
-import { fetchRunResults } from "../api/queries";
 import type { RunDetail, RunEvent } from "../api/types";
 import { initialRunLive, runLiveReducer } from "../domain/runLive";
 import { deriveRunState } from "../domain/status";
@@ -44,20 +43,10 @@ export function useRunStream(runId: string) {
     let attempt = 0;
     let disposed = false;
 
-    const seedKernels = (run: RunDetail) => {
-      if (!run.sims.some((s) => s.kernels_done > 0)) return;
-      fetchRunResults(runId)
-        .then((results) => {
-          if (!disposed) dispatch({ type: "kernels", stats: results.sims.flatMap((s) => s.kernels) });
-        })
-        .catch(() => undefined);
-    };
-
     const handle = (data: string, name: string) => {
       const event = parseRunEvent(data, name);
       if (!event) return;
       dispatch(event);
-      if (event.type === "snapshot") seedKernels(event.run);
     };
 
     const connect = () => {

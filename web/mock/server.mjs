@@ -525,7 +525,7 @@ const routes = [
     const run = runs.find((r) => r.id === id);
     if (!run) return send(res, 404, { detail: "run not found" });
     res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
-    res.write(`data: ${JSON.stringify({ type: "snapshot", run: runDetail(run) })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: "snapshot", run: runDetail(run), kernels: runSims(run).flatMap((s) => s._stats) })}\n\n`);
     const set = subscribers.get(id) ?? new Set();
     set.add(res);
     subscribers.set(id, set);
