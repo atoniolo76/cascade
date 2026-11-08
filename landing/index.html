@@ -9,7 +9,7 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --ground: #fafaf8;
@@ -23,6 +23,7 @@
     --green: #137a52;
     --hl-blue: rgb(64 150 255 / 0.26);
     --hl-green: rgb(52 199 120 / 0.32);
+    --neo: #23398e;
     --deepwiki: url("data:image/png;base64,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");
     color-scheme: light;
   }
@@ -39,6 +40,7 @@
       --green: #4cc98d;
       --hl-blue: rgb(64 150 255 / 0.28);
       --hl-green: rgb(52 199 120 / 0.26);
+      --neo: #7b8fe6;
       color-scheme: dark;
     }
   }
@@ -128,7 +130,16 @@
   .arrow { width: 12px; height: 12px; color: var(--ink-45); transition: transform 0.2s cubic-bezier(.3,.7,.2,1), color 0.15s ease; }
   .links a:hover .arrow { transform: translate(2px, -2px); color: var(--ink); }
 
-  .team { margin-top: 20px; color: var(--ink-80); }
+  .built { margin: 16px 0 0; color: var(--ink-70); }
+  .neo {
+    display: inline-flex; align-items: center; gap: 0.28em; vertical-align: -0.12em;
+    color: var(--ink); text-decoration: none;
+    font-weight: 700; letter-spacing: -0.03em;
+  }
+  .neo-egg { height: 0.82em; width: auto; fill: var(--neo); transition: transform 0.25s cubic-bezier(.3,.7,.2,1); }
+  .neo:hover .neo-egg { transform: rotate(-12deg) scale(1.08); }
+  .footer-neo { display: inline-flex; align-items: center; gap: 0.35em; }
+  .footer-neo .neo { vertical-align: 0; }
   @media (min-width: 900px) { .aside section + section { margin-top: 56px; } }
 
   footer {
@@ -213,14 +224,30 @@
 
     <section aria-labelledby="team">
       <h2 id="team">team</h2>
-      <p class="team">Amani Bobo and Alessio Toniolo, built at the Neo Hackathon.</p>
+      <ul class="links">
+        <li>
+          <a href="https://amanibobo.dev" target="_blank" rel="noopener">
+            <span class="label">Amani Bobo</span>
+            <span class="meta">amanibobo.dev</span>
+            <svg class="arrow" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3.5 8.5l5-5M4.5 3.5h4v4"/></svg>
+          </a>
+        </li>
+        <li>
+          <a href="https://atoniolo76.github.io" target="_blank" rel="noopener">
+            <span class="label">Alessio Toniolo</span>
+            <span class="meta">atoniolo76.github.io</span>
+            <svg class="arrow" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3.5 8.5l5-5M4.5 3.5h4v4"/></svg>
+          </a>
+        </li>
+      </ul>
+      <p class="built">Built at the <a class="neo" href="https://neo.com" target="_blank" rel="noopener"><svg class="neo-egg" viewBox="0 0 24 19.2" aria-hidden="true"><path d="M24.00 9.99C23.95 10.74 23.87 11.52 23.64 12.23C23.40 12.93 22.99 13.61 22.59 14.22C22.18 14.83 21.71 15.39 21.21 15.89C20.71 16.38 20.15 16.82 19.58 17.19C19.01 17.56 18.41 17.86 17.80 18.10C17.19 18.33 16.56 18.48 15.95 18.60C15.34 18.73 14.74 18.76 14.14 18.85C13.55 18.95 12.98 19.12 12.38 19.17C11.78 19.22 11.18 19.16 10.56 19.13C9.94 19.11 9.33 19.05 8.65 19.00C7.97 18.95 7.21 18.96 6.48 18.82C5.75 18.67 4.97 18.45 4.27 18.10C3.56 17.76 2.88 17.29 2.24 16.76C1.61 16.23 0.83 15.65 0.45 14.93C0.08 14.21 -0.00 13.28 0.00 12.45C0.00 11.63 0.17 10.75 0.47 9.99C0.78 9.23 1.37 8.52 1.83 7.89C2.29 7.26 2.79 6.73 3.24 6.20C3.68 5.67 4.07 5.18 4.51 4.73C4.95 4.28 5.41 3.87 5.89 3.50C6.36 3.12 6.85 2.78 7.36 2.47C7.87 2.17 8.38 1.89 8.92 1.64C9.46 1.39 10.01 1.20 10.59 0.98C11.17 0.77 11.75 0.54 12.38 0.38C13.01 0.21 13.68 0.05 14.37 0.00C15.05 -0.05 15.79 -0.06 16.50 0.05C17.20 0.16 17.91 0.40 18.60 0.69C19.28 0.97 20.02 1.30 20.60 1.77C21.17 2.25 21.58 2.92 22.04 3.53C22.51 4.14 23.07 4.74 23.38 5.43C23.69 6.13 23.81 6.93 23.92 7.69C24.02 8.45 24.05 9.23 24.00 9.99Z"/></svg><span class="neo-word">Neo</span></a> Hackathon.</p>
     </section>
     </div>
     </div>
   </main>
   <footer>
     <span>Cascade, 2026</span>
-    <span>Neo Hackathon</span>
+    <span class="footer-neo"><a class="neo" href="https://neo.com" target="_blank" rel="noopener"><svg class="neo-egg" viewBox="0 0 24 19.2" aria-hidden="true"><path d="M24.00 9.99C23.95 10.74 23.87 11.52 23.64 12.23C23.40 12.93 22.99 13.61 22.59 14.22C22.18 14.83 21.71 15.39 21.21 15.89C20.71 16.38 20.15 16.82 19.58 17.19C19.01 17.56 18.41 17.86 17.80 18.10C17.19 18.33 16.56 18.48 15.95 18.60C15.34 18.73 14.74 18.76 14.14 18.85C13.55 18.95 12.98 19.12 12.38 19.17C11.78 19.22 11.18 19.16 10.56 19.13C9.94 19.11 9.33 19.05 8.65 19.00C7.97 18.95 7.21 18.96 6.48 18.82C5.75 18.67 4.97 18.45 4.27 18.10C3.56 17.76 2.88 17.29 2.24 16.76C1.61 16.23 0.83 15.65 0.45 14.93C0.08 14.21 -0.00 13.28 0.00 12.45C0.00 11.63 0.17 10.75 0.47 9.99C0.78 9.23 1.37 8.52 1.83 7.89C2.29 7.26 2.79 6.73 3.24 6.20C3.68 5.67 4.07 5.18 4.51 4.73C4.95 4.28 5.41 3.87 5.89 3.50C6.36 3.12 6.85 2.78 7.36 2.47C7.87 2.17 8.38 1.89 8.92 1.64C9.46 1.39 10.01 1.20 10.59 0.98C11.17 0.77 11.75 0.54 12.38 0.38C13.01 0.21 13.68 0.05 14.37 0.00C15.05 -0.05 15.79 -0.06 16.50 0.05C17.20 0.16 17.91 0.40 18.60 0.69C19.28 0.97 20.02 1.30 20.60 1.77C21.17 2.25 21.58 2.92 22.04 3.53C22.51 4.14 23.07 4.74 23.38 5.43C23.69 6.13 23.81 6.93 23.92 7.69C24.02 8.45 24.05 9.23 24.00 9.99Z"/></svg><span class="neo-word">Neo</span></a> Hackathon</span>
   </footer>
 </div>
 <script>
