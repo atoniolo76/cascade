@@ -39,7 +39,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --extra sail --no-install-project
 COPY cascade ./cascade
 COPY scripts ./scripts
-# Real Accel-Sim configs and logs, so a Sail deploy can run end to end with scripts/fake_sim.py.
+# Real Accel-Sim configs and logs, so a Sail deploy can run end to end with `cascade worker --replay`.
 COPY tests/fixtures ./tests/fixtures
 COPY --from=web /src/cascade/static ./cascade/static
 RUN uv sync --frozen --no-dev --extra sail

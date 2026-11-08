@@ -39,6 +39,7 @@ def sim_env(settings: Settings, sim: SimSummary, trace_dir: Path) -> dict[str, s
         "CASCADE_TOKEN": settings.token,
         "CASCADE_GPU_CONFIG": sim.gpu_config,
         "CASCADE_TRACE_DIR": str(trace_dir),
+        "CASCADE_ACCELSIM_DIR": str(settings.accelsim_dir),
     }
 
 

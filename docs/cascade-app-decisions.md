@@ -8,7 +8,7 @@ Decisions are recorded as they are made. Superseded decisions are struck through
 
 - Amani (this doc): S3 ingest endpoint and trace registry, post-processing trigger, the REST API sims report to, launchers (local + Sail fork), log parsing, results/comparison, UI, and the app image's own layers.
 - Alessio: the profiler and the simulator. Running Accel-Sim inside a fork and sending heartbeats/logs to the app's API, building Accel-Sim and the post-processor, `real_timing.json`.
-- The seam: the app launches `$CASCADE_SIM_CMD` with the sim env in docs/api.md. `scripts/fake_sim.py` is Amani's reference client of that API for testing, not the real simulator. The app image takes `ARG BASE_IMAGE` so Alessio can supply one with Accel-Sim.
+- The seam: the app launches `$CASCADE_SIM_CMD` with the sim env in docs/api.md. `cascade worker` is that client: it runs Accel-Sim, or replays a recorded log with `--replay` for testing. The app image takes `ARG BASE_IMAGE` so Alessio can supply one with Accel-Sim.
 
 ## Process
 
@@ -112,7 +112,7 @@ Superseded 2026-11-07: per-kernel real-vs-simulated comparison is now in scope (
 
 - State lives in SQLite at `/data/cascade.db` on main's local disk.
 - A `scripts/deploy_sail.py` creates the main sailbox from the image, sets env/secrets, and exposes ports 8000 (app) and 9000 (rclone S3).
-- The sim command is configurable (`CASCADE_SIM_CMD`). `scripts/fake_sim.py` replays a real Accel-Sim log against the API for local dev. Alessio's simulator plugs in at `CASCADE_SIM_CMD`.
+- The sim command is configurable (`CASCADE_SIM_CMD`). `cascade worker --replay <log>` replays a real Accel-Sim log against the API for local dev, and `cascade worker` runs real Accel-Sim.
 
 ## Lost sims
 

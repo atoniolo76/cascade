@@ -2,9 +2,10 @@
 
     SAIL_API_KEY=... CASCADE_TOKEN=... uv run --extra sail python scripts/deploy_sail.py
 
-With no --sim-cmd, sims run scripts/fake_sim.py against the vendored RTX 3070 log, and
+With no --sim-cmd, each sim runs `cascade worker --replay` on the vendored RTX 3070 log, and
 --accelsim-dir defaults to the vendored configs, so the loop works before the Accel-Sim base
-image exists. Prints the app URL (port 8000) and the S3 endpoint (port 9000).
+image exists. With an Accel-Sim base image, pass `--sim-cmd /app/.venv/bin/cascade worker` and
+its `--accelsim-dir`. Prints the app URL (port 8000) and the S3 endpoint (port 9000).
 """
 
 from __future__ import annotations
@@ -20,9 +21,8 @@ import sail
 
 ROOT = Path(__file__).resolve().parent.parent
 APP_PORT, S3_PORT = 8000, 9000
-FAKE_SIM_CMD = (
-    "/app/.venv/bin/python /app/scripts/fake_sim.py "
-    "/app/tests/fixtures/logs/babelstream_sm86_rtx3070.log"
+STAND_IN_SIM_CMD = (
+    "/app/.venv/bin/cascade worker --replay /app/tests/fixtures/logs/babelstream_sm86_rtx3070.log"
 )
 
 
@@ -42,7 +42,7 @@ def main() -> int:
     p.add_argument("--app", default="cascade", help="Sail app name")
     p.add_argument("--name", default="cascade-main", help="name of the main sailbox")
     p.add_argument("--base-image", default="ubuntu:22.04", help="Dockerfile BASE_IMAGE")
-    p.add_argument("--sim-cmd", default=FAKE_SIM_CMD, help="CASCADE_SIM_CMD for sims")
+    p.add_argument("--sim-cmd", default=STAND_IN_SIM_CMD, help="CASCADE_SIM_CMD for sims")
     p.add_argument("--accelsim-dir", default="/app/tests/fixtures/accelsim")
     p.add_argument("--postprocess-cmd", default="", help="CASCADE_POSTPROCESS_CMD override")
     p.add_argument("--disk-gib", type=int, default=None, help="disk limit for the main sailbox")

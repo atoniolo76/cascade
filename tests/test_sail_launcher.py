@@ -126,6 +126,7 @@ def test_one_checkpoint_per_run_and_fresh_boot_forks(tmp_path):
         "CASCADE_TOKEN": settings.token,
         "CASCADE_GPU_CONFIG": "SM90_H100",
         "CASCADE_TRACE_DIR": str(settings.trace_dir("t")),
+        "CASCADE_ACCELSIM_DIR": str(settings.accelsim_dir),
     }
 
 

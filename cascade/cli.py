@@ -12,6 +12,7 @@ import uvicorn
 from cascade.api import create_app
 from cascade.settings import LauncherKind, Settings
 from cascade.sim.cli import add_commands
+from cascade.worker import add_command as add_worker
 
 log = logging.getLogger("cascade")
 
@@ -104,6 +105,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="where sims run: local subprocesses, or one Sail fork per sim",
     )
     s.set_defaults(func=serve)
+    add_worker(sub)
     add_commands(sub)
     return p
 
