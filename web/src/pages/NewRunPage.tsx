@@ -10,7 +10,7 @@ import { ICON } from "../components/styles";
 import { configSeries } from "../domain/stats";
 import { LogoGlyph, LogoTile } from "../components/BrandLogo";
 import { gpuLogo, logoByKey } from "../domain/logos";
-import { suggestedConfig } from "../domain/configs";
+import { initialConfigs } from "../domain/configs";
 import { toast } from "../lib/toast";
 import { cx } from "../components/cx";
 import { formatBytes, formatInt, plural } from "../domain/format";
@@ -56,8 +56,7 @@ export function NewRunPage() {
 type Selection = Record<string, number>;
 
 function initialSelection(trace: TraceSummary | undefined, configs: GpuConfig[]): Selection {
-  const pick = trace ? suggestedConfig(trace, configs) : undefined;
-  return pick ? { [pick.name]: 1 } : {};
+  return Object.fromEntries((trace ? initialConfigs(trace, configs) : []).map((c) => [c.name, 1]));
 }
 
 function RunForm({

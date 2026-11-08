@@ -1,0 +1,26 @@
+{
+  "id": "cascade-samples",
+  "modal_volume": "accelsim-traces",
+  "entries": [
+    {
+      "id": "e2e-plan-v1",
+      "status": "available",
+      "modal_path": "phases/e2e-plan-v1/",
+      "trace_gpu_arch": "sm_90",
+      "model": "facebook/opt-125m",
+      "gpu": "NVIDIA H100 80GB HBM3",
+      "real_gpu_config": "SM90_H100",
+      "sample_sim_configs": ["SM90_H100", "SM90_H200"]
+    },
+    {
+      "id": "e2e-a100-plan-v1",
+      "status": "pending",
+      "modal_path": "phases/e2e-a100-plan-v1/",
+      "trace_gpu_arch": "sm_80",
+      "model": "facebook/opt-125m",
+      "gpu": "NVIDIA A100",
+      "real_gpu_config": "SM80_A100",
+      "sample_sim_configs": ["SM80_A100"]
+    }
+  ]
+}

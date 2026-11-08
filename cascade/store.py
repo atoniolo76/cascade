@@ -597,6 +597,13 @@ def _trace_summary(row: sqlite3.Row) -> TraceSummary:
         source_gpu=meta.get("gpu"),
         trace_gpu_arch=meta.get("trace_gpu_arch") or "sm_90",
         suggested_sim_config=meta.get("suggested_sim_config"),
+        real_gpu_config=meta.get("real_gpu_config"),
+        sample_sim_configs=(
+            [c for c in meta["sample_sim_configs"] if isinstance(c, str)]
+            if isinstance(meta.get("sample_sim_configs"), list)
+            else []
+        ),
+        sample_set=meta.get("sample_set"),
         kernel_count=row["kernel_count"],
         bytes=row["bytes"],
         has_real_timing=row["real_timing"] is not None,

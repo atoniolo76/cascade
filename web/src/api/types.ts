@@ -40,6 +40,9 @@ export interface TraceSummary {
   source_gpu: string | null;
   trace_gpu_arch: string;
   suggested_sim_config: string | null;
+  real_gpu_config: string | null;
+  sample_sim_configs: string[];
+  sample_set: string | null;
   kernel_count: number;
   bytes: number;
   has_real_timing: boolean;

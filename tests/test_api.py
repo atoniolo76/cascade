@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 
@@ -63,6 +64,35 @@ def test_auth(setup):
     assert client.get("/api/traces", headers={"Authorization": "Bearer nope"}).status_code == 401
     assert client.get("/api/runs/x/events?token=nope").status_code == 401
     assert client.get("/api/nope", headers=AUTH).status_code == 404
+
+
+def test_sample_metadata_reaches_trace_summaries_and_details(tmp_path):
+    settings = make_settings(tmp_path)
+    run = write_processed_trace(settings, "sample", arch="sm_90")
+    metadata = json.loads((run / "metadata.json").read_text())
+    fields = {
+        "real_gpu_config": "SM90_H100",
+        "sample_sim_configs": ["SM90_H100", "SM90_H200"],
+        "sample_set": "cascade-samples",
+    }
+    metadata.update(fields)
+    (run / "metadata.json").write_text(json.dumps(metadata))
+    with TestClient(create_app(settings, RecordingLauncher())) as client:
+        wait_for(
+            lambda: client.get("/api/traces/sample", headers=AUTH).json().get("state") == "ready"
+        )
+        summary = client.get("/api/traces", headers=AUTH).json()[0]
+        detail = client.get("/api/traces/sample", headers=AUTH).json()
+        for key, value in fields.items():
+            assert summary[key] == detail[key] == detail["metadata"][key] == value
+
+
+def test_sample_metadata_defaults_for_ordinary_traces(setup):
+    client, _, _ = setup
+    trace = client.get("/api/traces/trace-h100", headers=AUTH).json()
+    assert trace["real_gpu_config"] is None
+    assert trace["sample_sim_configs"] == []
+    assert trace["sample_set"] is None
 
 
 def test_health_names_the_workspace(tmp_path):

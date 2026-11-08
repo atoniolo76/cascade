@@ -50,7 +50,49 @@ Simulator image (the Dockerfile's `BASE_IMAGE`): the app expects the trace post-
 
 ## Step timing
 
-`TraceSummary.has_step_timeline` is true when the trace dir holds both `corrected_timeline.json` (the profiler's phases output) and `kernel_mapping.json` (a list of `{uid, name, repeat, step, seq}`). Ingest rechecks it on every scan, so it turns true when the files land after the trace is `ready`.
+### cascade-samples
+
+The committed [manifest](../scripts/cascade-samples.json) describes real OPT-125m profiler
+runs, not demo labels. H100 (`e2e-plan-v1`, `sm_90`) launches SM90_H100 and SM90_H200;
+A100 (`e2e-a100-plan-v1`, `sm_80`) launches SM80_A100 and is **pending** while profiling finishes.
+Trace binaries are external and must not be committed.
+
+Fetch a run directory from the Modal volume (or use an existing local copy):
+
+```sh
+modal volume get accelsim-traces phases/e2e-plan-v1 /path/to/samples/e2e-plan-v1
+# When A100 finishes:
+modal volume get accelsim-traces phases/e2e-a100-plan-v1 /path/to/samples/e2e-a100-plan-v1
+uv run python scripts/seed_samples.py --runs-dir /path/to/samples \
+  --app http://127.0.0.1:8030 --s3 http://127.0.0.1:9030 --token "$CASCADE_TOKEN"
+```
+
+Alternatively, repeat `--source e2e-plan-v1=/local/run/dir` (or the A100 entry id) to override
+individual locations. Missing entries print `SKIP`; a pending entry is automatically seeded
+once its complete local directory exists. No manifest edit is needed for A100. Each invocation
+uploads available entries and launches a new run per trace with one sim per listed config.
+It waits for trace readiness, not for the launched simulations to finish.
+
+The seed stages `traced/traces/` as `traces/`, excludes raw `.trace` / `.trace.xz` files, and
+includes `corrected_timeline.json`, `trace_alignment.json`, `run.json`, and `workload.json`.
+Uploads use `upload_trace.py`, with `metadata.json` last. Metadata includes `trace_gpu_arch`,
+`suggested_sim_config`, `model`, `gpu`, `real_gpu_config`, `sample_sim_configs`, and
+`sample_set: "cascade-samples"`. The last three fields are available on both trace summaries
+and details; the full original metadata is also on details. Launch defaults select all compatible
+sample configs, falling back to the suggested compatible config for non-sample traces.
+
+For local development, build the web app (`cd web && npm ci && npm run build`), install `rclone`,
+and start `cascade serve --port 8030 --s3-port 9030` with `CASCADE_DATA_DIR`, `CASCADE_TOKEN`,
+`CASCADE_PUBLIC_URL=http://127.0.0.1:8030`, and `CASCADE_ACCELSIM_DIR` pointing at your setup.
+Use a real simulator or set `CASCADE_SIM_CMD` to a replay worker command for UI testing;
+replayed results are not new simulator executions.
+
+`TraceSummary.has_step_timeline` is true when the trace dir holds `corrected_timeline.json`
+(the profiler's phases output) and either `kernel_mapping.json` (a list of
+`{uid, name, repeat, step, seq}`) or `trace_alignment.json`. For alignment, the worker maps
+simulator launch positions through `traces/kernelslist.g` to tracer UIDs, checks names, and
+propagates durations with interpolation. Ingest rechecks the files on every scan, so the flag
+turns true when they land after the trace is `ready`.
 
 When a sim succeeds on such a trace, `cascade worker` imports the sim's kernel durations from its own log (`cascade import-sim-durations` with the config's core clock), runs `cascade simulate` with its defaults and `cascade compare` against the corrected timeline, and posts `{"simulated": simulated_timeline.json, "compare": compare.json}` before its final heartbeat. The shapes of both objects are Alessio's; see [corrected-timeline-simulation.md](corrected-timeline-simulation.md).
 
