@@ -106,7 +106,7 @@ export function SimTimePanel({ runId, sims, kernels, series }: { runId: string; 
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <ChartLegend items={legend} hidden={hidden} onToggle={toggle} />
             <span className="flex items-center gap-3">
-              <span className="text-[12px] whitespace-nowrap text-muted tabular-nums">{plural(rows.length, "kernel")}</span>
+              <span className="hidden text-[12px] whitespace-nowrap text-muted tabular-nums sm:inline">{plural(rows.length, "kernel")}</span>
               <SegmentedToggle size="sm" value={order} options={ORDERS} onChange={setOrder} label="Sort kernels" />
             </span>
           </div>
