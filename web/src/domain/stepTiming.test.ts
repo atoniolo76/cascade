@@ -147,7 +147,7 @@ describe("architectureTimingRows", () => {
 });
 
 describe("latestSampleRuns", () => {
-  const run = (id: string, trace_id: string, state: RunSummary["state"], created_at: string): RunSummary => ({ id, trace_id, state, created_at, entries: [], sim_counts: {}, sample: false });
+  const run = (id: string, trace_id: string, state: RunSummary["state"], created_at: string): RunSummary => ({ id, trace_id, state, created_at, entries: [], sim_counts: {}, sample: false, replay: false });
   it("chooses only the newest succeeded run per other trace in this set", () => {
     const current = trace(), a100 = trace("a100", "SM80_A100"), other = { ...trace("unrelated"), sample_set: "other" };
     const runs = [run("older", "a100", "succeeded", "2026-01-01"), run("active", "a100", "active", "2026-01-04"),

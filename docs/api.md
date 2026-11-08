@@ -13,7 +13,7 @@ All `/api` routes require `Authorization: Bearer $CASCADE_TOKEN`, except `GET /a
 | GET | `/api/traces` | `TraceSummary[]`, newest first |
 | GET | `/api/traces/{id}` | `TraceDetail` |
 | GET | `/api/runs` | `RunSummary[]`, newest first |
-| POST | `/api/runs` | body `RunCreate`, returns `RunDetail` (201). 409 if the trace is not `ready`, or is a sample (it has no instruction traces). 422 if a config is unknown or its arch differs from the trace's `trace_gpu_arch`. |
+| POST | `/api/runs` | body `RunCreate`, returns `RunDetail` (201). 409 if the trace is not `ready`. 422 if a config is unknown, its arch differs from the trace's `trace_gpu_arch`, or the trace is a sample with no recorded results for it. A run on a sample trace has `replay: true`: each sim runs `cascade worker --replay` on that config's recorded Accel-Sim log instead of `CASCADE_SIM_CMD`. |
 | GET | `/api/runs/{id}` | `RunDetail` |
 | POST | `/api/runs/{id}/cancel` | `RunDetail`. Moves every non-terminal sim to `cancelled` and calls `Launcher.terminate`. Idempotent. On a sample run, whose sim already `succeeded`, it changes nothing. |
 | GET | `/api/runs/{id}/events` | SSE stream of `RunEvent` as plain `data:` lines. First event is a `snapshot` with the run and every `KernelStat` so far, each with an empty `stats` map to keep it small. Full stats are in the results downloads and in live `kernel` events. |
@@ -68,8 +68,9 @@ print(response.model_extra["cascade"])
   pending/launching/running simulation, or creates a normal one-sim run through
   the configured launcher. Concurrent callers share the new run. All runs appear
   in the existing UI. `fresh: true` creates a new base run. Bundled sample traces
-  have no instruction traces: they reuse recorded simulations only and reject
-  `fresh: true` with 422. Built performance profiles are cached in memory by sim ID
+  have no instruction traces: new base runs replay recorded Accel-Sim results for
+  the requested config, with `replay: true` on the run. A config without recorded
+  results returns 422. Built performance profiles are cached in memory by sim ID
   (up to 128 profiles); requested scenarios themselves are not cached or persisted.
 - Non-streaming calls wait until the simulation is terminal. Set
   `CASCADE_OPENAI_WAIT_S` (default 3600 seconds) to change the wait budget. A timeout
@@ -219,7 +220,7 @@ Simulator env: `CASCADE_SIM_ID`, `CASCADE_MAIN_URL`, `CASCADE_TOKEN`, `CASCADE_G
 Output files: before the simulator starts, the worker records the run dir's listing (the copied configs). After it exits, succeeded or failed (not cancelled), the worker uploads every regular file directly in the run dir that the simulator created or changed, in name order, then its own log as `accelsim.log.gz`, all before the final heartbeat. Symlinks and subdirectories are skipped. A text file over 1 MiB is gzipped as it streams and stored as `<name>.gz`. A file over 64 MiB, a name the route would refuse, and anything once 256 MiB has been sent are skipped with one log line each. Uploads retry like the other calls; one that still fails is a log line and never changes the sim's state.
 
 - `cascade worker` runs `$CASCADE_ACCELSIM_DIR/gpu-simulator/bin/release/accel-sim.out -trace $CASCADE_TRACE_DIR/traces/kernelslist.g -config gpu-simulator/gpgpu-sim/configs/tested-cfgs/<cfg>/gpgpusim.config -config gpu-simulator/configs/tested-cfgs/<cfg>/trace.config`, both configs under `$CASCADE_ACCELSIM_DIR`, in that run dir with both config dirs' files copied in. A missing binary, config, or `kernelslist.g` is a `failed` heartbeat with exit code 2.
-- `cascade worker --replay <log> [--delay S] [--replay-outputs DIR]` replays a recorded Accel-Sim log instead, pausing `S` seconds (default 0.05) every 200 lines. `--replay-outputs` copies DIR's files (except `run.log` and `setup.log`) into the run dir as if Accel-Sim wrote them, so they are uploaded like real output. The stand-in deploy uses `cascade worker --replay tests/fixtures/logs/opt125m_sm90_h100.log --replay-outputs results/20261108-021007-opt125m-h100-accelsim/outputs`.
+- `cascade worker --replay <log> [--delay S] [--replay-outputs DIR]` replays a recorded Accel-Sim log instead, pausing `S` seconds (default 0.05) every 200 lines. `--replay-outputs` copies DIR's files (except `run.log`, `setup.log` and `step-timeline.json`) into the run dir as if Accel-Sim wrote them, so they are uploaded like real output. If DIR contains `step-timeline.json`, the replay worker validates and posts that recorded `StepTimelineUpload` instead of recomputing timing from the log's tracer UIDs. Otherwise the usual timing importer is used. The stand-in deploy uses `cascade worker --replay tests/fixtures/logs/opt125m_sm90_h100.log --replay-outputs results/20261108-021007-opt125m-h100-accelsim/outputs`.
 
 Simulator image (the Dockerfile's `BASE_IMAGE`): the app expects the trace post-processor at `CASCADE_POSTPROCESS_CMD` (default `$CASCADE_ACCELSIM_DIR/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing`), Accel-Sim's `gpu-simulator/gpgpu-sim/configs/tested-cfgs/*/gpgpusim.config` under `CASCADE_ACCELSIM_DIR`, and an Accel-Sim build at `$CASCADE_ACCELSIM_DIR/gpu-simulator/bin/release/accel-sim.out`. Set `CASCADE_SIM_CMD` to `/app/.venv/bin/cascade worker`, which main runs with the env above.
 
@@ -229,8 +230,8 @@ Simulator image (the Dockerfile's `BASE_IMAGE`): the app expects the trace post-
 
 The built-in [OPT-125m H100 sample](../samples/opt125m-h100-e2e/README.md) belongs to
 `cascade-samples`. It seeds automatically at startup, with recorded SM90_H100 and SM90_H200
-simulations; no upload, instruction traces or simulator execution is needed. Sample traces
-cannot launch new runs. The native A100 sample contains its own measured baseline and recorded
+simulations; no upload, instruction traces or simulator execution is needed. A new run on a
+sample trace replays its recorded results for those configs. The native A100 sample contains its own measured baseline and recorded
 SM80_A100 simulation, not a simulation of the H100 instruction trace.
 
 To rebuild bundles from complete profiler run directories (never commit `.tracez` files):
@@ -292,7 +293,7 @@ On startup, `cascade serve` seeds each bundle under `samples/` into the workspac
 
 Today there is one, [samples/opt125m-h100-e2e](../samples/opt125m-h100-e2e/README.md): Alessio's real facebook/opt-125m run on an H100, simulated with Accel-Sim on SM90_H100. It appears as:
 
-- The trace `sample__facebook_opt-125m__h100-e2e`, `ready`, with `sample: true`. Its trace dir holds `corrected_timeline.json`, `trace_alignment.json`, `trace_steps.json` and `traces/kernelslist.g`, but no `.tracez` instruction traces, so `POST /api/runs` on it is 409.
+- The trace `sample__facebook_opt-125m__h100-e2e`, `ready`, with `sample: true`. Its trace dir holds `corrected_timeline.json`, `trace_alignment.json`, `trace_steps.json` and `traces/kernelslist.g`, but no `.tracez` instruction traces. Seeding also writes `replay/<config>/` per recorded config: `accelsim.log` (the per-kernel logs in launch order, launch uids set to the tracer's; a config with only `kernels.csv` gets one stats block per kernel), the config's output files under `outputs/`, and `replay.json` with its kernel count. `POST /api/runs` on the trace replays these, and the run has `replay: true` and `sample: false`, so it can be cancelled.
 - The run `run-sample-opt125m-h100-e2e`, `succeeded`, with `sample: true` and one SM90_H100 sim. Its kernel stats are the 93 kernels Accel-Sim simulated, parsed from their logs, in launch order, with `kernel_launch_uid` set to the tracer's uid. It has the bundle's step timeline and five output files. The trace's real timing is those 93 kernels' nsys durations, in the same order.
 
 Seeding is one SQLite transaction keyed on the trace id, so a restart never duplicates it.

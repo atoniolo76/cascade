@@ -214,3 +214,7 @@ def main(argv: list[str] | None = None) -> None:
         args.func(args)
     except (ValueError, KeyError, OSError) as error:
         p.error(str(error))
+
+
+if __name__ == "__main__":
+    main()

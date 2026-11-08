@@ -8,8 +8,9 @@ from fastapi.testclient import TestClient
 import cascade.scenario as scenario_module
 from cascade.api import create_app
 from cascade.openai_tokens import Tokenizers
+from cascade.samples import recorded_configs
 from cascade.sim.request_model import simulate_request
-from tests.helpers import AUTH, make_settings, wait_for
+from tests.helpers import AUTH, make_settings, running_app, wait_for
 from tests.test_api import RecordingLauncher
 from tests.test_openai_api import BODY, succeed
 from tests.test_openai_api import endpoint as endpoint
@@ -148,13 +149,69 @@ def test_downsampling_does_not_change_totals(sample_api):
         {"arrival_rate_rps": -1},
         {"gpu_config": "unknown"},
         {"gpu_config": "SM86_RTX3070"},
-        {"fresh": True},
     ],
 )
 def test_validation_errors_do_not_launch(sample_api, changes):
     client, _, launcher = sample_api
     response = client.post("/api/scenarios", json={**SCENARIO, **changes})
     assert response.status_code == 422, response.text
+    assert not launcher.launched
+
+
+@pytest.mark.parametrize("fresh", [False, True])
+@pytest.mark.parametrize("path", ["/api/scenarios", "/v1/completions", "/v1/chat/completions"])
+def test_sample_base_launches_recorded_replay(tmp_path, monkeypatch, path, fresh):
+    monkeypatch.setattr(Tokenizers, "get", lambda self, model: None)
+    monkeypatch.setattr("cascade.samples.REPLAY_DELAY_S", 0)
+    timeline = scenario_module.Scenarios.timeline
+    if not fresh:
+        monkeypatch.setattr(
+            scenario_module.Scenarios,
+            "timeline",
+            lambda self, sim: None if sim.id.startswith("sim-sample-") else timeline(self, sim),
+        )
+    body = (
+        SCENARIO
+        if path == "/api/scenarios"
+        else {
+            "model": TRACE,
+            "max_tokens": 4,
+            **(
+                {"messages": [{"role": "user", "content": "Hello"}]}
+                if path == "/v1/chat/completions"
+                else {"prompt": "Hello"}
+            ),
+        }
+    )
+    with running_app(tmp_path, CASCADE_SAMPLES="true") as (client, _, settings):
+        response = client.post(path, json={**body, "fresh": fresh}, timeout=60)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        base = data if path == "/api/scenarios" else data["cascade"]
+        assert not base["cached"]
+        run = client.get(f"/api/runs/{base['run_id']}").json()
+        assert run["replay"] and not run["sample"] and run["state"] == "succeeded"
+        assert (
+            run["sims"][0]["kernels_total"]
+            == recorded_configs(settings.trace_dir(TRACE))["SM90_H100"]
+        )
+        assert (
+            data["aggregate"]["p50_e2e_ms"] > 0
+            if path == "/api/scenarios"
+            else (base["timing"]["e2e_ms"] > 0 and base["profiled"]["simulated"])
+        )
+        reused = client.post(path, json=body, timeout=60)
+        assert reused.status_code == 200, reused.text
+        cached = reused.json() if path == "/api/scenarios" else reused.json()["cascade"]
+        assert cached["cached"] and cached["sim_id"] == base["sim_id"]
+
+
+def test_sample_fresh_rejects_missing_recorded_config(sample_api, monkeypatch):
+    client, _, launcher = sample_api
+    monkeypatch.setattr(scenario_module, "recorded_configs", lambda trace_dir: {})
+    response = client.post("/api/scenarios", json={**SCENARIO, "fresh": True})
+    assert response.status_code == 422
+    assert "no recorded results" in response.text
     assert not launcher.launched
 
 

@@ -1,16 +1,22 @@
-import type { RunEntry, TraceSummary } from "../api/types";
+import type { GpuConfig, RunEntry, TraceSummary } from "../api/types";
 
 export const SAMPLE_TOOLTIP =
   "A real profiling and Accel-Sim run included so you can explore Cascade without profiling (about 30 minutes). Results are real; it was not run in this workspace.";
 
 export const SAMPLE_README_URL = "https://github.com/atoniolo76/cascade/tree/amani/samples";
 
-export const SAMPLE_RUN_BLOCKED = "Sample traces ship without their instruction traces, so Accel-Sim can't run them here. Open the sample run to explore its results.";
+export const SAMPLE_REPLAY_NOTE = "Sample trace: replays recorded Accel-Sim results for these configs.";
+
+export const REPLAY_RUN_LINE = "Replays the sample's recorded Accel-Sim results; no new simulation ran.";
 
 /** Why a trace can't start a run, or null when it can. */
-export function runBlocker(trace: Pick<TraceSummary, "state" | "sample">): string | null {
-  if (trace.state !== "ready") return `Trace is ${trace.state}; runs need a ready trace`;
-  return trace.sample ? SAMPLE_RUN_BLOCKED : null;
+export function runBlocker(trace: Pick<TraceSummary, "state">): string | null {
+  return trace.state === "ready" ? null : `Trace is ${trace.state}; runs need a ready trace`;
+}
+
+/** A sample trace can only replay the configs it has recorded results for. */
+export function launchableConfigs(trace: Pick<TraceSummary, "sample" | "sample_sim_configs">, configs: readonly GpuConfig[]): readonly GpuConfig[] {
+  return trace.sample ? configs.filter((c) => trace.sample_sim_configs.includes(c.name)) : configs;
 }
 
 /** No trace of the workspace's own yet: none at all, or only samples. */

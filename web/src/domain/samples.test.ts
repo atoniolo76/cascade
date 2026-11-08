@@ -1,18 +1,36 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { SAMPLE_RUN_BLOCKED, noOwnTraces, runBlocker, sampleRunLine } from "./samples.ts";
+import type { GpuConfig } from "../api/types";
+import { launchableConfigs, noOwnTraces, runBlocker, sampleRunLine } from "./samples.ts";
 
 describe("runBlocker", () => {
-  it("lets a ready trace of your own run", () => {
-    assert.equal(runBlocker({ state: "ready", sample: false }), null);
-  });
-
-  it("blocks a ready sample trace with the reason", () => {
-    assert.equal(runBlocker({ state: "ready", sample: true }), SAMPLE_RUN_BLOCKED);
+  it("lets any ready trace run, sample or not", () => {
+    assert.equal(runBlocker({ state: "ready" }), null);
   });
 
   it("names the state of a trace that is not ready", () => {
-    assert.equal(runBlocker({ state: "processing", sample: false }), "Trace is processing; runs need a ready trace");
+    assert.equal(runBlocker({ state: "processing" }), "Trace is processing; runs need a ready trace");
+  });
+});
+
+describe("launchableConfigs", () => {
+  const configs: GpuConfig[] = [
+    { name: "SM80_A100", arch: "sm_80", core_clock_mhz: 1410 },
+    { name: "SM90_H100", arch: "sm_90", core_clock_mhz: 1980 },
+    { name: "SM90_H200", arch: "sm_90", core_clock_mhz: 1980 },
+  ];
+  const names = (cs: readonly GpuConfig[]) => cs.map((c) => c.name);
+
+  it("limits a sample trace to its recorded configs, in config order", () => {
+    assert.deepEqual(names(launchableConfigs({ sample: true, sample_sim_configs: ["SM90_H200", "SM90_H100"] }, configs)), ["SM90_H100", "SM90_H200"]);
+  });
+
+  it("leaves a trace of your own with every config", () => {
+    assert.deepEqual(names(launchableConfigs({ sample: false, sample_sim_configs: ["SM90_H100"] }, configs)), ["SM80_A100", "SM90_H100", "SM90_H200"]);
+  });
+
+  it("does not invent a recorded config missing from the config list", () => {
+    assert.deepEqual(names(launchableConfigs({ sample: true, sample_sim_configs: ["SM90_H100", "SM100_B200"] }, configs)), ["SM90_H100"]);
   });
 });
 

@@ -11,6 +11,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from cascade.ingest import read_json
 from cascade.models import TERMINAL_SIM_STATES, RunEntry, SimState, TraceState
+from cascade.samples import recorded_configs
 from cascade.sim.request_model import GPU_SPECS, PerfProfile, build_profile, model_limit
 
 if TYPE_CHECKING:
@@ -117,12 +118,21 @@ class Scenarios:
                 for sim in sims:
                     if sim.state in (SimState.pending, SimState.launching, SimState.running):
                         return sim, False
+            kernels_total = trace.kernel_count
             if trace.sample:
-                raise error(
-                    422, "Sample traces can only reuse recorded simulations", "sample_read_only"
-                )
+                recorded = recorded_configs(self.cascade.settings.trace_dir(trace.id))
+                if cfg.name not in recorded:
+                    raise error(
+                        422,
+                        f"Sample trace {trace.id} has no recorded results for {cfg.name!r}",
+                        "sample_replay_unavailable",
+                    )
+                kernels_total = recorded[cfg.name]
             run_id = self.store.create_run(
-                trace.id, [RunEntry(gpu_config=cfg.name, count=1)], trace.kernel_count
+                trace.id,
+                [RunEntry(gpu_config=cfg.name, count=1)],
+                {cfg.name: kernels_total},
+                replay=trace.sample,
             )
             self.cascade.launch_run(run_id)
             return self.store.sims_for_run(run_id)[0], False

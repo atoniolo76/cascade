@@ -74,6 +74,24 @@ def test_samples_off_seeds_nothing(tmp_path):
     assert not (tmp_path / "data" / "files").exists()
 
 
+def test_existing_replay_gains_recorded_step_timing(tmp_path):
+    settings = make_settings(tmp_path)
+    store = Store(settings.db_path)
+    try:
+        assert seed(settings, store, BUNDLE)
+        replay = settings.trace_dir(TRACE_ID) / "replay" / "SM90_H100"
+        recorded = replay / "outputs" / "step-timeline.json"
+        payload = json.loads(recorded.read_text())
+        assert payload["simulated"] == Bundle(BUNDLE).read_json("sim/simulated_timeline.json")
+        assert payload["compare"] == Bundle(BUNDLE).read_json("sim/compare.json")
+        recorded.unlink()
+        assert (replay / "replay.json").is_file()
+        assert not seed(settings, store, BUNDLE)
+        assert json.loads(recorded.read_text()) == payload
+    finally:
+        store.close()
+
+
 def test_sample_trace_is_ready_and_describes_the_real_trace(app):
     client, _ = app
     trace = client.get(f"/api/traces/{TRACE_ID}").json()
@@ -176,12 +194,12 @@ def test_cancelling_the_sample_run_changes_nothing(app):
     assert after.json()["state"] == "succeeded"
 
 
-def test_sample_trace_refuses_new_runs(app):
+def test_sample_trace_refuses_configs_without_recorded_results(app):
     client, _ = app
-    body = {"trace_id": TRACE_ID, "entries": [{"gpu_config": "SM90_H100", "count": 1}]}
+    body = {"trace_id": TRACE_ID, "entries": [{"gpu_config": "SM80_A100", "count": 1}]}
     resp = client.post("/api/runs", json=body)
-    assert resp.status_code == 409
-    assert "sample" in resp.json()["detail"]
+    assert resp.status_code == 422
+    assert "no recorded results" in resp.json()["detail"]
     assert len(client.get("/api/runs").json()) == len(available_bundles())
 
 

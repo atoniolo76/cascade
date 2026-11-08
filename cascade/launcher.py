@@ -1,4 +1,5 @@
-"""Starts and stops sims. Both launchers run $CASCADE_SIM_CMD with the sim env from docs/api.md."""
+"""Starts and stops sims. Both launchers run $CASCADE_SIM_CMD, or a sample replay command, with
+the sim env from docs/api.md."""
 
 from __future__ import annotations
 
@@ -25,8 +26,8 @@ class Launcher(Protocol):
     def prepare(self, run_id: str) -> None:
         """Called once per run before any of its sims launch. Must be idempotent."""
 
-    def launch(self, sim: SimSummary, trace_dir: Path) -> str:
-        """Starts the sim and returns its launcher_ref."""
+    def launch(self, sim: SimSummary, trace_dir: Path, command: str | None = None) -> str:
+        """Starts the sim with `command` (default $CASCADE_SIM_CMD) and returns its ref."""
 
     def terminate(self, sim: SimSummary) -> None:
         """Stops the sim if it is still running. Must be idempotent."""
@@ -58,8 +59,8 @@ class LocalLauncher:
     def prepare(self, run_id: str) -> None:
         pass
 
-    def launch(self, sim: SimSummary, trace_dir: Path) -> str:
-        argv = shlex.split(_sim_cmd(self.settings))
+    def launch(self, sim: SimSummary, trace_dir: Path, command: str | None = None) -> str:
+        argv = shlex.split(command or _sim_cmd(self.settings))
         out_dir = self.settings.work_dir / "sims"
         out_dir.mkdir(parents=True, exist_ok=True)
         with (out_dir / f"{sim.id}.out").open("wb") as out:
@@ -126,8 +127,8 @@ class SailLauncher:
                 checkpoint_id = me.checkpoint(name=name).checkpoint_id
             self._checkpoints[run_id] = checkpoint_id
 
-    def launch(self, sim: SimSummary, trace_dir: Path) -> str:
-        cmd = _sim_cmd(self.settings)
+    def launch(self, sim: SimSummary, trace_dir: Path, command: str | None = None) -> str:
+        cmd = command or _sim_cmd(self.settings)
         self.prepare(sim.run_id)
         box = self.sail.Sailbox.from_checkpoint(
             self._checkpoints[sim.run_id], name=f"cascade-{sim.id}", restore_memory=False

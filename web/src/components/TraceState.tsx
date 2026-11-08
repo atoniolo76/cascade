@@ -1,4 +1,4 @@
-import { FlaskConical } from "lucide-react";
+import { FlaskConical, Repeat } from "lucide-react";
 import type { TraceSummary } from "../api/types";
 import { formatBytes, plural } from "../domain/format";
 import { TRACE_STATE } from "../domain/status";
@@ -7,7 +7,7 @@ import { EntityChip } from "./ui";
 import { LogoTile } from "./BrandLogo";
 import { modelLogo } from "../domain/logos";
 import { paths } from "../paths";
-import { SAMPLE_TOOLTIP } from "../domain/samples";
+import { REPLAY_RUN_LINE, SAMPLE_TOOLTIP } from "../domain/samples";
 
 export function TraceState({
   trace,
@@ -101,6 +101,20 @@ export function SampleBadge() {
       <FlaskConical className="size-3" strokeWidth={2} aria-hidden="true" />
       Sample
       <span className="sr-only">: {SAMPLE_TOOLTIP}</span>
+    </span>
+  );
+}
+
+/** Marks a run launched on a sample trace, which replays recorded results rather than simulating. */
+export function ReplayBadge() {
+  return (
+    <span
+      title={REPLAY_RUN_LINE}
+      className="inline-flex h-5 shrink-0 cursor-help items-center gap-1 rounded-[6px] bg-surface-2 px-1.5 text-[11px] font-medium text-fg-2 ring-1 ring-border ring-inset"
+    >
+      <Repeat className="size-3" strokeWidth={2} aria-hidden="true" />
+      Replay
+      <span className="sr-only">: {REPLAY_RUN_LINE}</span>
     </span>
   );
 }

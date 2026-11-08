@@ -14,7 +14,7 @@ import { SimTimePanel } from "../components/run/SimTimePanel";
 import { StepTimingPanel } from "../components/run/StepTimingPanel";
 import { RunTimeline } from "../components/timeline/RunTimeline";
 import { ConfigChips } from "../components/RunsTable";
-import { SampleBadge, TraceChip } from "../components/TraceState";
+import { ReplayBadge, SampleBadge, TraceChip } from "../components/TraceState";
 import { Button, Card, CopyButton, EmptyState, ErrorNote, Panel, RelTime, Skeleton } from "../components/ui";
 import { ICON, buttonClass } from "../components/styles";
 import { cx } from "../components/cx";
@@ -27,7 +27,7 @@ import { useRunStream, type Connection } from "../hooks/useRunStream";
 import { isTyping } from "../lib/keys";
 import { toast } from "../lib/toast";
 import { paths } from "../paths";
-import { SAMPLE_README_URL, sampleRunLine } from "../domain/samples";
+import { REPLAY_RUN_LINE, SAMPLE_README_URL, sampleRunLine } from "../domain/samples";
 
 const CONNECTION: Record<Connection, { label: string; tone: Tone; live: boolean }> = {
   connecting: { label: "Connecting", tone: "pending", live: false },
@@ -170,6 +170,7 @@ function RunView({ live, connection, onRun }: { live: Live; connection: Connecti
             <span className="flex items-center gap-3">
               <Status tone={RUN_STATE[runState].tone} live={RUN_STATE[runState].live} label={RUN_STATE[runState].label} />
               {run.sample && <SampleBadge />}
+              {run.replay && <ReplayBadge />}
               {(runState === "active" || connection !== "live") && <ConnectionBadge connection={connection} />}
             </span>
           }
@@ -202,6 +203,7 @@ function RunView({ live, connection, onRun }: { live: Live; connection: Connecti
               </Link>
             ))}
           </div>
+          {run.replay && <p className="text-[13px] text-muted">{REPLAY_RUN_LINE}</p>}
         </PageHeader>
 
         <div className="flex flex-col gap-8">

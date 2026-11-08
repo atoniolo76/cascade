@@ -29,7 +29,12 @@ import httpx
 
 from cascade.gpu_configs import HW_CONFIGS_REL, GpuConfigRegistry
 from cascade.ingest import has_step_timeline
-from cascade.models import FILE_MAX_BYTES, FILE_NAME_PATTERN, SIM_FILES_MAX_BYTES
+from cascade.models import (
+    FILE_MAX_BYTES,
+    FILE_NAME_PATTERN,
+    SIM_FILES_MAX_BYTES,
+    StepTimelineUpload,
+)
 from cascade.sim.compare import compare
 from cascade.sim.importer import aligned_durations, import_durations, read_stats
 from cascade.sim.timeline import load_timeline, parse_durations, simulate
@@ -258,7 +263,7 @@ class Replay:
         if self.outputs is None:
             return
         for path in sorted(self.outputs.iterdir()):
-            if _is_plain_file(path) and path.name not in REPLAY_SKIP:
+            if _is_plain_file(path) and path.name not in REPLAY_SKIP | {"step-timeline.json"}:
                 shutil.copyfile(path, self.run_dir / path.name)
 
     def lines(self) -> Iterator[str]:
@@ -405,12 +410,23 @@ def upload_outputs(main: Main, run_dir: Path, before: Listing, put: Callable[[st
     uploads.send(run_dir / LOG_NAME, gzip_it=True)
 
 
-def step_timing(main: Main, env: SimEnv, log_path: Path, put: Callable[[str], None]) -> None:
+def step_timing(
+    main: Main,
+    env: SimEnv,
+    log_path: Path,
+    put: Callable[[str], None],
+    recorded: Path | None = None,
+) -> None:
     """Never fails the sim: a problem in the pipeline becomes a log line and no upload."""
-    if not has_step_timeline(env.trace_dir):
+    if recorded is None and not has_step_timeline(env.trace_dir):
         put("cascade worker: no corrected_timeline.json + kernel_mapping.json; no step timing")
         return
     try:
+        if recorded is not None:
+            payload = StepTimelineUpload.model_validate(json.loads(recorded.read_text()))
+            main.post("step-timeline", payload.model_dump(mode="json"))
+            put("cascade worker: recorded step timing posted")
+            return
         cfg = GpuConfigRegistry(env.accelsim_dir).get(env.gpu_config)
         if cfg is None:
             raise ValueError(f"no core clock for {env.gpu_config} under {env.accelsim_dir}")
@@ -482,7 +498,18 @@ def run(env: SimEnv, start: Callable[[Path], Source], heartbeat_s: float = HEART
         code = source.wait()
         if code == 0 and not main.cancelled.is_set() and logs.error is None:
             logs.flush_file()
-            step_timing(main, env, log_path, logs.put)
+            recorded = (
+                source.outputs / "step-timeline.json"
+                if isinstance(source, Replay) and source.outputs is not None
+                else None
+            )
+            step_timing(
+                main,
+                env,
+                log_path,
+                logs.put,
+                recorded if recorded is not None and recorded.is_file() else None,
+            )
         if not main.cancelled.is_set():
             logs.flush_file()
             upload_outputs(main, run_dir, before, logs.put)

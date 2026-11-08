@@ -5,7 +5,7 @@ import { Play, Rocket } from "lucide-react";
 import { useCreateRun, useGpuConfigs } from "../api/queries";
 import type { TraceSummary } from "../api/types";
 import { initialConfigs } from "../domain/configs";
-import { runBlocker } from "../domain/samples";
+import { SAMPLE_REPLAY_NOTE, launchableConfigs, runBlocker } from "../domain/samples";
 import { gpuLogo } from "../domain/logos";
 import { LogoTile } from "./BrandLogo";
 import { toast } from "../lib/toast";
@@ -77,7 +77,7 @@ function LaunchPopover({
   const navigate = useNavigate();
   const [count, setCount] = useState(1);
   const pop = useRef<HTMLDivElement>(null);
-  const selected = configs.data ? initialConfigs(trace, configs.data) : [];
+  const selected = configs.data ? initialConfigs(trace, launchableConfigs(trace, configs.data)) : [];
   const total = selected.length * count;
 
   const left = Math.max(12, Math.min(window.innerWidth - POP_WIDTH - 12, at.right - POP_WIDTH));
@@ -127,7 +127,7 @@ function LaunchPopover({
     >
       <div>
         <div className="text-[14px] font-medium text-fg">Launch a run</div>
-        <div className="text-[13px] text-muted">Suggested configs for this {trace.trace_gpu_arch} trace</div>
+        <div className="text-[13px] text-muted">{trace.sample ? SAMPLE_REPLAY_NOTE : `Suggested configs for this ${trace.trace_gpu_arch} trace`}</div>
       </div>
       {selected.length === 0 ? (
         <div className="text-[13px] text-muted">{configs.isPending ? "Loading configs…" : `No config matches ${trace.trace_gpu_arch}.`}</div>

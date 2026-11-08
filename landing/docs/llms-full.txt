@@ -608,6 +608,7 @@ Every field of `TraceSummary`, plus these.
 - `entries` (`list[RunEntry]`): The entries the run was created with.
 - `sim_counts` (`dict[SimState, int]`): How many sims are in each state. States with no sims are left out.
 - `sample` (`bool`): True for the sample run seeded with the sample trace. Its results were recorded when the run was made, not in this workspace, and cancelling it changes nothing.
+- `replay` (`bool`): Replays a sample's recorded Accel-Sim results.
 
 ### RunDetail
 
@@ -1420,7 +1421,7 @@ The request-sizing targets are exactly `SM90_H100`, `SM90_H200` and `SM80_A100`,
 4. Classify kernels, sum simulated durations by group, and take medians over repeats for each kind/context. Record separate prefill and decode host residuals (`step wall − GPU busy`), unattributed GPU busy, inter-step gaps, pre-first-step envelopes and signed post-last-step envelopes.
 5. Cache the resulting `PerfProfile` in process memory by `sim_id`, up to 128 profiles. Different request sizes reuse the base sim; scenario results themselves are not cached or saved. Only an absent/fresh base creates a normal run visible in the existing UI.
 
-Bundled samples reuse their recorded simulations and reject `fresh: true`: instruction traces are not bundled. The CPU Accel-Sim execution remains in the **simulator**, never the profiler. Request sizing is a separate pure-Python performance model over finished timing; it does not generate or replay new-shaped SASS traces.
+Bundled samples reuse finished simulations by default. With `fresh: true`, or when no reusable base exists, they launch a run that **replays recorded Accel-Sim results**, marked `replay: true`; configs without recorded results return 422. Instruction traces are not bundled, so replay does not perform new instruction simulation or GPU calibration. The CPU Accel-Sim execution remains in the **simulator**, never the profiler. Request sizing is a separate pure-Python performance model over finished timing; it does not generate or replay new-shaped SASS traces.
 
 ## Kernel groups and roofline floors
 
@@ -5350,6 +5351,7 @@ Every field of [TraceSummary](types.html#tracesummary), plus these.
 | `entries` | `list[RunEntry]` | The entries the run was created with. |
 | `sim_counts` | `dict[SimState, int]` | How many sims are in each state. States with no sims are left out. |
 | `sample` | `bool` | True for the sample run seeded with the sample trace. Its results were recorded when the run was made, not in this workspace, and cancelling it changes nothing. |
+| `replay` | `bool` | Replays a sample's recorded Accel-Sim results. (default `false`) |
 
 ### `RunDetail`
 

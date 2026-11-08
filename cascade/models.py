@@ -165,6 +165,7 @@ class RunSummary(BaseModel):
     entries: list[RunEntry]
     sim_counts: dict[SimState, int]
     sample: bool
+    replay: bool = False  # replays a sample's recorded Accel-Sim results
 
 
 class RunDetail(RunSummary):
