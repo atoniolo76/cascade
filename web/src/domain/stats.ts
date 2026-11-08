@@ -1,5 +1,5 @@
 import type { ComparisonRow, RunEntry, SimSummary } from "../api/types";
-import { relativeError } from "./accuracy";
+import { relativeError } from "./accuracy.ts";
 import type { KernelsBySim } from "./runLive";
 
 export interface KernelRow {
