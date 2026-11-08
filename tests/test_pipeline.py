@@ -82,6 +82,8 @@ class PipelineTest(unittest.TestCase):
                 shutil.copyfile(self.db, work / "profile.sqlite")
                 (work / "profile.nsys-rep").write_text("unscrubbed")
             if work.name == "traced":
+                self.assertTrue(work.is_relative_to(Path("/tmp")))
+                self.assertEqual(kwargs["env"]["TRACES_FOLDER"], f"{work}/")
                 spin = work / "spinlock_detection"
                 spin.mkdir(exist_ok=True)
                 (spin / "spinlock_instructions.txt").write_text("fake spinlocks")
@@ -131,7 +133,7 @@ class PipelineTest(unittest.TestCase):
         self.assertFalse(manifest["traced_timing_used"])
         self.assertEqual(manifest["status"], "completed")
         self.assertEqual(manifest["git_sha"], "fake-sha")
-        self.assertEqual(set(result.stage_wall_s), {"baseline", "profiled", "traced", "post_process"})
+        self.assertEqual(set(result.stage_wall_s), {"baseline", "profiled", "traced", "post_process", "trace_collect"})
         self.assertTrue(result.paths["corrected_timeline.json"].exists())
         self.assertTrue(result.paths["trace_alignment.json"].exists())
         self.assertTrue(result.paths["baseline_iterations.jsonl"].exists())
@@ -197,6 +199,23 @@ class PipelineTest(unittest.TestCase):
         manifest = json.loads((self.work / "runs/unreached/run.json").read_text())
         self.assertEqual(manifest["status"], "failed")
         self.assertEqual(set(manifest["stage_wall_s"]), {"traced"})
+
+    def test_trace_failure_collects_diagnostics_and_cleans_scratch(self):
+        scratch = []
+
+        def fail_trace(command, work, *args):
+            scratch.append(work.parent)
+            (work / "trace.log").write_text("tracer failed\n")
+            raise RuntimeError("tracer failed")
+
+        with patch.object(pipeline, "_trace", side_effect=fail_trace):
+            with self.assertRaisesRegex(RuntimeError, "tracer failed"):
+                profile(Workload("fake", ["hello"]), self.work / "runs",
+                        run_name="trace-failure", phases=(), trace_steps=[0])
+        self.assertEqual((self.work / "runs/trace-failure/traced/trace.log").read_text(), "tracer failed\n")
+        self.assertFalse(scratch[0].exists())
+        manifest = json.loads((self.work / "runs/trace-failure/run.json").read_text())
+        self.assertEqual(manifest["status"], "failed")
 
     def test_validation_before_launch(self):
         invalid = ({"phases": ()}, {"phases": ("invalid",)}, {"trace_steps": [-1]},

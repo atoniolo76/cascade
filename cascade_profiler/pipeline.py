@@ -2,8 +2,10 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
@@ -123,9 +125,13 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
     env = _nsys_env({"PYTHONPATH": os.pathsep.join(dict.fromkeys(
         [*import_paths, os.environ.get("PYTHONPATH", "")]))})
     timing_deadline = time.monotonic() + 50 * 60
+    trace_scratch = None
     try:
         for name in selected:
             work = run_dir / name
+            if name == "traced":
+                trace_scratch = tempfile.TemporaryDirectory(prefix="cascade-trace-", dir="/tmp")
+                work = Path(trace_scratch.name) / name
             work.mkdir()
             step_path = work / ("trace_steps.json" if name == "traced" else "steps.json")
             command = [sys.executable, "-m", "cascade_profiler.runner", "--workload-json", str(workload_file),
@@ -204,6 +210,11 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
                                 env, work, time.monotonic() + 25 * 60)
                 finally:
                     stage_wall_s["post_process"] = time.monotonic() - started
+                started = time.monotonic()
+                shutil.copytree(work, run_dir / "traced")
+                stage_wall_s["trace_collect"] = time.monotonic() - started
+                trace_scratch.cleanup()
+                trace_scratch = None
         summary = {"run_name": run_name, "phase": "both" if len(parsed_phases) == 2 else next(iter(parsed_phases), None),
                    "model": workload.model, "prompt": workload.prompts[0] if len(workload.prompts) == 1 else workload.prompts,
                    "max_tokens": workload.max_tokens, "repeats": workload.repeats,
@@ -228,6 +239,11 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
             print("Skipping corrected_timeline.json: both baseline and profiled phases are required")
         manifest["status"] = "completed"
     finally:
+        if trace_scratch is not None:
+            try:
+                shutil.copytree(Path(trace_scratch.name) / "traced", run_dir / "traced", dirs_exist_ok=True)
+            finally:
+                trace_scratch.cleanup()
         if manifest["status"] == "running":
             manifest["status"] = "failed"
         manifest_path.write_text(json.dumps(manifest, indent=2))
