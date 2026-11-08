@@ -1,124 +1,16 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import { Link, Outlet, useLocation } from "react-router";
-import { Activity, BookOpen, ChevronLeft, ChevronRight, GitCompareArrows, Layers, LogOut, Monitor, Moon, Plus, Sun, X } from "lucide-react";
-import { tokenStore } from "../api/client";
-import { useHealth, useRuns, useTraces } from "../api/queries";
-import { DOCS_URL } from "../config";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { Link, Outlet } from "react-router";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useRuns, useTraces } from "../api/queries";
 import { RUN_STATE } from "../domain/status";
+import { RAIL_WIDTH, useRailState } from "../lib/rail";
 import { dismissToast, toast, useToasts } from "../lib/toast";
-import { themeStore, useThemePref, type ThemePref } from "../lib/theme";
 import { paths } from "../paths";
-import { BrandTile } from "./Logo";
-import { LogoGlyph } from "./BrandLogo";
-import { logoByKey } from "../domain/logos";
 import { Status } from "./meters";
+import { Rail } from "./Rail";
 import { IconButton } from "./ui";
 import { ICON } from "./styles";
 import { cx } from "./cx";
-
-const DOCS_ON_GITHUB = new URL(DOCS_URL).hostname === "github.com" ? logoByKey("github") : undefined;
-
-type NavId = "traces" | "runs" | "compare" | "new";
-
-function activeNav(pathname: string): NavId | null {
-  if (pathname === "/runs/new") return "new";
-  if (pathname.startsWith("/compare")) return "compare";
-  if (pathname.startsWith("/runs")) return "runs";
-  if (pathname === "/" || pathname.startsWith("/traces")) return "traces";
-  return null;
-}
-
-const THEME_META: Record<ThemePref, { label: string; icon: ReactNode }> = {
-  system: { label: "Theme: system", icon: <Monitor {...ICON} /> },
-  light: { label: "Theme: light", icon: <Sun {...ICON} /> },
-  dark: { label: "Theme: dark", icon: <Moon {...ICON} /> },
-};
-
-const RAIL_ITEM =
-  "group relative grid size-10 shrink-0 place-items-center rounded-[12px] text-muted transition-[color,background-color,box-shadow] duration-150 hover:text-fg [&>svg]:size-[19px]";
-const RAIL_ACTIVE = "bg-surface text-fg shadow-tile ring-1 ring-border";
-
-function Tip({ children }: { children: string }) {
-  return (
-    <span className="pointer-events-none absolute top-1/2 left-full z-50 ml-2.5 hidden -translate-y-1/2 rounded-[8px] bg-btn px-2 py-1 text-[12px] leading-4 font-medium whitespace-nowrap text-btn-fg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 md:block">
-      {children}
-    </span>
-  );
-}
-
-function RailLink({ to, label, active, children }: { to: string; label: string; active: boolean; children: ReactNode }) {
-  return (
-    <Link to={to} aria-label={label} aria-current={active ? "page" : undefined} className={cx(RAIL_ITEM, active && RAIL_ACTIVE)}>
-      {children}
-      <Tip>{label}</Tip>
-    </Link>
-  );
-}
-
-function RailDivider() {
-  return <span aria-hidden className="mx-auto h-5 w-px shrink-0 bg-border-strong md:h-px md:w-5" />;
-}
-
-function WorkspaceName() {
-  const workspace = useHealth().data?.workspace;
-  useEffect(() => {
-    if (workspace != null) document.title = `${workspace} · Cascade`;
-  }, [workspace]);
-  if (workspace == null) return null;
-  return (
-    <span
-      title={`Workspace: ${workspace}`}
-      className="hidden max-w-[96px] shrink-0 truncate rounded-[8px] bg-surface px-2 py-1 text-center font-mono text-[11px] leading-4 text-muted ring-1 ring-border sm:block md:-mt-3 md:mb-3 md:line-clamp-2 md:max-w-[64px] md:px-1 md:whitespace-normal md:[overflow-wrap:anywhere]"
-    >
-      {workspace}
-    </span>
-  );
-}
-
-function Rail() {
-  const { pathname } = useLocation();
-  const nav = activeNav(pathname);
-  const theme = useThemePref();
-  return (
-    <nav
-      aria-label="Main"
-      className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-window/90 px-3 backdrop-blur-md md:fixed md:inset-y-0 md:left-0 md:h-auto md:w-[72px] md:flex-col md:gap-2.5 md:bg-transparent md:px-0 md:py-4 md:backdrop-blur-none"
-    >
-      <Link to={paths.traces} aria-label="Cascade home" className="mr-1 md:mr-0 md:mb-5">
-        <BrandTile />
-      </Link>
-      <WorkspaceName />
-      <RailLink to={paths.traces} label="Traces" active={nav === "traces"}>
-        <Layers {...ICON} />
-      </RailLink>
-      <RailLink to={paths.runs} label="Runs" active={nav === "runs"}>
-        <Activity {...ICON} />
-      </RailLink>
-      <RailLink to={paths.compare()} label="Compare runs" active={nav === "compare"}>
-        <GitCompareArrows {...ICON} />
-      </RailLink>
-      <RailDivider />
-      <RailLink to={paths.newRun()} label="New run" active={nav === "new"}>
-        <Plus {...ICON} />
-      </RailLink>
-      <div className="ml-auto flex items-center gap-1 md:mt-auto md:ml-0 md:flex-col md:gap-2.5">
-        <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" aria-label="Docs (opens in a new tab)" className={RAIL_ITEM}>
-          {DOCS_ON_GITHUB ? <LogoGlyph logo={DOCS_ON_GITHUB} className="size-[18px]" /> : <BookOpen {...ICON} />}
-          <Tip>{DOCS_ON_GITHUB ? "Docs on GitHub" : "Docs"}</Tip>
-        </a>
-        <button type="button" aria-label={THEME_META[theme].label} onClick={themeStore.cycle} className={RAIL_ITEM}>
-          {THEME_META[theme].icon}
-          <Tip>{THEME_META[theme].label}</Tip>
-        </button>
-        <RailDivider />
-        <button type="button" aria-label="Forget token" onClick={tokenStore.clear} className={RAIL_ITEM}>
-          <LogOut {...ICON} />
-          <Tip>Forget token</Tip>
-        </button>
-      </div>
-    </nav>
-  );
-}
 
 function useTransitionToasts() {
   const traces = useTraces();
@@ -157,7 +49,7 @@ function useTransitionToasts() {
 function Toaster() {
   const toasts = useToasts();
   return (
-    <div aria-live="polite" className="pointer-events-none fixed bottom-4 left-4 z-[60] flex w-[min(360px,calc(100vw-32px))] flex-col gap-2 md:left-[88px]">
+    <div aria-live="polite" className="pointer-events-none fixed bottom-4 left-4 z-[60] flex w-[min(360px,calc(100vw-32px))] flex-col gap-2 md:left-[calc(var(--rail-w)+16px)]">
       {toasts.map((t) => (
         <div key={t.id} role="status" className="pointer-events-auto flex animate-toast-in items-start gap-3 rounded-[16px] bg-surface p-3.5 shadow-pop ring-1 ring-border">
           <div className="min-w-0 flex-1">
@@ -180,9 +72,13 @@ function Toaster() {
 
 export function AppShell() {
   useTransitionToasts();
+  const rail = useRailState();
   return (
-    <div className="min-h-dvh bg-window md:pl-[72px]">
-      <Rail />
+    <div
+      style={{ "--rail-w": `${RAIL_WIDTH[rail]}px` } as CSSProperties}
+      className="min-h-dvh bg-window transition-[padding-left] duration-[180ms] ease-out md:pl-(--rail-w)"
+    >
+      <Rail state={rail} />
       <main className="min-h-[calc(100dvh-56px)] border-t border-border bg-panel md:m-2 md:ml-0 md:min-h-[calc(100dvh-16px)] md:rounded-[22px] md:border">
         <div className="mx-auto max-w-[1320px] px-4 pt-5 pb-20 sm:px-8 sm:pt-7 lg:px-12">
           <Outlet />
