@@ -1,0 +1,72 @@
+$ /home/ubuntu/.local/bin/uv run cascade simulate results/gaps-nosync/corrected_timeline.json --measured-only --gap-model measured --output results/gaps-nosync/measured-only/measured/simulated_timeline.json
+Wrote results/gaps-nosync/measured-only/measured/simulated_timeline.json
+Simulated kernels: 0/17088 (0.00%); measured GPU-time coverage: 0.00%
+$ /home/ubuntu/.local/bin/uv run cascade compare results/gaps-nosync/corrected_timeline.json results/gaps-nosync/measured-only/measured/simulated_timeline.json --output results/gaps-nosync/measured-only/measured/compare.json
+Metric       N    mean abs error ns    p50 abs ns    p95 abs ns    mean abs %
+Step wall   96   0.000    0.000    0.000    0.000
+GPU busy    96   0.000    0.000    0.000    0.000
+Repeat    TTFT error ms    ITL mean error ms    ITL p50 error ms    e2e error ms
+1         0.799429    0.003207    n/a    2.219840
+2         0.670852    0.001973    n/a    3.065603
+3         0.612244    0.002437    n/a    2.809626
+Wrote results/gaps-nosync/measured-only/measured/compare.json
+$ /home/ubuntu/.local/bin/uv run cascade simulate results/gaps-nosync/corrected_timeline.json --measured-only --gap-model mean --output results/gaps-nosync/measured-only/mean/simulated_timeline.json
+Wrote results/gaps-nosync/measured-only/mean/simulated_timeline.json
+Simulated kernels: 0/17088 (0.00%); measured GPU-time coverage: 0.00%
+$ /home/ubuntu/.local/bin/uv run cascade compare results/gaps-nosync/corrected_timeline.json results/gaps-nosync/measured-only/mean/simulated_timeline.json --output results/gaps-nosync/measured-only/mean/compare.json
+Metric       N    mean abs error ns    p50 abs ns    p95 abs ns    mean abs %
+Step wall   96   0.000    0.000    0.000    0.000
+GPU busy    96   0.000    0.000    0.000    0.000
+Repeat    TTFT error ms    ITL mean error ms    ITL p50 error ms    e2e error ms
+1         0.799429    0.435178    n/a    15.610942
+2         0.670852    0.033069    n/a    4.029573
+3         0.612244    -0.460630    n/a    -11.545446
+Wrote results/gaps-nosync/measured-only/mean/compare.json
+$ /home/ubuntu/.local/bin/uv run cascade simulate results/gaps-nosync/corrected_timeline.json --measured-only --gap-model linear --output results/gaps-nosync/measured-only/linear/simulated_timeline.json
+Wrote results/gaps-nosync/measured-only/linear/simulated_timeline.json
+Simulated kernels: 0/17088 (0.00%); measured GPU-time coverage: 0.00%
+$ /home/ubuntu/.local/bin/uv run cascade compare results/gaps-nosync/corrected_timeline.json results/gaps-nosync/measured-only/linear/simulated_timeline.json --output results/gaps-nosync/measured-only/linear/compare.json
+Metric       N    mean abs error ns    p50 abs ns    p95 abs ns    mean abs %
+Step wall   96   0.000    0.000    0.000    0.000
+GPU busy    96   0.000    0.000    0.000    0.000
+Repeat    TTFT error ms    ITL mean error ms    ITL p50 error ms    e2e error ms
+1         0.799429    0.435178    n/a    15.610942
+2         0.670852    0.033069    n/a    4.029573
+3         0.612244    -0.460630    n/a    -11.545446
+Wrote results/gaps-nosync/measured-only/linear/compare.json
+$ /home/ubuntu/.local/bin/uv run cascade simulate results/gaps-nosync/corrected_timeline.json --durations results/gaps-nosync/sim_durations.json --gap-model measured --output results/gaps-nosync/accelsim/measured/simulated_timeline.json
+Wrote results/gaps-nosync/accelsim/measured/simulated_timeline.json
+Simulated kernels: 5856/17088 (34.27%); measured GPU-time coverage: 36.78%
+$ /home/ubuntu/.local/bin/uv run cascade compare results/gaps-nosync/corrected_timeline.json results/gaps-nosync/accelsim/measured/simulated_timeline.json --output results/gaps-nosync/accelsim/measured/compare.json
+Metric       N    mean abs error ns    p50 abs ns    p95 abs ns    mean abs %
+Step wall   96   41722.857    41807.677    42757.677    0.784
+GPU busy    96   41722.857    41807.677    42757.677    7.281
+Repeat    TTFT error ms    ITL mean error ms    ITL p50 error ms    e2e error ms
+1         0.841890    0.044870    n/a    3.553838
+2         0.714594    0.043673    n/a    4.402054
+3         0.655506    0.044104    n/a    4.144570
+Wrote results/gaps-nosync/accelsim/measured/compare.json
+$ /home/ubuntu/.local/bin/uv run cascade simulate results/gaps-nosync/corrected_timeline.json --durations results/gaps-nosync/sim_durations.json --gap-model mean --output results/gaps-nosync/accelsim/mean/simulated_timeline.json
+Wrote results/gaps-nosync/accelsim/mean/simulated_timeline.json
+Simulated kernels: 5856/17088 (34.27%); measured GPU-time coverage: 36.78%
+$ /home/ubuntu/.local/bin/uv run cascade compare results/gaps-nosync/corrected_timeline.json results/gaps-nosync/accelsim/mean/simulated_timeline.json --output results/gaps-nosync/accelsim/mean/compare.json
+Metric       N    mean abs error ns    p50 abs ns    p95 abs ns    mean abs %
+Step wall   96   41722.857    41807.677    42757.677    0.784
+GPU busy    96   41722.857    41807.677    42757.677    7.281
+Repeat    TTFT error ms    ITL mean error ms    ITL p50 error ms    e2e error ms
+1         0.841890    0.476841    n/a    16.944940
+2         0.714594    0.074769    n/a    5.366024
+3         0.655506    -0.418963    n/a    -10.210502
+Wrote results/gaps-nosync/accelsim/mean/compare.json
+$ /home/ubuntu/.local/bin/uv run cascade simulate results/gaps-nosync/corrected_timeline.json --durations results/gaps-nosync/sim_durations.json --gap-model linear --output results/gaps-nosync/accelsim/linear/simulated_timeline.json
+Wrote results/gaps-nosync/accelsim/linear/simulated_timeline.json
+Simulated kernels: 5856/17088 (34.27%); measured GPU-time coverage: 36.78%
+$ /home/ubuntu/.local/bin/uv run cascade compare results/gaps-nosync/corrected_timeline.json results/gaps-nosync/accelsim/linear/simulated_timeline.json --output results/gaps-nosync/accelsim/linear/compare.json
+Metric       N    mean abs error ns    p50 abs ns    p95 abs ns    mean abs %
+Step wall   96   41722.857    41807.677    42757.677    0.784
+GPU busy    96   41722.857    41807.677    42757.677    7.281
+Repeat    TTFT error ms    ITL mean error ms    ITL p50 error ms    e2e error ms
+1         0.841890    0.476841    n/a    16.944940
+2         0.714594    0.074769    n/a    5.366024
+3         0.655506    -0.418963    n/a    -10.210502
+Wrote results/gaps-nosync/accelsim/linear/compare.json

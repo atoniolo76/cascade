@@ -49,8 +49,8 @@ def validate_gaps(data):
                     continue
                 start = number(start, f"{prefix}_wall_start_ns")
                 end = number(end, f"{prefix}_wall_end_ns")
-                if abs(end - start - step[f"{prefix}_wall_ns"]) > 1:
-                    raise ValueError(f"{prefix} timestamps must match step wall")
+                if end < start:
+                    raise ValueError(f"{prefix} timestamps must be ordered")
                 if i and prefix == "baseline":
                     previous_end = steps[i - 1].get("baseline_wall_end_ns")
                     if previous_end is not None and abs(start - previous_end - gap) > 1:

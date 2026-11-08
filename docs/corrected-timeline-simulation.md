@@ -149,7 +149,10 @@ reconstruction; profiled gaps are not substituted for missing baseline gaps.
 baseline gap fields exist, legacy request derivation and output are unchanged. If any baseline
 gap field exists in a captured repeat, every captured step in that repeat must supply it:
 first step null, subsequent gaps finite/nonnegative. Step order is input order. Provided
-start/end pairs must match their step wall; baseline adjacent timestamps must match the gap.
+start/end pairs must be ordered; baseline adjacent timestamps must match the gap. Scalar wall
+durations and timestamp spans can be independently sampled: baseline wall uses wall-clock calls
+while boundaries use monotonic calls; profiled wall uses NVTX while boundaries wrap the step.
+They are not required to be identical. Scalar walls remain the simulation budgets, unchanged.
 Warm-up rows, including null fields, are copied unchanged.
 
 - `measured`: preserve each measured `baseline_gap_before_ns` exactly.

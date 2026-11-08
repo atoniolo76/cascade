@@ -362,6 +362,18 @@ def test_invalid_gap_fields(capture, tmp_path, change, match):
         load_timeline(write(tmp_path, capture))
 
 
+def test_independently_sampled_step_spans(capture, tmp_path):
+    step = capture["steps"][1]
+    step["baseline_wall_ns"] += 58
+    step["host_ns"] += 58
+    step["profiled_wall_ns"] -= 1000
+    result = load_timeline(write(tmp_path, capture))
+    assert result == capture
+    assert result["steps"][1]["baseline_wall_ns"] != (
+        step["baseline_wall_end_ns"] - step["baseline_wall_start_ns"]
+    )
+
+
 def test_launch_latency_alias(capture, tmp_path, monkeypatch):
     durations = write(
         tmp_path,
