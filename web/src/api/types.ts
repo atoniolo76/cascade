@@ -43,6 +43,7 @@ export interface TraceSummary {
   kernel_count: number;
   bytes: number;
   has_real_timing: boolean;
+  has_step_timeline: boolean;
 }
 
 export interface TraceDetail extends TraceSummary {
@@ -111,6 +112,18 @@ export interface RunSummary {
 export interface RunDetail extends RunSummary {
   trace: TraceSummary;
   sims: SimSummary[];
+}
+
+/** `simulated` is Alessio's simulated_timeline.json and `compare` his compare.json; the contract keeps them opaque. */
+export interface StepTimelineUpload {
+  simulated: Record<string, unknown>;
+  compare: Record<string, unknown> | null;
+}
+
+export interface SimStepTimeline extends StepTimelineUpload {
+  sim_id: string;
+  gpu_config: string;
+  replica: number;
 }
 
 export interface ComparisonRow {

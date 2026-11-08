@@ -39,8 +39,10 @@ from cascade.models import (
     SimEvent,
     SimResults,
     SimState,
+    SimStepTimeline,
     SimSummary,
     SnapshotEvent,
+    StepTimelineUpload,
     TraceDetail,
     TraceState,
     TraceSummary,
@@ -470,6 +472,11 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
         get_run_or_404(run_id)
         return cascade.light_kernels(run_id)
 
+    @app.get("/api/runs/{run_id}/step-timelines", dependencies=auth)
+    def run_step_timelines(run_id: str) -> list[SimStepTimeline]:
+        get_run_or_404(run_id)
+        return store.step_timelines_for_run(run_id)
+
     @app.get("/api/runs/{run_id}/results", dependencies=auth)
     def run_results(run_id: str) -> Response:
         run = get_run_or_404(run_id)
@@ -510,6 +517,12 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
     @app.post("/api/sims/{sim_id}/logs", dependencies=auth, status_code=204)
     def logs(sim_id: str, body: LogChunk) -> Response:
         cascade.add_logs(get_sim_or_404(sim_id), body)
+        return Response(status_code=204)
+
+    @app.post("/api/sims/{sim_id}/step-timeline", dependencies=auth, status_code=204)
+    def step_timeline(sim_id: str, body: StepTimelineUpload) -> Response:
+        get_sim_or_404(sim_id)
+        store.set_step_timeline(sim_id, body)
         return Response(status_code=204)
 
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])

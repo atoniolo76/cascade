@@ -23,7 +23,9 @@ from cascade.models import (
     RunSummary,
     SimMetrics,
     SimState,
+    SimStepTimeline,
     SimSummary,
+    StepTimelineUpload,
     TraceDetail,
     TraceState,
     TraceSummary,
@@ -50,7 +52,8 @@ CREATE TABLE IF NOT EXISTS traces (
     kernel_count INTEGER NOT NULL DEFAULT 0,
     bytes INTEGER NOT NULL DEFAULT 0,
     kernels TEXT NOT NULL DEFAULT '[]',
-    real_timing TEXT
+    real_timing TEXT,
+    has_step_timeline INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY,
@@ -97,7 +100,15 @@ CREATE TABLE IF NOT EXISTS kernel_stats (
     stats TEXT NOT NULL,
     PRIMARY KEY (sim_id, kernel_index)
 );
+CREATE TABLE IF NOT EXISTS step_timelines (
+    sim_id TEXT PRIMARY KEY REFERENCES sims(id),
+    simulated TEXT NOT NULL,
+    compare TEXT
+);
 """
+
+# Columns added after a table first shipped; CREATE TABLE IF NOT EXISTS leaves old databases alone.
+ADDED_COLUMNS = (("traces", "has_step_timeline", "INTEGER NOT NULL DEFAULT 0"),)
 
 
 class IllegalTransition(Exception):
@@ -134,6 +145,10 @@ class Store:
         self._db.execute("PRAGMA synchronous=NORMAL")
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript(SCHEMA)
+        for table, column, decl in ADDED_COLUMNS:
+            have = {r["name"] for r in self._db.execute(f"PRAGMA table_info({table})")}
+            if column not in have:
+                self._db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
     def close(self) -> None:
         with self._lock:
@@ -179,6 +194,7 @@ class Store:
         nbytes: int | None = None,
         kernels: list[KernelLaunch] | None = None,
         real_timing: list[dict] | None = None,
+        has_step_timeline: bool | None = None,
     ) -> None:
         with self._tx() as db:
             row = db.execute("SELECT state FROM traces WHERE id = ?", (trace_id,)).fetchone()
@@ -202,11 +218,17 @@ class Store:
                 sets["kernels"] = json.dumps([k.model_dump() for k in kernels])
             if real_timing is not None:
                 sets["real_timing"] = json.dumps(real_timing)
+            if has_step_timeline is not None:
+                sets["has_step_timeline"] = int(has_step_timeline)
             cols = ", ".join(f"{k} = ?" for k in sets)
             db.execute(f"UPDATE traces SET {cols} WHERE id = ?", (*sets.values(), trace_id))
 
     def trace_states(self) -> dict[str, TraceState]:
         return {r["id"]: TraceState(r["state"]) for r in self._all("SELECT id, state FROM traces")}
+
+    def step_timeline_flags(self) -> dict[str, bool]:
+        rows = self._all("SELECT id, has_step_timeline FROM traces")
+        return {r["id"]: bool(r["has_step_timeline"]) for r in rows}
 
     def get_trace(self, trace_id: str) -> TraceDetail | None:
         row = self._one("SELECT * FROM traces WHERE id = ?", trace_id)
@@ -470,6 +492,37 @@ class Store:
             sim = _sim_summary(db.execute("SELECT * FROM sims WHERE id = ?", (sim_id,)).fetchone())
         return sim, added
 
+    def set_step_timeline(self, sim_id: str, upload: StepTimelineUpload) -> None:
+        """Replaces any earlier upload for this sim."""
+        with self._tx() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO step_timelines (sim_id, simulated, compare)"
+                " VALUES (?, ?, ?)",
+                (
+                    sim_id,
+                    json.dumps(upload.simulated),
+                    None if upload.compare is None else json.dumps(upload.compare),
+                ),
+            )
+
+    def step_timelines_for_run(self, run_id: str) -> list[SimStepTimeline]:
+        rows = self._all(
+            "SELECT t.*, s.gpu_config, s.replica FROM step_timelines t"
+            " JOIN sims s ON s.id = t.sim_id WHERE s.run_id = ?"
+            " ORDER BY s.gpu_config, s.replica, s.id",
+            run_id,
+        )
+        return [
+            SimStepTimeline(
+                sim_id=r["sim_id"],
+                gpu_config=r["gpu_config"],
+                replica=r["replica"],
+                simulated=json.loads(r["simulated"]),
+                compare=json.loads(r["compare"]) if r["compare"] is not None else None,
+            )
+            for r in rows
+        ]
+
     def kernel_stats(self, sim_id: str) -> list[KernelStat]:
         rows = self._all(
             "SELECT * FROM kernel_stats WHERE sim_id = ? ORDER BY kernel_index", sim_id
@@ -494,6 +547,7 @@ def _trace_summary(row: sqlite3.Row) -> TraceSummary:
         kernel_count=row["kernel_count"],
         bytes=row["bytes"],
         has_real_timing=row["real_timing"] is not None,
+        has_step_timeline=bool(row["has_step_timeline"]),
     )
 
 

@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TraceState(StrEnum):
@@ -92,6 +92,7 @@ class TraceSummary(BaseModel):
     kernel_count: int  # traced kernels seen so far
     bytes: int  # bytes on disk under the trace dir
     has_real_timing: bool
+    has_step_timeline: bool  # corrected_timeline.json and kernel_mapping.json are in the trace dir
 
 
 class TraceDetail(TraceSummary):
@@ -178,6 +179,28 @@ class HeartbeatAck(BaseModel):
 class LogChunk(BaseModel):
     seq: Annotated[int, Field(ge=0)]  # per-sim, increasing; a repeated seq is ignored
     lines: list[str]
+
+
+class StepTimelineUpload(BaseModel):
+    """What a sim posts after step timing: `cascade simulate` and `cascade compare` output."""
+
+    simulated: dict  # simulated_timeline.json
+    compare: dict | None  # compare.json against the trace's corrected_timeline.json
+
+    @field_validator("simulated")
+    @classmethod
+    def _timeline_shape(cls, value: dict) -> dict:
+        if not isinstance(value.get("steps"), list) or not isinstance(value.get("summary"), dict):
+            raise ValueError("simulated needs a steps list and a summary object")
+        return value
+
+
+class SimStepTimeline(BaseModel):
+    sim_id: str
+    gpu_config: str
+    replica: int
+    simulated: dict
+    compare: dict | None
 
 
 class ComparisonRow(BaseModel):

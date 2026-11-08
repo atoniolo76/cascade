@@ -24,6 +24,7 @@ from cascade.store import Store
 log = logging.getLogger(__name__)
 
 POLL_S = 2.0
+STEP_TIMELINE_FILES = ("corrected_timeline.json", "kernel_mapping.json")
 RAW_KERNEL_RE = re.compile(r"^kernel-(\d+)(?:-ctx_0x[0-9a-f]+)?\.trace(?:\.xz)?$")
 STATS_LINE_RE = re.compile(
     r"^kernel-(\d+)[^,]*,\s*(.+?),"
@@ -126,6 +127,12 @@ def load_real_timing(run_dir: Path, metadata: dict) -> list[dict] | None:
     return sorted(rows, key=lambda r: r["kernel_id"])
 
 
+def has_step_timeline(run_dir: Path) -> bool:
+    """The profiler's phases output and its kernel mapping, which `cascade worker` needs for
+    step timing. Either can land after the trace is ready."""
+    return all((run_dir / name).is_file() for name in STEP_TIMELINE_FILES)
+
+
 def kernelslist_kernel_count(path: Path) -> int:
     return sum(1 for line in path.read_text().splitlines() if line.startswith("kernel"))
 
@@ -180,17 +187,19 @@ class Ingestor:
         if not root.is_dir():
             return
         states = self.store.trace_states()
+        flags = self.store.step_timeline_flags()
         for run_dir in sorted(p for p in root.iterdir() if p.is_dir()):
             trace_id = run_dir.name
             if trace_id.startswith("."):
                 continue
             state = states.get(trace_id)
-            if state in (TraceState.ready, TraceState.failed):
-                continue
             if state == TraceState.processing:
                 self._submit(trace_id)
-                continue
-            self._advance_upload(trace_id, run_dir, registered=state is not None)
+            elif state not in (TraceState.ready, TraceState.failed):
+                self._advance_upload(trace_id, run_dir, registered=state is not None)
+            present = has_step_timeline(run_dir)
+            if present != flags.get(trace_id, False):
+                self.store.update_trace(trace_id, has_step_timeline=present)
 
     def _advance_upload(self, trace_id: str, run_dir: Path, registered: bool) -> None:
         files = scan_tree(run_dir)

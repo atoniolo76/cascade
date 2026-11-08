@@ -312,3 +312,73 @@ def test_serves_built_ui_with_spa_fallback(tmp_path, monkeypatch):
         assert client.get("/assets/app.js").text == "console.log(1)"
         assert client.get("/../../etc/passwd").text == "<div id=root></div>"
         assert client.get("/api/unknown", headers=AUTH).status_code == 404
+
+
+def test_step_timeline_upload_replaces_and_reads_back_per_run(setup):
+    client, _, _ = setup
+    run = client.post(
+        "/api/runs",
+        json={
+            "trace_id": "trace-h100",
+            "entries": [
+                {"gpu_config": "SM90_H200", "count": 1},
+                {"gpu_config": "SM90_H100", "count": 2},
+            ],
+        },
+        headers=AUTH,
+    ).json()
+    sims = {(s["gpu_config"], s["replica"]): s["id"] for s in run["sims"]}
+    url = f"/api/runs/{run['id']}/step-timelines"
+    post = lambda sim, body, headers=AUTH: client.post(  # noqa: E731
+        f"/api/sims/{sim}/step-timeline", json=body, headers=headers
+    )
+    timeline = lambda tag: {"steps": [{"step": 0}], "summary": {"tag": tag}}  # noqa: E731
+    assert client.get(url, headers=AUTH).json() == []
+
+    assert (
+        post(sims["SM90_H200", 0], {"simulated": timeline("a"), "compare": {"x": 1}}).status_code
+        == 204
+    )
+    assert (
+        post(sims["SM90_H100", 1], {"simulated": timeline("c"), "compare": None}).status_code == 204
+    )
+    assert (
+        post(sims["SM90_H200", 0], {"simulated": timeline("b"), "compare": {"x": 2}}).status_code
+        == 204
+    )
+
+    assert client.get(url, headers=AUTH).json() == [
+        {
+            "sim_id": sims["SM90_H100", 1],
+            "gpu_config": "SM90_H100",
+            "replica": 1,
+            "simulated": timeline("c"),
+            "compare": None,
+        },
+        {
+            "sim_id": sims["SM90_H200", 0],
+            "gpu_config": "SM90_H200",
+            "replica": 0,
+            "simulated": timeline("b"),
+            "compare": {"x": 2},
+        },
+    ]
+
+    sim = sims["SM90_H100", 0]
+    for bad in (
+        {"simulated": {"steps": []}, "compare": None},
+        {"simulated": {"summary": {}}, "compare": None},
+        {"simulated": {"steps": {}, "summary": {}}, "compare": None},
+        {"simulated": [1], "compare": None},
+        {"simulated": timeline("d"), "compare": "fine"},
+    ):
+        assert post(sim, bad).status_code == 422, bad
+    assert post(sim, {"simulated": timeline("d"), "compare": None}, headers={}).status_code == 401
+    assert (
+        post("sim-000000000000", {"simulated": timeline("d"), "compare": None}).status_code == 404
+    )
+    assert client.get("/api/runs/run-000000000000/step-timelines", headers=AUTH).status_code == 404
+    assert [t["sim_id"] for t in client.get(url, headers=AUTH).json()] == [
+        sims["SM90_H100", 1],
+        sims["SM90_H200", 0],
+    ]

@@ -240,3 +240,28 @@ def test_parse_stats_tolerates_truncated_and_merged_rows():
         (3, "_Z6euclidPcffPfiii", (938, 1, 1), (16, 1, 1), 161428),
         (4, "_Z1fv", (2, 3, 4), (32, 1, 1), None),
     ]
+
+
+def test_step_timeline_flag_follows_files_that_arrive_after_ready(env):
+    s, store = env
+    run_dir = s.trace_dir("late-steps")
+    write(run_dir / "traces" / "kernelslist.g", "kernel-1.traceg\n")
+    finish_upload(run_dir)
+    ing = Ingestor(s, store)
+    poll(ing)
+    poll(ing)
+    assert store.get_trace("late-steps").state == TraceState.ready
+    assert store.get_trace("late-steps").has_step_timeline is False
+
+    write(run_dir / "corrected_timeline.json", "{}")
+    poll(ing)
+    assert store.get_trace("late-steps").has_step_timeline is False
+
+    write(run_dir / "kernel_mapping.json", "[]")
+    poll(ing)
+    assert store.get_trace("late-steps").has_step_timeline is True
+    assert store.list_traces()[0].has_step_timeline is True
+
+    (run_dir / "kernel_mapping.json").unlink()
+    poll(ing)
+    assert store.get_trace("late-steps").has_step_timeline is False

@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 
 from cascade.models import Heartbeat, RunEntry, SimState, TraceState
@@ -92,3 +94,25 @@ def test_state_survives_reopen(tmp_path):
     s2 = Store(tmp_path / "db")
     assert not s2.register_trace("t", 9, 9)
     assert s2.get_trace("t").kernel_count == 1
+
+
+def test_database_from_before_step_timing_gains_the_column(tmp_path):
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.execute(
+        "CREATE TABLE traces (id TEXT PRIMARY KEY, state TEXT NOT NULL, error TEXT,"
+        " created_at TEXT NOT NULL, updated_at TEXT NOT NULL, metadata TEXT,"
+        " kernel_count INTEGER NOT NULL DEFAULT 0, bytes INTEGER NOT NULL DEFAULT 0,"
+        " kernels TEXT NOT NULL DEFAULT '[]', real_timing TEXT)"
+    )
+    old.execute(
+        "INSERT INTO traces (id, state, created_at, updated_at) VALUES"
+        " ('t', 'ready', '2026-11-07T00:00:00+00:00', '2026-11-07T00:00:00+00:00')"
+    )
+    old.commit()
+    old.close()
+    s = Store(path)
+    assert s.get_trace("t").has_step_timeline is False
+    s.update_trace("t", has_step_timeline=True)
+    s.close()
+    assert Store(path).get_trace("t").has_step_timeline is True
