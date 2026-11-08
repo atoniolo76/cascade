@@ -42,9 +42,11 @@ export const tokenStore = {
 
 export class ApiError extends Error {
   readonly status: number;
-  constructor(status: number, message: string) {
+  readonly runId: string | undefined;
+  constructor(status: number, message: string, runId?: string) {
     super(message);
     this.status = status;
+    this.runId = runId;
   }
 }
 
@@ -52,6 +54,7 @@ function detailMessage(body: unknown, fallback: string): string {
   if (typeof body !== "object" || body === null || !("detail" in body)) return fallback;
   const { detail } = body;
   if (typeof detail === "string") return detail;
+  if (typeof detail === "object" && detail !== null && "message" in detail && typeof detail.message === "string") return detail.message;
   if (Array.isArray(detail)) {
     const msgs = detail.flatMap((d: unknown) =>
       typeof d === "object" && d !== null && "msg" in d && typeof d.msg === "string" ? [d.msg] : [],
@@ -70,7 +73,9 @@ export async function request(path: string, init?: RequestInit): Promise<Respons
   if (res.ok) return res;
   if (res.status === 401) tokenStore.clear();
   const body: unknown = await res.json().catch(() => null);
-  throw new ApiError(res.status, detailMessage(body, `${res.status} ${res.statusText}`));
+  const detail: unknown = typeof body === "object" && body !== null && "detail" in body ? body.detail : null;
+  const runId = typeof detail === "object" && detail !== null && "run_id" in detail && typeof detail.run_id === "string" ? detail.run_id : undefined;
+  throw new ApiError(res.status, detailMessage(body, `${res.status} ${res.statusText}`), runId);
 }
 
 /** The server is the typed pydantic side of the contract in types.ts; its JSON is trusted as T. */

@@ -34,6 +34,7 @@ const router = createBrowserRouter([
       { path: "traces/:traceId", element: <TraceDetailPage /> },
       { path: "runs", element: <RunsPage /> },
       { path: "runs/new", element: <NewRunPage /> },
+      { path: "request-simulator", lazy: () => import("./pages/RequestSimulatorPage").then((m) => ({ Component: m.RequestSimulatorPage })) },
       { path: "runs/:runId", lazy: () => import("./pages/RunDetailPage").then((m) => ({ Component: m.RunDetailPage })) },
       { path: "compare", lazy: () => import("./pages/ComparePage").then((m) => ({ Component: m.ComparePage })) },
       { path: "*", element: <NotFoundPage /> },
