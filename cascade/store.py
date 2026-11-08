@@ -355,6 +355,15 @@ class Store:
         row = self._one("SELECT * FROM sims WHERE id = ?", sim_id)
         return _sim_summary(row) if row else None
 
+    def sims_for_trace_config(self, trace_id: str, gpu_config: str) -> list[SimSummary]:
+        rows = self._all(
+            "SELECT s.* FROM sims s JOIN runs r ON r.id = s.run_id"
+            " WHERE r.trace_id = ? AND s.gpu_config = ? ORDER BY s.created_at DESC, s.id DESC",
+            trace_id,
+            gpu_config,
+        )
+        return [_sim_summary(row) for row in rows]
+
     def sims_for_run(self, run_id: str) -> list[SimSummary]:
         rows = self._all(
             "SELECT * FROM sims WHERE run_id = ? ORDER BY gpu_config, replica, id", run_id
