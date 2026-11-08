@@ -162,3 +162,21 @@ def test_no_step_files_means_one_log_line_and_no_upload(server):
     assert [line for line in log.splitlines() if "step timing" in line] == [
         "cascade worker: no corrected_timeline.json + kernel_mapping.json; no step timing"
     ]
+
+
+def test_replay_worker_succeeds_when_the_app_runs_without_a_token(tmp_path, monkeypatch):
+    monkeypatch.setenv("TMPDIR", str(tmp_path / "tmp"))
+    (tmp_path / "tmp").mkdir()
+    cmd = f"{CASCADE} worker --replay {BABELSTREAM_LOG} --delay 0.02 --heartbeat-s 0.3"
+    with running_app(tmp_path, CASCADE_SIM_CMD=cmd, CASCADE_NO_AUTH="1", CASCADE_TOKEN="") as (
+        client,
+        _,
+        settings,
+    ):
+        write_processed_trace(settings, "trace-rtx", arch="sm_86")
+        wait_for(lambda: client.get("/api/traces/trace-rtx").json().get("state") == "ready")
+        run = launch(client, "trace-rtx", "SM86_RTX3070")
+        done = wait_for(
+            lambda: (d := run_detail(client, run["id"]))["state"] != "active" and d, timeout=60
+        )
+        assert done["state"] == "succeeded", done["sims"][0]["error"]

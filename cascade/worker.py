@@ -83,7 +83,9 @@ class Main:
     def __init__(self, env: SimEnv, client: httpx.Client | None = None):
         self.client = client or httpx.Client(timeout=10)
         self.base = f"{env.main_url}/api/sims/{env.sim_id}"
-        self.headers = {"Authorization": f"Bearer {env.token}", "Content-Type": "application/json"}
+        self.headers = {"Content-Type": "application/json"}
+        if env.token:
+            self.headers["Authorization"] = f"Bearer {env.token}"
         self.cancelled = threading.Event()
 
     def post(self, path: str, body: dict) -> dict | None:
