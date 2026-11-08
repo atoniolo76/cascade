@@ -55,7 +55,8 @@ Simulator image (the Dockerfile's `BASE_IMAGE`): the app expects the trace post-
 The built-in [OPT-125m H100 sample](../samples/opt125m-h100-e2e/README.md) belongs to
 `cascade-samples`. It seeds automatically at startup, with recorded SM90_H100 and SM90_H200
 simulations; no upload, instruction traces or simulator execution is needed. Sample traces
-cannot launch new runs. A native A100 sample is **pending** until its capture finishes.
+cannot launch new runs. The native A100 sample contains its own measured baseline and recorded
+SM80_A100 simulation, not a simulation of the H100 instruction trace.
 
 To rebuild bundles from complete profiler run directories (never commit `.tracez` files):
 
@@ -63,7 +64,7 @@ To rebuild bundles from complete profiler run directories (never commit `.tracez
 modal volume get accelsim-traces phases/e2e-plan-v1 /path/to/samples/e2e-plan-v1
 uv run python scripts/build_sample.py /path/to/samples/e2e-plan-v1 \
   --config SM90_H200=/path/to/hw-sweep/SM90_H200
-# When A100 finishes:
+# Rebuild the native A100 bundle after its simulation outputs are present:
 modal volume get accelsim-traces phases/e2e-a100-plan-v1 /path/to/samples/e2e-a100-plan-v1
 uv run python scripts/build_sample.py /path/to/samples/e2e-a100-plan-v1 --sample opt125m-a100-e2e
 ```
@@ -72,8 +73,8 @@ uv run python scripts/build_sample.py /path/to/samples/e2e-a100-plan-v1 --sample
 `sample_pending_configs` to trace metadata. Architecture timing hides a
 pending entry once a trace in the same set identifies that config as its `real_gpu_config`.
 It includes the latest succeeded run for each other native trace in the set, with its measured
-reference and simulated metrics. Signed E2E error is shown **only** for the current trace's
-`real_gpu_config` on that trace; other traces and counterfactual configs are metrics-only.
+reference and simulated metrics. Signed E2E error is shown **only** for each trace's
+`real_gpu_config` against that trace's measured baseline; counterfactual configs are metrics-only.
 Without an explicit `real_gpu_config`, no error is inferred from the suggested launch config.
 
 Bundles are seeded once per trace id; use a fresh `CASCADE_DATA_DIR` to inspect rebuilt bundles.

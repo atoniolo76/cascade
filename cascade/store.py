@@ -153,17 +153,22 @@ def new_id(prefix: str) -> str:
 
 
 @dataclass(frozen=True)
-class SampleRows:
-    """A finished trace and its one-sim run, as recorded elsewhere (cascade/samples.py)."""
-
-    trace: TraceDetail
-    real_timing: list[dict]
-    run_created_at: datetime
+class SampleSimRows:
     sim: SimSummary
     log: list[str]
     stats: list[KernelStat]
     step_timeline: StepTimelineUpload
     files: list[SimFile]
+
+
+@dataclass(frozen=True)
+class SampleRows:
+    """A finished trace and its recorded simulations (cascade/samples.py)."""
+
+    trace: TraceDetail
+    real_timing: list[dict]
+    run_created_at: datetime
+    sims: list[SampleSimRows]
 
 
 class Store:
@@ -569,7 +574,7 @@ class Store:
     def add_sample(self, rows: SampleRows) -> bool:
         """Stores a sample's trace, run, sim and results in one transaction. False, changing
         nothing, when its trace is already here."""
-        trace, sim = rows.trace, rows.sim
+        trace = rows.trace
         with self._tx() as db:
             cur = db.execute(
                 "INSERT OR IGNORE INTO traces (id, state, created_at, updated_at, metadata,"
@@ -590,45 +595,52 @@ class Store:
             )
             if cur.rowcount != 1:
                 return False
-            entries = [RunEntry(gpu_config=sim.gpu_config, count=1).model_dump()]
+            entries = [
+                RunEntry(gpu_config=s.sim.gpu_config, count=1).model_dump() for s in rows.sims
+            ]
             db.execute(
                 "INSERT INTO runs (id, trace_id, created_at, entries, sample)"
                 " VALUES (?, ?, ?, ?, 1)",
-                (sim.run_id, trace.id, _ts(rows.run_created_at), json.dumps(entries)),
+                (rows.sims[0].sim.run_id, trace.id, _ts(rows.run_created_at), json.dumps(entries)),
             )
-            db.execute(
-                "INSERT INTO sims (id, run_id, gpu_config, replica, state, error, launcher_ref,"
-                " created_at, state_changed_at, started_at, finished_at, last_heartbeat_at,"
-                " exit_code, kernels_done, kernels_total, current_kernel, latest, log_tail)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    sim.id,
-                    sim.run_id,
-                    sim.gpu_config,
-                    sim.replica,
-                    sim.state,
-                    sim.error,
-                    sim.launcher_ref,
-                    _ts(sim.created_at),
-                    _ts(sim.finished_at or sim.created_at),
-                    _ts(sim.started_at),
-                    _ts(sim.finished_at),
-                    _ts(sim.last_heartbeat_at),
-                    sim.exit_code,
-                    sim.kernels_done,
-                    sim.kernels_total,
-                    sim.current_kernel,
-                    sim.latest.model_dump_json(),
-                    json.dumps(sim.log_tail),
-                ),
-            )
-            _insert_log_chunk(db, sim.id, 0, rows.log)
-            for stat in rows.stats:
-                _insert_stat(db, sim.id, stat)
-            _put_step_timeline(db, sim.id, rows.step_timeline)
-            for file in rows.files:
-                _put_file(db, sim.id, file)
+            for result in rows.sims:
+                self._insert_sample_sim(db, result)
         return True
+
+    def _insert_sample_sim(self, db: sqlite3.Connection, rows: SampleSimRows) -> None:
+        sim = rows.sim
+        db.execute(
+            "INSERT INTO sims (id, run_id, gpu_config, replica, state, error, launcher_ref,"
+            " created_at, state_changed_at, started_at, finished_at, last_heartbeat_at,"
+            " exit_code, kernels_done, kernels_total, current_kernel, latest, log_tail)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                sim.id,
+                sim.run_id,
+                sim.gpu_config,
+                sim.replica,
+                sim.state,
+                sim.error,
+                sim.launcher_ref,
+                _ts(sim.created_at),
+                _ts(sim.finished_at or sim.created_at),
+                _ts(sim.started_at),
+                _ts(sim.finished_at),
+                _ts(sim.last_heartbeat_at),
+                sim.exit_code,
+                sim.kernels_done,
+                sim.kernels_total,
+                sim.current_kernel,
+                sim.latest.model_dump_json(),
+                json.dumps(sim.log_tail),
+            ),
+        )
+        _insert_log_chunk(db, sim.id, 0, rows.log)
+        for stat in rows.stats:
+            _insert_stat(db, sim.id, stat)
+        _put_step_timeline(db, sim.id, rows.step_timeline)
+        for file in rows.files:
+            _put_file(db, sim.id, file)
 
     def kernel_stats(self, sim_id: str) -> list[KernelStat]:
         rows = self._all(

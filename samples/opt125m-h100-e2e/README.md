@@ -1,4 +1,4 @@
-# Sample: facebook/opt-125m on H100, real vs Accel-Sim
+# Sample: facebook/opt-125m on H100, with H100/H200 Accel-Sim
 
 Every Cascade workspace opens with this sample, so you can explore a finished trace and run before
 your own trace profiles. Profiling takes about 30 minutes. The NVBit trace alone took 1,739 s.
@@ -77,3 +77,41 @@ Paths match the run directory. JSON and the per-kernel logs are gzipped (`.gz`).
 - The sim's start time comes from `sample.json`, and its end is that plus the Accel-Sim wall time
   in `summary.json` (719 s).
 - Set `CASCADE_SAMPLES=false` to start a workspace without it.
+
+## Multi-architecture sample set
+
+This bundle belongs to `cascade-samples`. The native H100 recording above is unchanged:
+mean request E2E is 262.118311 ms against measured H100 254.452178 ms (+3.01%). It is the
+original 93-simulation recording, not the later 31-simulation H100 hardware sweep (262.141371 ms).
+
+`sim/SM90_H200/` adds the recorded hardware-sweep result from
+`origin/simulator:results/hw-sweep/SM90_H200/`: mean E2E 262.161664 ms, TTFT 9.000004 ms,
+ITL 8.173451 ms. Both simulations use the same native H100 timeline. H200 is counterfactual:
+the dashboard shows its metrics, never an error against H100.
+
+The H200 bundle keeps the original compressed duration/timeline exports and losslessly gzipped
+CSV, comparison and summary. Its 31 exact kernel stats come from `kernels.csv`, not invented
+logs. Instruction counts, IPC and execution start time are unknown and stay unset. Kernel
+indices are shared by tracer UID across configs, so the smaller H200 subset is not shifted
+against H100's measured kernels. The original H100 logs and artifacts remain byte-identical.
+
+To rebuild both configs, fetch a complete H100 run directory and the hardware-sweep exports:
+
+```sh
+uv run python scripts/build_sample.py /path/to/e2e-plan-v1 \
+  --config SM90_H200=/path/to/hw-sweep/SM90_H200
+```
+
+[`samples/opt125m-a100-e2e/`](../opt125m-a100-e2e/README.md) contains the native A100 entry.
+Its measured A100 baseline and real SM80_A100 simulation are now available. Rebuild it with:
+
+```sh
+uv run python scripts/build_sample.py /path/to/e2e-a100-plan-v1 --sample opt125m-a100-e2e
+```
+
+For future pending entries, startup skips `status: "pending"` manifests, and building a complete
+run directory replaces that status with `available`. H100's `sample_pending_configs` hint is
+hidden once the A100 native trace has been seeded. Startup seeds bundles once per
+trace id, so use a fresh data directory to inspect rebuilt samples. Each native trace's
+`real_gpu_config` identifies the only simulation eligible for error against that trace's
+measured baseline. Other traces in the set are included from their latest succeeded run.

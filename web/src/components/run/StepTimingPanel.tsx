@@ -61,8 +61,8 @@ export function StepTimingPanel({ runId, trace, live, series }: { runId: string;
         </table>
       </div>
       <div className="border-t border-border px-5 py-3 text-[12px] leading-5 text-muted">
-        Error is shown only for {current.real_gpu_config ?? "an explicitly identified real-hardware config (not supplied)"} on the current trace.
-        {current.sample_set && " Other native traces use their latest succeeded run; their metrics have no error comparison here."}
+        Error is shown only for each native trace's explicitly identified real-hardware config, never for counterfactual hardware.
+        {current.sample_set && " Other native traces use their latest succeeded run and their own measured baseline."}
         {samples.some((s) => s.isPending) && " Loading other native traces…"}
         {failed && <ErrorNote error={failed.error} />}
       </div>

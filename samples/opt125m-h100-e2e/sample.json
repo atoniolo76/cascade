@@ -5,6 +5,10 @@
   "gpu_config": "SM90_H100",
   "core_clock_mhz": 1980,
   "trace_gpu_arch": "sm_90",
+  "sample_set": "cascade-samples",
+  "sample_pending_configs": [
+    "SM80_A100"
+  ],
   "output_files": [
     "sim/kernels.csv",
     "sim/summary.json",
@@ -12,5 +16,31 @@
     "sim/setup.log",
     "sim/kernel-6207.log"
   ],
-  "sim_started_at": "2026-11-08T06:50:10+00:00"
+  "sim_started_at": "2026-11-08T06:50:10+00:00",
+  "status": "available",
+  "stats_file": "traced/traces/stats_ctx_0x54c35c0",
+  "real_gpu_config": "SM90_H100",
+  "sample_sim_configs": [
+    "SM90_H100",
+    "SM90_H200"
+  ],
+  "configs": [
+    {
+      "gpu_config": "SM90_H100",
+      "sim_dir": "sim"
+    },
+    {
+      "gpu_config": "SM90_H200",
+      "sim_dir": "sim/SM90_H200",
+      "sim_id": "sim-sample-opt125m-h100-e2e-sm90_h200",
+      "core_clock_mhz": 1980.0,
+      "stats_source": "kernels.csv",
+      "sim_started_at": null,
+      "output_files": [
+        "sim/kernels.csv",
+        "sim/summary.json",
+        "sim/compare.json"
+      ]
+    }
+  ]
 }

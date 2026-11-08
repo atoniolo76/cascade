@@ -31,7 +31,7 @@ from cascade.models import (
 )
 from cascade.settings import Settings
 from cascade.stats import LogParser
-from cascade.store import SampleRows, Store
+from cascade.store import SampleRows, SampleSimRows, Store
 
 log = logging.getLogger(__name__)
 
@@ -41,17 +41,19 @@ TRACE_FILES = (
     "trace_alignment.json",
     "traced/trace_steps.json",
     "traced/traces/kernelslist.g",
-    "traced/traces/stats_ctx_0x54c35c0",
 )
 
 
 class Bundle:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, config: dict | None = None):
         self.root = root
         self.manifest = json.loads((root / "sample.json").read_text())
+        self.manifest.update(config or {})
 
     def read(self, rel: str) -> bytes:
         """A bundled file's original bytes, whether it is stored plain or as `<rel>.gz`."""
+        if rel.startswith("sim/"):
+            rel = f"{self.manifest.get('sim_dir', 'sim')}/{rel.removeprefix('sim/')}"
         path = self.root / rel
         if path.is_file():
             return path.read_bytes()
@@ -65,7 +67,7 @@ class Bundle:
 class Sample:
     rows: SampleRows
     trace_files: dict[str, bytes]  # path under the trace dir -> bytes
-    output_files: dict[str, bytes]  # output file name -> bytes
+    output_files: dict[str, dict[str, bytes]]  # sim id -> output file name -> bytes
 
 
 def _utc(ns: int) -> datetime:
@@ -78,12 +80,30 @@ def _simulated(bundle: Bundle) -> list[dict]:
     return sorted((r for r in rows if r["sim"] == "exact"), key=lambda r: int(r["uid"]))
 
 
-def _stats(bundle: Bundle, sim_id: str, simulated: list[dict]) -> list[KernelStat]:
+def _stats(
+    bundle: Bundle, sim_id: str, simulated: list[dict], indices: dict[int, int]
+) -> list[KernelStat]:
     """One stat per simulated kernel in launch order, parsed from that kernel's own Accel-Sim log.
     Each kernel ran alone, so its log's launch uid is 1; the tracer's uid replaces it."""
     clock = bundle.manifest["core_clock_mhz"]
     stats = []
-    for index, row in enumerate(simulated):
+    for row in simulated:
+        uid = int(row["uid"])
+        if bundle.manifest.get("stats_source") == "kernels.csv":
+            stats.append(
+                KernelStat(
+                    sim_id=sim_id,
+                    kernel_index=indices[uid],
+                    kernel_name=row["name"],
+                    kernel_launch_uid=uid,
+                    gpu_sim_cycle=int(row["cycles"]),
+                    gpu_sim_insn=None,
+                    gpu_ipc=None,
+                    stats={},
+                    sim_time_ns=int(row["cycles"]) / clock * 1000,
+                )
+            )
+            continue
         parser = LogParser(sim_id, clock)
         lines = bundle.read(f"sim/kernel-{row['uid']}.log").decode().splitlines()
         parsed = parser.feed(lines) + parser.finish()
@@ -94,9 +114,7 @@ def _stats(bundle: Bundle, sim_id: str, simulated: list[dict]) -> list[KernelSta
         ):
             raise ValueError(f"kernel-{row['uid']}.log does not match kernels.csv")
         stats.append(
-            parsed[0].model_copy(
-                update={"kernel_index": index, "kernel_launch_uid": int(row["uid"])}
-            )
+            parsed[0].model_copy(update={"kernel_index": indices[uid], "kernel_launch_uid": uid})
         )
     return stats
 
@@ -131,20 +149,27 @@ def load(bundle: Bundle) -> Sample:
     corrected = bundle.read_json("corrected_timeline.json")
     alignment = bundle.read_json("trace_alignment.json")
     trace_steps = bundle.read_json("traced/trace_steps.json")
-    summary = bundle.read_json("sim/summary.json")
-    simulated = _simulated(bundle)
+    bundles = [Bundle(bundle.root, c) for c in m.get("configs", [{}])]
+    if not bundles:
+        raise ValueError("sample needs at least one simulation config")
+    simulated = sorted(
+        {int(r["uid"]): r for b in bundles for r in _simulated(b)}.values(),
+        key=lambda r: int(r["uid"]),
+    )
+    indices = {int(r["uid"]): i for i, r in enumerate(simulated)}
 
     traced_at = _utc(min(s["wall_start_ns"] for s in trace_steps))
-    started = datetime.fromisoformat(m["sim_started_at"])
-    finished = started + timedelta(seconds=summary["wall_s"])
-    trace_files = {rel.removeprefix("traced/"): bundle.read(rel) for rel in TRACE_FILES}
+    stats_file = m.get("stats_file", "traced/traces/stats_ctx_0x54c35c0")
+    trace_files = {
+        rel.removeprefix("traced/"): bundle.read(rel) for rel in (*TRACE_FILES, stats_file)
+    }
     kernelslist = [
         line
         for line in trace_files["traces/kernelslist.g"].decode().splitlines()
         if line.startswith("kernel")
     ]
     traced = {int(line.split("-")[1]) for line in kernelslist}
-    launches = parse_stats(trace_files["traces/stats_ctx_0x54c35c0"].decode())
+    launches = parse_stats(trace_files[stats_file.removeprefix("traced/")].decode())
     metadata = {
         "status": run["status"],
         "run_name": run["run_name"],
@@ -152,6 +177,10 @@ def load(bundle: Bundle) -> Sample:
         "gpu": corrected["meta"]["gpu_name"],
         "trace_gpu_arch": m["trace_gpu_arch"],
         "suggested_sim_config": m["gpu_config"],
+        "real_gpu_config": m.get("real_gpu_config", m["gpu_config"]),
+        "sample_sim_configs": [b.manifest["gpu_config"] for b in bundles],
+        "sample_set": m.get("sample_set"),
+        "sample_pending_configs": m.get("sample_pending_configs", []),
         "layers": [
             f"step {s['step_in_repeat']} ({s['kind']})"
             for s in trace_steps
@@ -178,6 +207,9 @@ def load(bundle: Bundle) -> Sample:
         source_gpu=metadata["gpu"],
         trace_gpu_arch=m["trace_gpu_arch"],
         suggested_sim_config=m["gpu_config"],
+        real_gpu_config=metadata["real_gpu_config"],
+        sample_sim_configs=metadata["sample_sim_configs"],
+        sample_set=metadata["sample_set"],
         kernel_count=len(kernelslist),
         bytes=sum(len(b) for b in trace_files.values()),
         has_real_timing=True,
@@ -186,9 +218,36 @@ def load(bundle: Bundle) -> Sample:
         metadata=metadata,
         kernels=sorted((k for k in launches if k.kernel_id in traced), key=lambda k: k.kernel_id),
     )
-    stats = _stats(bundle, m["sim_id"], simulated)
+    results = [_load_sim(b, traced_at, indices) for b in bundles]
+    rows = SampleRows(
+        trace=trace,
+        real_timing=_real_timing(alignment, corrected, simulated),
+        run_created_at=min(r.sim.created_at for r, _ in results),
+        sims=[r for r, _ in results],
+    )
+    return Sample(
+        rows=rows,
+        trace_files=trace_files,
+        output_files={r.sim.id: outputs for r, outputs in results},
+    )
+
+
+def _load_sim(
+    bundle: Bundle, traced_at: datetime, indices: dict[int, int]
+) -> tuple[SampleSimRows, dict[str, bytes]]:
+    m = bundle.manifest
+    summary = bundle.read_json("sim/summary.json")
+    if any(summary.get("counts", {}).get(key, 0) for key in ("failed", "timeout")):
+        raise ValueError(f"{m['gpu_config']}: sample simulation has failed or timed-out kernels")
+    started = datetime.fromisoformat(m["sim_started_at"]) if m.get("sim_started_at") else None
+    finished = started + timedelta(seconds=summary["wall_s"]) if started else None
+    stats = _stats(bundle, m["sim_id"], _simulated(bundle), indices)
     insns = [s.gpu_sim_insn for s in stats]
-    log_lines = bundle.read("sim/setup.log").decode().splitlines()
+    log_lines = (
+        []
+        if m.get("stats_source") == "kernels.csv"
+        else bundle.read("sim/setup.log").decode().splitlines()
+    )
     sim = SimSummary(
         id=m["sim_id"],
         run_id=m["run_id"],
@@ -197,7 +256,7 @@ def load(bundle: Bundle) -> Sample:
         state=SimState.succeeded,
         error=None,
         launcher_ref=None,
-        created_at=started,
+        created_at=started or traced_at,
         started_at=started,
         finished_at=finished,
         last_heartbeat_at=None,
@@ -213,13 +272,15 @@ def load(bundle: Bundle) -> Sample:
     )
     outputs = {rel.rsplit("/", 1)[-1]: bundle.read(rel) for rel in m["output_files"]}
     files = [
-        SimFile(name=name, size=len(data), content_type=content_type(name), created_at=finished)
+        SimFile(
+            name=name,
+            size=len(data),
+            content_type=content_type(name),
+            created_at=finished or traced_at,
+        )
         for name, data in outputs.items()
     ]
-    rows = SampleRows(
-        trace=trace,
-        real_timing=_real_timing(alignment, corrected, simulated),
-        run_created_at=started,
+    rows = SampleSimRows(
         sim=sim,
         log=log_lines,
         stats=stats,
@@ -229,7 +290,7 @@ def load(bundle: Bundle) -> Sample:
         ),
         files=files,
     )
-    return Sample(rows=rows, trace_files=trace_files, output_files=outputs)
+    return rows, outputs
 
 
 def _write(path: Path, data: bytes) -> None:
@@ -243,14 +304,18 @@ def seed(settings: Settings, store: Store, root: Path) -> bool:
     """True when this call added the sample. Files go to disk before the rows that point at
     them, so a crash in between leaves no rows and the next start rewrites the files."""
     bundle = Bundle(root)
+    if bundle.manifest.get("status") == "pending":
+        log.info("skipping pending sample %s", root.name)
+        return False
     if store.get_trace_summary(bundle.manifest["trace_id"]) is not None:
         return False
     sample = load(bundle)
     trace_dir = settings.trace_dir(sample.rows.trace.id)
     for rel, data in sample.trace_files.items():
         _write(trace_dir / rel, data)
-    for name, data in sample.output_files.items():
-        _write(settings.files_root / sample.rows.sim.id / name, data)
+    for sim_id, outputs in sample.output_files.items():
+        for name, data in outputs.items():
+            _write(settings.files_root / sim_id / name, data)
     return store.add_sample(sample.rows)
 
 
