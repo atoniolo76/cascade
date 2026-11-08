@@ -8,8 +8,8 @@ pip install "git+https://github.com/atoniolo76/cascade@profiler"
 ```
 
 `import cascade_profiler` requires neither Modal nor torch/vLLM. The package exports
-`Workload`, `RunResult`, `profile`, `trace_plan`, and lazily loaded `simulate_accelsim`, `image`,
-`accelsim_image`, `register`. The caller supplies the GPU/container, dependencies, output mount, and
+`Workload`, `RunResult`, `profile`, `trace_plan`, and lazily loaded `image`,
+`register`. The caller supplies the GPU/container, dependencies, output mount, and
 volume commit. Runtime timing needs vLLM 0.21.0, torch, nvtx, nsys and nvidia-smi; optional
 NVBit tracing also needs a built Accel-Sim tracer/spinlock tool/postprocessor at `accelsim_root`.
 Baseline-only execution does not need nsys or Accel-Sim. All stages run sequentially inside
@@ -79,8 +79,9 @@ Module map: workload.py (configuration/driver validation), runner.py (GPU subpro
 (orchestration), nsys.py (CLI, scrubbing, SQLite/CSV helpers and existing alignment), clocks.py
 (NVML/smi), timeline.py (pure reconciliation), tracing.py (parameterized NVBit commands), utils.py
 (logging/naming/serialization), legacy.py (existing trace/nsys/microbench orchestration and storage).
-align.py handles step-local trace alignment, accelsim.py CPU simulation/durations, and
-modal_support.py optional image factories/registration, without module-level Modal objects.
+align.py handles step-local trace alignment, and modal_support.py optional GPU image
+factories/registration, without module-level Modal objects. CPU execution lives in
+`cascade.sim.accelsim` in the separate simulator checkout, not in this package.
 accelsim_trace.py remains the compatibility Modal app, with package sources added to its image;
 all existing Modal commands below remain valid. Offline checks: `python3 -m unittest discover -s tests -v`.
 
@@ -90,26 +91,30 @@ With Python **3.12** and Modal credentials, the bring-your-own-app example is:
 
 ```
 modal run examples/modal_app.py
-# Existing app also supports the complete flow (GPU profiling then CPU simulation):
-modal run accelsim_trace.py::e2e_main --trace-steps 0,5 --trace-repeat 1 --gpu-config SM90_H100
+# GPU profiling only:
+modal run accelsim_trace.py::e2e_main --run-name my-run --trace-steps plan --trace-repeat 1
+# From the simulator checkout (same accelsim-traces volume, phases/<run>):
+modal run scripts/simulate_accelsim.py --run-name my-run --gpu-config SM90_H100 --propagate interp
 ```
 
-`register(app, volume, gpu=<required>, image=None, sim_image=None, hf_cache=None, mount="/data",
-timeout=14400, sim_cpu=32, sim_timeout=86400)` returns `.profile` and `.simulate` Modal functions.
+`register(app, volume, gpu=<required>, image=None, hf_cache=None, mount="/data",
+timeout=14400)` returns only the `.profile` Modal function.
 `.profile.remote(workload.to_dict(), run_name=None, trace_steps=[0,5], trace_repeat=1)` writes
 `<mount>/<run_name>/`, commits the caller's volume (also on errors), and returns run_name and
-stage_wall_s. `.simulate.remote(run_name, gpu_config="SM90_H100", propagate=False, uids=None,
-kernel_timeout_s=None)` reloads that volume before reading, then commits results. Defaults use
-32 CPU simulation workers, not the container's potentially larger reported os.cpu_count().
+stage_wall_s. The simulator package's `cascade.sim.modal_support.register` separately returns
+a CPU function accepting run_name, gpu_config, propagate, dedup, and verify_dedup. Set its
+mount to the volume root and `run_subdir="phases"` for the compatibility app's layout.
+Defaults use 32 CPU simulation workers.
 Functions use `serialized=True` because they are nested: client and container **Python minor
 versions must match** (default images are 3.12). Import checks do not build/deploy images.
-Use separate apps/registration names when registering multiple pairs on one client.
+Use separate apps when registering profiling and simulation.
 
 `image(base=None, accelsim_commit=..., nvbit=True, nsys=True, arch="all")` builds the profiling
 image with package sources. A custom base must supply vLLM/torch/nvtx and be CUDA **12.x devel,
 Ubuntu 22.04**, with NVIDIA's apt repository for cuda-nsight-systems-12-9. `nvbit=False` skips
 tracer installation/build; `nsys=False` skips nsys. arch="all" supports multiple CUDA architectures
-(slower image build); the old H100 app explicitly uses arch="sm_90". `accelsim_image()` builds a separate CPU-only
+(slower image build); the old H100 app explicitly uses arch="sm_90". The simulator package's
+`cascade.sim.modal_support.accelsim_image()` builds a separate CPU-only
 simulator image with CUDA's toolkit, compiler/build dependencies, and the standalone CPU trace
 postprocessor; it does not request a GPU or install vLLM. Default pins:
 
@@ -138,7 +143,7 @@ counts/lists. Missing capture windows remain unmatched, not fabricated timing ke
 ### Simulation and artifacts
 
 ```
-from cascade_profiler import simulate_accelsim
+from cascade.sim.accelsim import simulate_accelsim  # in the simulator checkout
 summary = simulate_accelsim("/data/my-run", jobs=32, kernel_timeout_s=600, propagate=True)
 ```
 

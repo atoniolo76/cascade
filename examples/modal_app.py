@@ -1,6 +1,7 @@
 """Run with Python 3.12: modal run examples/modal_app.py (requires your Modal credentials)."""
 
 import modal
+
 from cascade_profiler import Workload, register
 
 app = modal.App("my-cascade-profiler")
@@ -14,6 +15,4 @@ def main():
     workload = Workload("facebook/opt-125m", ["Hello, my name is"], max_tokens=32, repeats=4)
     result = fns.profile.remote(workload.to_dict(), trace_steps=[0, 5])
     print(result["run_name"], result["stage_wall_s"])
-    summary = fns.simulate.remote(result["run_name"])
-    print(summary["coverage"], summary["wall_s"])
-    print(summary["counts"], summary["provenance_labels"])
+    print("Simulate this run separately with cascade.sim.modal_support.register in the simulator package.")
