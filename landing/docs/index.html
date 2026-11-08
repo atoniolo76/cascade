@@ -61,6 +61,15 @@
 
 <div class="note"><p>Every workspace includes a sample run. Profiling a workload takes about 30 minutes, so each app opens with a finished one marked Sample: Alessio's facebook/opt-125m trace from an H100 and its Accel-Sim run on <code>SM90_H100</code>, with real step timing to compare against. Its results are real, recorded before your workspace existed, and you can't rerun it because its 415 MB of instruction traces aren't bundled. See <a href="https://github.com/atoniolo76/cascade/tree/amani/samples/opt125m-h100-e2e">samples/opt125m-h100-e2e</a>. Set <code>CASCADE_SAMPLES=false</code> to start without it.</p></div>
 
+<h2 id="worked-example-opt-125m">Worked example: OPT-125m<a class="anchor" href="#worked-example-opt-125m" aria-label="Link to this section">#</a></h2>
+<p>The same eager workload generates 32 tokens from <code>Hello, my name is</code>, with four repeats (one warm-up). H100 and A100 each have their own native traces and real unprofiled baseline; the H200 prediction replays the H100 traces and has no measured H200 baseline.</p>
+<div class="table-wrap"><table class="table"><thead><tr><th>Hardware / config</th><th>Real mean E2E</th><th>Simulated mean E2E</th><th>Error</th></tr></thead><tbody>
+<tr><td>H100 / SM90_H100</td><td>254.45 ms</td><td>262.14 ms</td><td>+3.02%</td></tr>
+<tr><td>H200 / SM90_H200</td><td>—</td><td>262.16 ms</td><td>— (counterfactual)</td></tr>
+<tr><td>A100 / SM80_A100</td><td>222.08 ms</td><td>229.58 ms</td><td><strong>+3.38%</strong></td></tr>
+</tbody></table></div>
+<p>The A100 result is the complete Modal SM80_A100 reference, not the partial Sail attempt. Small request errors retain measured eager host time and are not equivalent to small GPU-model errors. See the <a href="sample-analysis-opt125m.html">full sample analysis</a> for timings, coverage and limitations.</p>
+
 <h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" aria-label="Link to this section">#</a></h2>
 <div class="cards">
 <a class="card" href="../start.html"><strong>Get started</strong><span>Create your own Cascade app on Sail from the browser with a workspace name and a Sail API key. No clone.</span></a>
@@ -75,7 +84,7 @@
 <nav class="pager" aria-label="Previous and next page"><span></span><a class="next" href="quickstart.html"><span>Next</span>Quickstart</a></nav>
     <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#how-it-fits-together">How it fits together</a></li><li class="l2"><a href="#where-to-go-next">Where to go next</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#how-it-fits-together">How it fits together</a></li><li class="l2"><a href="#worked-example-opt-125m">Worked example: OPT-125m</a></li><li class="l2"><a href="#where-to-go-next">Where to go next</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">
