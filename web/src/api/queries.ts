@@ -15,7 +15,14 @@ import type {
 const POLL_MS = 3000;
 const enc = encodeURIComponent;
 
+export interface Health {
+  ok: boolean;
+  auth: boolean;
+  workspace: string | null;
+}
+
 export const keys = {
+  health: ["health"] as const,
   traces: ["traces"] as const,
   trace: (id: string) => ["traces", id] as const,
   runs: ["runs"] as const,
@@ -26,6 +33,14 @@ export const keys = {
   gpuConfigs: ["gpu-configs"] as const,
   simLog: (id: string) => ["sims", id, "log"] as const,
 };
+
+export function useHealth() {
+  return useQuery({
+    queryKey: keys.health,
+    queryFn: () => apiJson<Health>("/api/health"),
+    staleTime: Infinity,
+  });
+}
 
 export function useTraces() {
   return useQuery({

@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { Activity, BookOpen, ChevronLeft, ChevronRight, GitCompareArrows, Layers, LogOut, Monitor, Moon, Plus, Sun, X } from "lucide-react";
 import { tokenStore } from "../api/client";
-import { useRuns, useTraces } from "../api/queries";
+import { useHealth, useRuns, useTraces } from "../api/queries";
 import { DOCS_URL } from "../config";
 import { RUN_STATE } from "../domain/status";
 import { dismissToast, toast, useToasts } from "../lib/toast";
@@ -59,6 +59,19 @@ function RailDivider() {
   return <span aria-hidden className="mx-auto h-5 w-px shrink-0 bg-border-strong md:h-px md:w-5" />;
 }
 
+function WorkspaceName() {
+  const workspace = useHealth().data?.workspace;
+  if (workspace == null) return null;
+  return (
+    <span
+      title={`Workspace: ${workspace}`}
+      className="max-w-[40vw] truncate rounded-[8px] bg-surface px-2 py-1 font-mono text-[11px] leading-4 text-muted ring-1 ring-border md:-mt-3 md:mb-3 md:max-w-[60px] md:px-1.5"
+    >
+      {workspace}
+    </span>
+  );
+}
+
 function Rail() {
   const { pathname } = useLocation();
   const nav = activeNav(pathname);
@@ -71,6 +84,7 @@ function Rail() {
       <Link to={paths.traces} aria-label="Cascade home" className="mr-1 md:mr-0 md:mb-5">
         <BrandTile />
       </Link>
+      <WorkspaceName />
       <RailLink to={paths.traces} label="Traces" active={nav === "traces"}>
         <Layers {...ICON} />
       </RailLink>

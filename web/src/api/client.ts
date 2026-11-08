@@ -1,3 +1,5 @@
+import { takeTokenFromUrl } from "./tokenFragment";
+
 const TOKEN_KEY = "cascade.token";
 const listeners = new Set<() => void>();
 
@@ -21,6 +23,8 @@ function writeToken(token: string | null) {
 }
 
 let memoryToken = readToken();
+const linkedToken = takeTokenFromUrl(window.location, window.history);
+if (linkedToken !== null) writeToken(linkedToken);
 
 export const tokenStore = {
   get: (): string | null => memoryToken,
