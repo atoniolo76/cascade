@@ -4,6 +4,10 @@ nav: OPT-125m sample analysis
 description: Analysis of the existing H100 sample: pipeline costs, kernel and request replay errors, coverage, dedup verification and limitations.
 -->
 
+<h2>Full-request result</h2>
+<p><strong>254.45 ms real H100 → 262.14 ms simulated H100 (+3.02%)</strong>, mean of steady repeats 1–3 for the 32-token request. Mean TTFT is 8.63 ms real versus 9.00 ms simulated (+4.3%); mean ITL is 7.93 ms versus 8.17 ms (+3.06%). The H200 counterfactual is 262.16 ms (+3.03% against real H100), not a measured H200 accuracy result. See the <a href="index.html#worked-example-opt-125m-on-an-h100">introduction's worked example</a> for the per-repeat request table and compact kernel-error breakdown.</p>
+<p>These headline values use the precision of the OPT-125m results draft; detailed tables below retain the committed artifacts' precision and distinguish the original verification run from the later Sail sweep. The ~3 µs (~6,000-cycle) per-kernel floor is the inferred main source of tiny-kernel over-prediction; calibrating it offers the largest GPU-accuracy payoff.</p>
+
 <h2>Scope and evidence</h2>
 
 <p>This analysis describes the **existing H100 `e2e-plan-v1` sample**, not a generic model benchmark. All measured values below are computed from:</p>
@@ -15,7 +19,7 @@ description: Analysis of the existing H100 sample: pipeline costs, kernel and re
 
 <p>Absolute paths identify the collected evidence on the execution VM, not portable dependencies of Cascade. The hardware-sweep artifacts are committed; the large profiling run is retained in the run store. See the [run-directory contract](https://github.com/atoniolo76/cascade/blob/8cbcd04d46daa2c57089193c76f3c25584d485cc/docs/run-dir-contract.md) for file ownership and semantics. Numbers marked **derived** are arithmetic on these artifacts; **inferred** means interpretation, not an additional measurement.</p>
 
-<p>**A100 status:** unavailable. The launch stopped before image build with `Token missing. Could not authenticate client.` No A100 baseline, trace, per-step trace timing, native SM80 simulation or comparison exists yet. Missing values are not zero and no H100 traces are substituted for A100 SASS.</p>
+<p>**A100 status (updated results draft): native A100 run in progress — numbers pending.** The draft reports profiler `f190c99` tracing to local disk. The earlier launch described in the committed analysis stopped before image build with `Token missing. Could not authenticate client.` No completed A100 baseline or SM80 comparison is reported here. Missing values are not zero and no H100 traces are substituted for A100 SASS.</p>
 
 <h2>Workload and environment</h2>
 
@@ -66,7 +70,7 @@ description: Analysis of the existing H100 sample: pipeline costs, kernel and re
 
 <p>Profiler commit `0b54e42` now runs both spinlock passes, tracing and post-processing under `/tmp/cascade-trace-*/traced`, then copies the result once into the run directory, measuring `stage_wall_s.trace_collect`. Failures also collect diagnostic files before scratch cleanup. This commit was tested and pushed **before** the A100 launch; `f190c99` adds `--gpu` and builds NVBit with `ARCH=all` rather than an H100-only binary.</p>
 
-<p>**No bundle was introduced.** The collected directory preserves the existing `traced/traces/kernel-*.trace.xz`, `kernelslist.g` and processed `.tracez` layout, plus `traced/trace_steps.json`, metrics, spinlock data and logs. The pipeline's post-processor provides the existing compressed trace format; collection is a directory copy, not tar/zstd. No extraction command or app ingestion change is needed. The separate legacy streaming S3 path is unchanged. The real A100 layout and performance still require a successful run; the launch did not reach a GPU.</p>
+<p>**No bundle was introduced.** The collected directory preserves the existing `traced/traces/kernel-*.trace.xz`, `kernelslist.g` and processed `.tracez` layout, plus `traced/trace_steps.json`, metrics, spinlock data and logs. The pipeline's post-processor provides the existing compressed trace format; collection is a directory copy, not tar/zstd. No extraction command or app ingestion change is needed. The separate legacy streaming S3 path is unchanged. The real A100 layout and performance still require a completed run; the earlier launch did not reach a GPU.</p>
 
 <h2>Real timeline anatomy</h2>
 
@@ -130,7 +134,7 @@ description: Analysis of the existing H100 sample: pipeline costs, kernel and re
 <tr><td>H100 traces / H100, original verification run</td><td>H100</td><td>718.709</td><td>93 / 712</td><td>0 / 0</td></tr>
 <tr><td>H100 traces / H100, Sail sweep</td><td>H100</td><td>804.429</td><td>31 / 712</td><td>0 / 0</td></tr>
 <tr><td>H100 traces / H200, Sail sweep</td><td>H100 counterfactual only</td><td>777.060</td><td>31 / 712</td><td>0 / 0</td></tr>
-<tr><td>A100 traces / SM80_A100</td><td>unavailable: launch authentication failed</td><td>—</td><td>—</td><td>not run</td></tr>
+<tr><td>A100 traces / SM80_A100</td><td>Native run in progress — numbers pending</td><td>—</td><td>—</td><td>pending</td></tr>
 </tbody></table></div>
 
 <h2>Coverage, dedup verification and context scaling</h2>
@@ -202,7 +206,7 @@ description: Analysis of the existing H100 sample: pipeline costs, kernel and re
 <h2>Bottlenecks and optimization order</h2>
 
 <div class="table-wrap"><table class="table"><thead><tr><th>Priority / proposal</th><th>Measured motivation</th><th>Status / qualification</th></tr></thead><tbody>
-<tr><td>1. Local-disk trace and post-process, collect once</td><td>NVBit 1738.577 s, 65.73% of stage sum; decode envelopes 372.553–375.926 s on volume</td><td>Implemented/pushed `0b54e42`; new A100 measurement blocked by auth. Not a bundle or S3 protocol change.</td></tr>
+<tr><td>1. Local-disk trace and post-process, collect once</td><td>NVBit 1738.577 s, 65.73% of stage sum; decode envelopes 372.553–375.926 s on volume</td><td>Implemented/pushed `0b54e42`; native A100 run in progress, measurement pending. Not a bundle or S3 protocol change.</td></tr>
 <tr><td>2. Trace one instance per distinct kernel, using NVBit kernel-range limits</td><td>712 traced occurrences collapse to 31 header groups</td><td>Proposal only. Need a prepass/range mapping and alignment preserving omitted identities; headers are not sufficient proof of semantic identity.</td></tr>
 <tr><td>3. Cache spinlock detection</td><td>Two step spans of 50.968/44.285 s plus initialization, every trace invocation</td><td>Proposal only. Cache must include tool/binary/model/input compatibility; do not disable required spinlock handling blindly.</td></tr>
 <tr><td>4. CTA sampling for large kernels</td><td>Original lm_head executions 459.661/454.428/397.684 s; next slowest 46.701 s</td><td>Proposal only. Needs estimator/error validation, especially persistent scheduling and memory contention.</td></tr>

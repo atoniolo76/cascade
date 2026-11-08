@@ -35,6 +35,10 @@
     <p class="eyebrow">Guides</p>
     <h1>OPT-125m sample: GPU profiling → instruction simulation → request replay</h1>
 
+<h2 id="full-request-result">Full-request result<a class="anchor" href="#full-request-result" aria-label="Link to this section">#</a></h2>
+<p><strong>254.45 ms real H100 → 262.14 ms simulated H100 (+3.02%)</strong>, mean of steady repeats 1–3 for the 32-token request. Mean TTFT is 8.63 ms real versus 9.00 ms simulated (+4.3%); mean ITL is 7.93 ms versus 8.17 ms (+3.06%). The H200 counterfactual is 262.16 ms (+3.03% against real H100), not a measured H200 accuracy result. See the <a href="index.html#worked-example-opt-125m-on-an-h100">introduction's worked example</a> for the per-repeat request table and compact kernel-error breakdown.</p>
+<p>These headline values use the precision of the OPT-125m results draft; detailed tables below retain the committed artifacts' precision and distinguish the original verification run from the later Sail sweep. The ~3 µs (~6,000-cycle) per-kernel floor is the inferred main source of tiny-kernel over-prediction; calibrating it offers the largest GPU-accuracy payoff.</p>
+
 <h2 id="scope-and-evidence">Scope and evidence<a class="anchor" href="#scope-and-evidence" aria-label="Link to this section">#</a></h2>
 
 <p>This analysis describes the <strong>existing H100 <code>e2e-plan-v1</code> sample</strong>, not a generic model benchmark. All measured values below are computed from:</p>
@@ -46,7 +50,7 @@
 
 <p>Absolute paths identify the collected evidence on the execution VM, not portable dependencies of Cascade. The hardware-sweep artifacts are committed; the large profiling run is retained in the run store. See the <a href="https://github.com/atoniolo76/cascade/blob/8cbcd04d46daa2c57089193c76f3c25584d485cc/docs/run-dir-contract.md">run-directory contract</a> for file ownership and semantics. Numbers marked <strong>derived</strong> are arithmetic on these artifacts; <strong>inferred</strong> means interpretation, not an additional measurement.</p>
 
-<p><strong>A100 status:</strong> unavailable. The launch stopped before image build with <code>Token missing. Could not authenticate client.</code> No A100 baseline, trace, per-step trace timing, native SM80 simulation or comparison exists yet. Missing values are not zero and no H100 traces are substituted for A100 SASS.</p>
+<p><strong>A100 status (updated results draft): native A100 run in progress — numbers pending.</strong> The draft reports profiler <code>f190c99</code> tracing to local disk. The earlier launch described in the committed analysis stopped before image build with <code>Token missing. Could not authenticate client.</code> No completed A100 baseline or SM80 comparison is reported here. Missing values are not zero and no H100 traces are substituted for A100 SASS.</p>
 
 <h2 id="workload-and-environment">Workload and environment<a class="anchor" href="#workload-and-environment" aria-label="Link to this section">#</a></h2>
 
@@ -97,7 +101,7 @@
 
 <p>Profiler commit <code>0b54e42</code> now runs both spinlock passes, tracing and post-processing under <code>/tmp/cascade-trace-*/traced</code>, then copies the result once into the run directory, measuring <code>stage_wall_s.trace_collect</code>. Failures also collect diagnostic files before scratch cleanup. This commit was tested and pushed <strong>before</strong> the A100 launch; <code>f190c99</code> adds <code>--gpu</code> and builds NVBit with <code>ARCH=all</code> rather than an H100-only binary.</p>
 
-<p><strong>No bundle was introduced.</strong> The collected directory preserves the existing <code>traced/traces/kernel-*.trace.xz</code>, <code>kernelslist.g</code> and processed <code>.tracez</code> layout, plus <code>traced/trace_steps.json</code>, metrics, spinlock data and logs. The pipeline's post-processor provides the existing compressed trace format; collection is a directory copy, not tar/zstd. No extraction command or app ingestion change is needed. The separate legacy streaming S3 path is unchanged. The real A100 layout and performance still require a successful run; the launch did not reach a GPU.</p>
+<p><strong>No bundle was introduced.</strong> The collected directory preserves the existing <code>traced/traces/kernel-*.trace.xz</code>, <code>kernelslist.g</code> and processed <code>.tracez</code> layout, plus <code>traced/trace_steps.json</code>, metrics, spinlock data and logs. The pipeline's post-processor provides the existing compressed trace format; collection is a directory copy, not tar/zstd. No extraction command or app ingestion change is needed. The separate legacy streaming S3 path is unchanged. The real A100 layout and performance still require a completed run; the earlier launch did not reach a GPU.</p>
 
 <h2 id="real-timeline-anatomy">Real timeline anatomy<a class="anchor" href="#real-timeline-anatomy" aria-label="Link to this section">#</a></h2>
 
@@ -161,7 +165,7 @@
 <tr><td>H100 traces / H100, original verification run</td><td>H100</td><td>718.709</td><td>93 / 712</td><td>0 / 0</td></tr>
 <tr><td>H100 traces / H100, Sail sweep</td><td>H100</td><td>804.429</td><td>31 / 712</td><td>0 / 0</td></tr>
 <tr><td>H100 traces / H200, Sail sweep</td><td>H100 counterfactual only</td><td>777.060</td><td>31 / 712</td><td>0 / 0</td></tr>
-<tr><td>A100 traces / SM80_A100</td><td>unavailable: launch authentication failed</td><td>—</td><td>—</td><td>not run</td></tr>
+<tr><td>A100 traces / SM80_A100</td><td>Native run in progress — numbers pending</td><td>—</td><td>—</td><td>pending</td></tr>
 </tbody></table></div>
 
 <h2 id="coverage-dedup-verification-and-context-scaling">Coverage, dedup verification and context scaling<a class="anchor" href="#coverage-dedup-verification-and-context-scaling" aria-label="Link to this section">#</a></h2>
@@ -233,7 +237,7 @@
 <h2 id="bottlenecks-and-optimization-order">Bottlenecks and optimization order<a class="anchor" href="#bottlenecks-and-optimization-order" aria-label="Link to this section">#</a></h2>
 
 <div class="table-wrap"><table class="table"><thead><tr><th>Priority / proposal</th><th>Measured motivation</th><th>Status / qualification</th></tr></thead><tbody>
-<tr><td>1. Local-disk trace and post-process, collect once</td><td>NVBit 1738.577 s, 65.73% of stage sum; decode envelopes 372.553–375.926 s on volume</td><td>Implemented/pushed <code>0b54e42</code>; new A100 measurement blocked by auth. Not a bundle or S3 protocol change.</td></tr>
+<tr><td>1. Local-disk trace and post-process, collect once</td><td>NVBit 1738.577 s, 65.73% of stage sum; decode envelopes 372.553–375.926 s on volume</td><td>Implemented/pushed <code>0b54e42</code>; native A100 run in progress, measurement pending. Not a bundle or S3 protocol change.</td></tr>
 <tr><td>2. Trace one instance per distinct kernel, using NVBit kernel-range limits</td><td>712 traced occurrences collapse to 31 header groups</td><td>Proposal only. Need a prepass/range mapping and alignment preserving omitted identities; headers are not sufficient proof of semantic identity.</td></tr>
 <tr><td>3. Cache spinlock detection</td><td>Two step spans of 50.968/44.285 s plus initialization, every trace invocation</td><td>Proposal only. Cache must include tool/binary/model/input compatibility; do not disable required spinlock handling blindly.</td></tr>
 <tr><td>4. CTA sampling for large kernels</td><td>Original lm_head executions 459.661/454.428/397.684 s; next slowest 46.701 s</td><td>Proposal only. Needs estimator/error validation, especially persistent scheduling and memory contention.</td></tr>
@@ -268,7 +272,7 @@ uv run cascade compare "$RUN/corrected_timeline.json" \
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="trace-a-workload.html"><span>Previous</span>Trace a workload</a><a class="next" href="traces.html"><span>Next</span>Traces</a></nav>
     <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#scope-and-evidence">Scope and evidence</a></li><li class="l2"><a href="#workload-and-environment">Workload and environment</a></li><li class="l2"><a href="#pipeline-cost">Pipeline cost</a></li><li class="l3"><a href="#local-disk-optimization-and-artifact-compatibility">Local-disk optimization and artifact compatibility</a></li><li class="l2"><a href="#real-timeline-anatomy">Real timeline anatomy</a></li><li class="l3"><a href="#real-kernel-mix-per-step">Real kernel mix per step</a></li><li class="l2"><a href="#accel-sim-by-kernel-group">Accel-Sim by kernel group</a></li><li class="l2"><a href="#coverage-dedup-verification-and-context-scaling">Coverage, dedup verification and context scaling</a></li><li class="l2"><a href="#replay-errors-and-eager-mode-dilution">Replay errors and eager-mode dilution</a></li><li class="l2"><a href="#architecture-compatibility">Architecture compatibility</a></li><li class="l2"><a href="#bottlenecks-and-optimization-order">Bottlenecks and optimization order</a></li><li class="l2"><a href="#reproduce-and-finish-the-a100-comparison">Reproduce and finish the A100 comparison</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#full-request-result">Full-request result</a></li><li class="l2"><a href="#scope-and-evidence">Scope and evidence</a></li><li class="l2"><a href="#workload-and-environment">Workload and environment</a></li><li class="l2"><a href="#pipeline-cost">Pipeline cost</a></li><li class="l3"><a href="#local-disk-optimization-and-artifact-compatibility">Local-disk optimization and artifact compatibility</a></li><li class="l2"><a href="#real-timeline-anatomy">Real timeline anatomy</a></li><li class="l3"><a href="#real-kernel-mix-per-step">Real kernel mix per step</a></li><li class="l2"><a href="#accel-sim-by-kernel-group">Accel-Sim by kernel group</a></li><li class="l2"><a href="#coverage-dedup-verification-and-context-scaling">Coverage, dedup verification and context scaling</a></li><li class="l2"><a href="#replay-errors-and-eager-mode-dilution">Replay errors and eager-mode dilution</a></li><li class="l2"><a href="#architecture-compatibility">Architecture compatibility</a></li><li class="l2"><a href="#bottlenecks-and-optimization-order">Bottlenecks and optimization order</a></li><li class="l2"><a href="#reproduce-and-finish-the-a100-comparison">Reproduce and finish the A100 comparison</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">
