@@ -2,7 +2,8 @@
 
 It runs Accel-Sim on the sim's trace, or replays a recorded Accel-Sim log with `--replay`, and
 streams stdout to main in numbered chunks while heartbeating. When the sim succeeds on a trace with
-step timing, it runs Alessio's pipeline (cascade/sim/) on its own log and posts the result.
+step timing, it runs Alessio's pipeline (cascade/sim/) on its own log and posts the result. Before
+its final heartbeat it uploads the files the simulator wrote into its run dir, and its own log.
 """
 
 from __future__ import annotations
@@ -11,12 +12,14 @@ import argparse
 import json
 import os
 import queue
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+import zlib
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +29,7 @@ import httpx
 
 from cascade.gpu_configs import HW_CONFIGS_REL, GpuConfigRegistry
 from cascade.ingest import has_step_timeline
+from cascade.models import FILE_MAX_BYTES, FILE_NAME_PATTERN, SIM_FILES_MAX_BYTES
 from cascade.sim.compare import compare
 from cascade.sim.importer import import_durations
 from cascade.sim.timeline import load_timeline, parse_durations, simulate
@@ -37,6 +41,10 @@ RETRIES = 8
 ACCELSIM_BIN = Path("gpu-simulator/bin/release/accel-sim.out")
 TRACE_CONFIGS_REL = Path("gpu-simulator/configs/tested-cfgs")
 DEFAULT_ACCELSIM_DIR = "/opt/accel-sim-framework"
+GZIP_OVER_BYTES = 1 << 20
+CHUNK_BYTES = 1 << 20
+LOG_NAME = "accelsim.log"
+REPLAY_SKIP = frozenset({"run.log", "setup.log"})
 REQUIRED_ENV = ("CASCADE_SIM_ID", "CASCADE_MAIN_URL", "CASCADE_GPU_CONFIG", "CASCADE_TRACE_DIR")
 
 
@@ -88,25 +96,36 @@ class Main:
             self.headers["Authorization"] = f"Bearer {env.token}"
         self.cancelled = threading.Event()
 
-    def post(self, path: str, body: dict) -> dict | None:
-        content = json.dumps(body, allow_nan=False)
+    def _send(
+        self, method: str, path: str, content: Callable[[], bytes | Iterator[bytes]], headers: dict
+    ) -> httpx.Response:
+        """Retries 5xx and network errors with backoff; `content` makes a fresh body per try."""
         for attempt in range(RETRIES):
             try:
-                resp = self.client.post(
-                    f"{self.base}/{path}", content=content, headers=self.headers
+                resp = self.client.request(
+                    method, f"{self.base}/{path}", content=content(), headers=headers
                 )
                 if resp.status_code < 500:
-                    resp.raise_for_status()
-                    return resp.json() if resp.content else None
+                    return resp
                 error: Exception = httpx.HTTPStatusError(
                     f"{resp.status_code} from main", request=resp.request, response=resp
                 )
             except httpx.TransportError as e:
                 error = e
             delay = min(0.25 * 2**attempt, 10.0)
-            say(f"POST {path} failed ({error}); retry in {delay:.2f}s")
+            say(f"{method} {path} failed ({error}); retry in {delay:.2f}s")
             time.sleep(delay)
-        raise RuntimeError(f"POST {path} failed after {RETRIES} attempts")
+        raise RuntimeError(f"{method} {path} failed after {RETRIES} attempts")
+
+    def post(self, path: str, body: dict) -> dict | None:
+        content = json.dumps(body, allow_nan=False)
+        resp = self._send("POST", path, lambda: content, self.headers)
+        resp.raise_for_status()
+        return resp.json() if resp.content else None
+
+    def put_file(self, name: str, content: Callable[[], Iterator[bytes]]) -> httpx.Response:
+        headers = {**self.headers, "Content-Type": "application/octet-stream"}
+        return self._send("PUT", f"files/{name}", content, headers)
 
     def heartbeat(self, state: str, exit_code: int | None = None, error: str | None = None) -> None:
         ack = self.post("heartbeat", {"state": state, "exit_code": exit_code, "error": error})
@@ -174,6 +193,8 @@ class LogSender:
 
 
 class Source(Protocol):
+    def begin(self) -> None: ...
+
     def lines(self) -> Iterator[str]: ...
 
     def stop(self) -> None: ...
@@ -183,10 +204,15 @@ class Source(Protocol):
 
 class AccelSim:
     def __init__(self, argv: list[str], run_dir: Path):
+        self.argv = argv
+        self.run_dir = run_dir
+
+    def begin(self) -> None:
+        argv = self.argv
         try:
             self.proc = subprocess.Popen(
                 argv,
-                cwd=run_dir,
+                cwd=self.run_dir,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -214,14 +240,26 @@ class AccelSim:
 
 
 class Replay:
-    """Stands in for Accel-Sim by replaying a recorded log, pausing `delay_s` every BATCH_LINES."""
+    """Stands in for Accel-Sim by replaying a recorded log, pausing `delay_s` every BATCH_LINES.
+    With `outputs`, it first copies that dir's files into the run dir as Accel-Sim's output."""
 
-    def __init__(self, log: Path, delay_s: float):
+    def __init__(self, log: Path, delay_s: float, run_dir: Path, outputs: Path | None = None):
         if not log.is_file():
             raise WorkerError(f"replay log {log} not found")
+        if outputs is not None and not outputs.is_dir():
+            raise WorkerError(f"replay outputs dir {outputs} not found")
         self.log = log
         self.delay_s = delay_s
+        self.run_dir = run_dir
+        self.outputs = outputs
         self._stop = threading.Event()
+
+    def begin(self) -> None:
+        if self.outputs is None:
+            return
+        for path in sorted(self.outputs.iterdir()):
+            if _is_plain_file(path) and path.name not in REPLAY_SKIP:
+                shutil.copyfile(path, self.run_dir / path.name)
 
     def lines(self) -> Iterator[str]:
         with self.log.open(errors="replace") as f:
@@ -277,6 +315,96 @@ def copy_companions(argv: list[str], run_dir: Path) -> None:
                 shutil.copy2(path, run_dir / path.name)
 
 
+Listing = dict[str, tuple[int, int]]
+
+
+def _is_plain_file(path: Path) -> bool:
+    return path.is_file() and not path.is_symlink()
+
+
+def listing(run_dir: Path) -> Listing:
+    """Regular files directly in run_dir, by name, with their size and mtime."""
+    return {
+        p.name: (st.st_size, st.st_mtime_ns)
+        for p in run_dir.iterdir()
+        if _is_plain_file(p) and (st := p.stat())
+    }
+
+
+def is_text(path: Path) -> bool:
+    with path.open("rb") as f:
+        head = f.read(8192)
+    if b"\0" in head:
+        return False
+    try:
+        head.decode("utf-8")
+    except UnicodeDecodeError as e:
+        return e.start > len(head) - 4
+    return True
+
+
+def read_chunks(path: Path, gzip_it: bool) -> Iterator[bytes]:
+    z = zlib.compressobj(wbits=31) if gzip_it else None
+    with path.open("rb") as f:
+        while block := f.read(CHUNK_BYTES):
+            out = z.compress(block) if z else block
+            if out:
+                yield out
+    if z:
+        yield z.flush()
+
+
+class Uploads:
+    """Uploads output files within main's limits, sending at most SIM_FILES_MAX_BYTES in all.
+    Never fails the sim: every skip or failed upload becomes one log line."""
+
+    def __init__(self, main: Main, put: Callable[[str], None]):
+        self.main = main
+        self.put = put
+        self.sent = 0
+
+    def send(self, path: Path, gzip_it: bool) -> None:
+        name = path.name + (".gz" if gzip_it else "")
+        size = path.stat().st_size
+        skip = None
+        if not re.fullmatch(FILE_NAME_PATTERN, name):
+            skip = "its name is not allowed"
+        elif not gzip_it and size > FILE_MAX_BYTES:
+            skip = f"it is over the {FILE_MAX_BYTES >> 20} MiB per-file limit"
+        elif self.sent >= SIM_FILES_MAX_BYTES or (
+            not gzip_it and self.sent + size > SIM_FILES_MAX_BYTES
+        ):
+            skip = f"the sim already sent {self.sent >> 20} of {SIM_FILES_MAX_BYTES >> 20} MiB"
+        if skip:
+            self.put(f"cascade worker: skipped output {path.name}: {skip}")
+            return
+        try:
+            resp = self.main.put_file(name, lambda: read_chunks(path, gzip_it))
+        except Exception as e:
+            self.put(f"cascade worker: upload of {name} failed: {e}")
+            return
+        if resp.status_code == 413:
+            self.put(f"cascade worker: skipped output {name}: {resp.json().get('detail')}")
+        elif resp.is_error:
+            self.put(f"cascade worker: upload of {name} failed: {resp.status_code} {resp.text}")
+        else:
+            self.sent += resp.json()["size"]
+            self.put(f"cascade worker: uploaded {name} ({resp.json()['size']} bytes)")
+
+
+def upload_outputs(main: Main, run_dir: Path, before: Listing, put: Callable[[str], None]) -> None:
+    """Uploads every file the simulator created or changed in run_dir, gzipping text over
+    GZIP_OVER_BYTES, then the worker's own log as accelsim.log.gz."""
+    uploads = Uploads(main, put)
+    after = listing(run_dir)
+    for name in sorted(after):
+        if name == LOG_NAME or before.get(name) == after[name]:
+            continue
+        path = run_dir / name
+        uploads.send(path, gzip_it=after[name][0] > GZIP_OVER_BYTES and is_text(path))
+    uploads.send(run_dir / LOG_NAME, gzip_it=True)
+
+
 def step_timing(main: Main, env: SimEnv, log_path: Path, put: Callable[[str], None]) -> None:
     """Never fails the sim: a problem in the pipeline becomes a log line and no upload."""
     if not has_step_timeline(env.trace_dir):
@@ -320,7 +448,7 @@ def run(env: SimEnv, start: Callable[[Path], Source], heartbeat_s: float = HEART
     """Runs one sim to its final heartbeat and returns the exit code."""
     main = Main(env)
     run_dir = fresh_run_dir(env)
-    log_path = run_dir / "accelsim.log"
+    log_path = run_dir / LOG_NAME
     say(f"{env.sim_id} on {env.gpu_config}, trace {env.trace_dir}, log {log_path}")
     main.heartbeat("running")
     if main.cancelled.is_set():
@@ -329,6 +457,8 @@ def run(env: SimEnv, start: Callable[[Path], Source], heartbeat_s: float = HEART
         if not env.kernelslist.is_file():
             raise WorkerError(f"{env.kernelslist} not found")
         source = start(run_dir)
+        before = listing(run_dir)
+        source.begin()
     except WorkerError as e:
         say(str(e))
         main.heartbeat("failed", exit_code=2, error=str(e))
@@ -345,6 +475,9 @@ def run(env: SimEnv, start: Callable[[Path], Source], heartbeat_s: float = HEART
         if code == 0 and not main.cancelled.is_set() and logs.error is None:
             logs.flush_file()
             step_timing(main, env, log_path, logs.put)
+        if not main.cancelled.is_set():
+            logs.flush_file()
+            upload_outputs(main, run_dir, before, logs.put)
     finally:
         stop.set()
         beat.join()
@@ -366,11 +499,13 @@ def run(env: SimEnv, start: Callable[[Path], Source], heartbeat_s: float = HEART
 
 
 def worker(args: argparse.Namespace) -> None:
+    if args.replay_outputs is not None and args.replay is None:
+        raise SystemExit("cascade worker: --replay-outputs needs --replay")
     env = SimEnv.from_env(os.environ)
 
     def start(run_dir: Path) -> Source:
         if args.replay is not None:
-            return Replay(args.replay, args.delay)
+            return Replay(args.replay, args.delay, run_dir, args.replay_outputs)
         argv = accelsim_command(env)
         copy_companions(argv, run_dir)
         say(f"running {' '.join(argv)} in {run_dir}")
@@ -382,6 +517,11 @@ def worker(args: argparse.Namespace) -> None:
 def add_command(sub: argparse._SubParsersAction) -> None:
     w = sub.add_parser("worker", help="run one sim (what CASCADE_SIM_CMD starts)")
     w.add_argument("--replay", type=Path, help="replay this recorded Accel-Sim log instead")
+    w.add_argument(
+        "--replay-outputs",
+        type=Path,
+        help="with --replay, copy this dir's files into the run dir as Accel-Sim's output files",
+    )
     w.add_argument(
         "--delay", type=float, default=0.05, help="with --replay, seconds to pause every 200 lines"
     )

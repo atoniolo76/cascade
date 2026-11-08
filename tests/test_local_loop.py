@@ -1,5 +1,7 @@
 """Full loop over real HTTP: uvicorn, LocalLauncher, and `cascade worker --replay` as each sim."""
 
+import csv
+import gzip
 import json
 import os
 import shutil
@@ -9,7 +11,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from tests.conftest import BABELSTREAM_LOG, OPT_H100_LOG
+from tests.conftest import BABELSTREAM_LOG, OPT_H100_LOG, OPT_H100_STATS
 from tests.helpers import (
     CASCADE,
     TOKEN,
@@ -196,3 +198,95 @@ def test_real_h100_replay_covers_every_mapped_kernel_in_step_timing(tmp_path, mo
         (timeline,) = client.get(f"/api/runs/{run['id']}/step-timelines").json()
         coverage = timeline["simulated"]["summary"]["simulation"]["coverage"]
         assert coverage["simulated_kernels"] == 20
+
+
+OPT_OUTPUTS = OPT_H100_STATS.parent
+
+
+@pytest.fixture
+def opt_run(tmp_path, monkeypatch):
+    """Two SM90_H100 replicas replaying Alessio's OPT-125m run and its output files, plus a 2 MiB
+    CSV so one output crosses the gzip threshold."""
+    monkeypatch.setenv("TMPDIR", str(tmp_path / "tmp"))
+    (tmp_path / "tmp").mkdir()
+    outputs = tmp_path / "outputs"
+    shutil.copytree(OPT_OUTPUTS, outputs)
+    (outputs / "l2_samples.csv").write_text("".join(f"{i},{i * 7}\n" for i in range(250_000)))
+    cmd = (
+        f"{CASCADE} worker --replay {OPT_H100_LOG} --replay-outputs {outputs}"
+        " --delay 0 --heartbeat-s 0.3"
+    )
+    with running_app(tmp_path, CASCADE_SIM_CMD=cmd) as (client, _, settings):
+        write_processed_trace(settings, "trace-opt", arch="sm_90", kernels=20)
+        wait_for(lambda: client.get("/api/traces/trace-opt").json().get("state") == "ready")
+        run = finished_run(client, launch(client, "trace-opt", "SM90_H100", 2)["id"], timeout=120)
+        assert run["state"] == "succeeded"
+        yield client, run, outputs
+
+
+def test_replay_outputs_are_uploaded_and_download_byte_for_byte(opt_run):
+    client, run, outputs = opt_run
+    files = client.get(f"/api/runs/{run['id']}/files").json()
+    expected = [
+        "accelsim.log.gz",
+        "exit-status.txt",
+        "gpgpu_inst_stats.txt",
+        "kernel-stats.csv",
+        "l2_samples.csv.gz",
+        "opt125m_H100_perfetto.json.gz",
+        "perf_counter.csv.gz",
+    ]
+    sims = [s["id"] for s in run["sims"]]
+    assert [(f["sim_id"], f["replica"], f["name"]) for f in files] == [
+        (sim, replica, name) for replica, sim in enumerate(sims) for name in expected
+    ]
+    for f in files:
+        got = client.get(f"/api/sims/{f['sim_id']}/files/{f['name']}")
+        assert len(got.content) == f["size"]
+        if f["name"] == "accelsim.log.gz":
+            assert gzip.decompress(got.content).startswith(OPT_H100_LOG.read_bytes())
+        elif f["name"] == "l2_samples.csv.gz":
+            assert gzip.decompress(got.content) == (outputs / "l2_samples.csv").read_bytes()
+        else:
+            assert got.content == (outputs / f["name"]).read_bytes(), f["name"]
+    gz = next(f for f in files if f["name"] == "perf_counter.csv.gz")
+    assert gz["content_type"] == "application/gzip"
+
+
+def test_perfetto_has_one_slice_per_kernel_laid_end_to_end_in_simulated_time(opt_run):
+    client, run, _ = opt_run
+    resp = client.get(f"/api/runs/{run['id']}/perfetto")
+    assert resp.headers["content-type"] == "application/json"
+    trace = json.loads(resp.text)
+    events = trace["traceEvents"]
+    names = {
+        (e["pid"], e.get("tid")): e["args"]["name"]
+        for e in events
+        if e["ph"] == "M" and e["name"] in ("process_name", "thread_name")
+    }
+    sims = run["sims"]
+    assert names == {
+        (1, None): "SM90_H100 · Accel-Sim simulated GPU",
+        (1, 1): f"replica 0 · {sims[0]['id']}",
+        (1, 2): f"replica 1 · {sims[1]['id']}",
+        (2, None): "Real hardware · NVIDIA H100 80GB HBM3",
+        (2, 1): "measured kernels",
+    }
+    with OPT_H100_STATS.open() as f:
+        rows = list(csv.DictReader(f))
+    expected_us = [int(r["gpu_sim_cycle"]) / 1980 for r in rows]
+    for tid in (1, 2):
+        slices = [e for e in events if e["ph"] == "X" and (e["pid"], e["tid"]) == (1, tid)]
+        assert len(slices) == len(rows) == 20
+        assert [s["dur"] for s in slices] == pytest.approx(expected_us)
+        starts = [s["ts"] for s in slices]
+        ends = [s["ts"] + s["dur"] for s in slices]
+        assert starts[0] == 0 and starts[1:] == pytest.approx(ends[:-1])
+        assert [s["args"]["uid"] for s in slices] == [int(r["uid"]) for r in rows]
+        assert [s["args"]["kernel_name"] for s in slices] == [r["name"] for r in rows]
+        assert [s["args"]["kernel_index"] for s in slices] == list(range(20))
+        assert [s["args"]["gpu_sim_insn"] for s in slices] == [int(r["gpu_sim_insn"]) for r in rows]
+        assert slices[1]["name"] == "k2 vllm::reshape_and_cache_flash_kernel"
+        assert slices[-1]["args"]["end_cycle"] == 169_686
+    real = [e for e in events if e["ph"] == "X" and e["pid"] == 2]
+    assert [r["dur"] for r in real] == [k for k in range(1, 21)]
