@@ -45,3 +45,13 @@ Decision:
 - The UI prompts for it once and keeps it in localStorage.
 - `SailLauncher` passes it to each sim via the `exec` env.
 - Sail's app allowlist is not used: it would block the browser and the profiler.
+
+## Trace upload (OPEN — confirm with Alessio)
+
+Provisional, so the app can be built and tested now:
+
+- `POST /api/traces` takes one multipart `.tar.gz` of the tracer's run directory (`traces/`, `kernelslist.g`, `metadata.json`, logs).
+- Main extracts it to `/data/traces/{trace_id}/`, reads `metadata.json`, and returns `{trace_id}`.
+- Keep the ingest code isolated (one route + one ingest function) so the format can change without touching the rest.
+
+To confirm with Alessio: archive format, whether `metadata.json` stays the source of original-hardware info, and expected trace sizes (resumable upload if large).
