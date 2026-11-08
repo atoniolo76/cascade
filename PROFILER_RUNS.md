@@ -1,5 +1,76 @@
 # Profiler runs for sim-to-real calibration
 
+## Python package (bring your own GPU container)
+
+```
+pip install "git+https://github.com/atoniolo76/cascade@profiler"
+# Optional dependency sets: cascade-profiler[modal] / cascade-profiler[vllm]
+```
+
+`import cascade_profiler` requires neither Modal nor torch/vLLM. The package exports only
+`Workload`, `RunResult`, and `profile`; image builders, registration, and simulation are not
+part of this API yet. The caller supplies the GPU/container, dependencies, output mount, and
+volume commit. Runtime timing needs vLLM 0.21.0, torch, nvtx, nsys and nvidia-smi; optional
+NVBit tracing also needs a built Accel-Sim tracer/spinlock tool/postprocessor at `accelsim_root`.
+Baseline-only execution does not need nsys or Accel-Sim. All stages run sequentially inside
+the same caller container, each workload in a fresh subprocess.
+
+```python
+from cascade_profiler import Workload, profile
+
+# Inside your own Modal GPU function (with your chosen image and volume mounts):
+result = profile(
+    Workload("facebook/opt-125m", ["Hello, my name is"], max_tokens=32, repeats=4),
+    out_dir="/outputs", trace_steps=[0, 1], trace_repeat=1,
+    accelsim_root="/opt/accel-sim-framework",
+)
+print(result.run_dir, result.paths["corrected_timeline.json"], result.stage_wall_s)
+# Commit your own output volume here.
+```
+
+`Workload.to_dict()` / `Workload.from_dict()` round-trip JSON-compatible configuration:
+model, prompts, max_tokens (32), repeats (4), exec_mode (eager), max_model_len (2048),
+llm_kwargs, sampling_kwargs, and optional `driver="your_module:your_function"`.
+Sampling defaults are temperature=0, seed=0, ignore_eos=True, max_tokens=workload.max_tokens;
+sampling_kwargs can override them. LLM extras can override non-required defaults such as
+gpu_memory_utilization=0.8; conflicting profiler-required kwargs raise before launching.
+Custom sampling/drivers must preserve the kernel sequence across processes for later alignment.
+
+A driver must be importable in both parent and subprocesses (not a closure passed as a callable
+or a function in `__main__`); validate/import happens before launching. It receives
+`driver(llm, repeat: int, workload: Workload)` once per repeat and returns a list of RequestOutput.
+Without a driver, the runner uses `llm.generate(workload.prompts, SamplingParams(...))`.
+Step recording, capture windows, GC, and metrics surround either driver. The runner supports
+`python -m cascade_profiler.runner --workload-json /path/workload.json`; the old vllm_trace.py
+CLI remains a compatibility shim. Workload JSON defaults to step scope with async scheduling off.
+
+`profile()` orders requested timing phases baseline then profiled, irrespective of argument order;
+`phases=("baseline",)` permits repeats=1, but profiled capture needs at least two repeats.
+If trace_steps is not None it then runs spinlock detection twice, NVBit tracing, and postprocessing.
+Trace indices are **within trace_repeat**, not global indices: `[0,1]` selects that repeat's first
+two steps even if earlier repeats have different lengths. `[]` selects all steps in that repeat;
+None disables tracing. Legacy `--trace-steps` retains its global-index meaning. Every raw step
+now records `step_in_repeat`; traced/trace_steps.json includes repeat, step_in_repeat, global
+`step`, traced boolean, and `[first_kernel_id,end_kernel_id)` ranges, including untraced steps.
+Requested indices that are never reached fail explicitly. NVBit timings are never used for timing.
+Existing NVBit CUDA-graph replay coverage limitations still apply: choose eager/compile when
+complete instruction traces are needed. The pipeline never silently changes the workload mode.
+
+The run directory is `<out_dir>/<timestamp-random>/` (or the explicit run_name). Existing run
+directories are rejected rather than mixing old/new artifacts. Baseline/profiled artifact names
+below are unchanged; traced/ holds the instruction traces, detection logs, and postprocessing
+outputs. The root also contains workload.json and run.json (configuration, selected phases,
+trace selection, stage_wall_s, package_version, git_sha when available, traced_timing_used=false,
+and completion status). Failures retain partial logs and a failed manifest. `RunResult.paths`
+maps artifact-relative names to Paths; corrected_timeline.json exists only with both timing phases.
+
+Module map: workload.py (configuration/driver validation), runner.py (GPU subprocess), pipeline.py
+(orchestration), nsys.py (CLI, scrubbing, SQLite/CSV helpers and existing alignment), clocks.py
+(NVML/smi), timeline.py (pure reconciliation), tracing.py (parameterized NVBit commands), utils.py
+(logging/naming/serialization), legacy.py (existing trace/nsys/microbench orchestration and storage).
+accelsim_trace.py remains the compatibility Modal app, with package sources added to its image;
+all existing Modal commands below remain valid. Offline checks: `python3 -m unittest discover -s tests -v`.
+
 All commands run from the repo root. Without `--s3-*` flags, `trace_vllm` writes the whole run
 dir (raw traces, `kernelslist.g` + `.tracez` from post-traces-processing, `metadata.json`,
 `trace_steps.json`, logs) to the `accelsim-traces` Modal volume at `/<run_name>/`, and
@@ -162,7 +233,7 @@ metadata is also in each phase's metrics.json. Request core timestamps are monot
 converted to ns; `arrival_ns = round(arrival_time * 1e9) - baseline offset` converts wall time.
 Linux CLOCK_MONOTONIC is comparable across processes in one container (not across hosts).
 vLLM defaults to a separate EngineCore process (`vllm/envs.py:1112-1114`), but these phase runs
-force multiprocessing off (`accelsim_trace.py::_nsys_env`).
+force multiprocessing off (`cascade_profiler.nsys::_nsys_env`).
 
 Gaps are this step's monotonic start minus the preceding step's end **within the same repeat**;
 the first gap is null. The profiled timestamp/gap fields come from B's step records even when
@@ -201,7 +272,7 @@ Code-path findings in vLLM 0.21.0 (paths relative to the unpacked vLLM source):
   pushes/pops are **inside**. Record assembly plus writing the entire growing, indented step
   JSON list used to happen **after** the end timestamp on every step. That growing rewrite is
   now removed: records append to memory and the same JSON array is written once at finalization
-  (`vllm_trace.py::StepRecorder.step/close/write`).
+  (`cascade_profiler.runner::StepRecorder.step/close/write`).
 - `LLM._run_engine` does loop checks and output collection outside the wrapper, and tqdm setup,
   updates/refresh, closing and final sorting (`entrypoints/llm.py:1839-1892`). However `_add_request`
   sets FINAL_ONLY (`1826-1828`): progress updates are on completed outputs, **not each decode

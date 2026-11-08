@@ -1,4 +1,4 @@
-"""CPU-only native observability checks: python3 -m unittest -v test_phases."""
+"""CPU-only native observability checks: python3 -m unittest discover -s tests -v."""
 
 import json
 import os
@@ -12,7 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import accelsim_trace as a
+from cascade_profiler import Workload, clocks, nsys, timeline, utils
 
 
 class PhasesTest(unittest.TestCase):
@@ -68,54 +68,54 @@ class PhasesTest(unittest.TestCase):
         # Exercise real JSON step-log serialization as well as log text.
         path = self.work / "steps.json"
         path.write_text(json.dumps(steps))
-        rows, diag = a._parse_iterations(log, json.loads(path.read_text()))
+        rows, diag = timeline._parse_iterations(log, json.loads(path.read_text()))
         self.assertFalse(diag["iteration_step_mismatch"])
         self.assertEqual([r["kind"] for r in rows], ["prefill", "decode"] * 2)
         self.assertEqual(rows[2]["wall_ns"], 100)
         self.assertEqual(rows[2]["repeat"], 1)
-        self.assertTrue(a._parse_iterations(log, steps[:-1])[1]["iteration_step_mismatch"])
-        self.assertTrue(a._parse_iterations(log + log, steps)[1]["iteration_step_mismatch"])
-        self.assertEqual(a._parse_iterations("", []), ([], {
+        self.assertTrue(timeline._parse_iterations(log, steps[:-1])[1]["iteration_step_mismatch"])
+        self.assertTrue(timeline._parse_iterations(log + log, steps)[1]["iteration_step_mismatch"])
+        self.assertEqual(timeline._parse_iterations("", []), ([], {
             "iteration_count": 0, "step_count": 0, "iteration_step_mismatch": False}))
 
     def test_exports_and_reconciliation(self):
-        nvtx = a._nsys_nvtx(self.db)
+        nvtx = nsys._nsys_nvtx(self.db)
         self.assertEqual(nvtx[1]["text"], "layer [1,768]")
-        steps = a._nsys_steps(self.db)
-        kernels = a._nsys_kernels(self.db)
-        a._assign_steps(kernels, steps)
-        events = a._nsys_events(self.db, 0, steps)
-        apis = a._nsys_api_calls(self.db, 0, steps)
-        stats = a._phase_nsys_stats(nvtx, events, apis)
+        steps = nsys._nsys_steps(self.db)
+        kernels = nsys._nsys_kernels(self.db)
+        nsys._assign_steps(kernels, steps)
+        events = nsys._nsys_events(self.db, 0, steps)
+        apis = nsys._nsys_api_calls(self.db, 0, steps)
+        stats = timeline._phase_nsys_stats(nvtx, events, apis)
         self.assertEqual(stats[2], {"gpu_busy_ns": 40, "cuda_api_ns": 30,
                                     "other_host_ns": 70, "nsys_span_ns": 100})
-        rows, _ = a._parse_iterations(*self.fake_log())
+        rows, _ = timeline._parse_iterations(*self.fake_log())
         profiled = [{**r, "wall_ns": 120, "elapsed_ms": .12} for r in rows]
-        table = a._reconcile({"baseline": rows, "profiled": profiled}, stats)
+        table = timeline._reconcile({"baseline": rows, "profiled": profiled}, stats)
         self.assertEqual(table[0]["profiled_gpu_busy_ns_n"], 1)
         self.assertEqual(table[1]["profiled_gpu_busy_ns_n"], 0)
         self.assertEqual(table[0]["delta_wall_ns_mean_ns"], 20)
         self.assertAlmostEqual(table[0]["delta_elapsed_ms_mean_ns"], 20000)
         self.assertEqual(table[0]["baseline_wall_ns_n"], 1)
-        self.assertEqual(a._distribution([0, 100])["p95"], 95)
-        a._write_csv(self.work / "reconcile.csv", table)
+        self.assertEqual(timeline._distribution([0, 100])["p95"], 95)
+        utils._write_csv(self.work / "reconcile.csv", table)
         self.assertIn("delta_wall_ns_mean_ns", (self.work / "reconcile.csv").read_text())
-        self.assertIsNone(a._reconcile({}, {})[0]["delta_wall_ns_mean_pct"])
-        self.assertEqual(a._phase_nsys_stats([], [], []), {})
+        self.assertIsNone(timeline._reconcile({}, {})[0]["delta_wall_ns_mean_pct"])
+        self.assertEqual(timeline._phase_nsys_stats([], [], []), {})
 
     def test_scrubbing_and_missing_table(self):
         rep = self.work / "profile.nsys-rep"
         rep.write_text("unscrubbed")
-        a._scrub_nsys(self.work)
+        nsys._scrub_nsys(self.work)
         self.assertFalse(rep.exists())
         with sqlite3.connect(self.db) as con:
             self.assertEqual(con.execute("SELECT * FROM META_DATA_CAPTURE").fetchall(),
                              [("version", "ok", 3)])
             con.execute("DROP TABLE META_DATA_CAPTURE")
-        a._scrub_nsys(self.work)
+        nsys._scrub_nsys(self.work)
         rep.write_text("unscrubbed")
         with patch("builtins.print") as warn:
-            a._scrub_nsys(self.work, True)
+            nsys._scrub_nsys(self.work, True)
             self.assertIn("unscrubbed environment", warn.call_args.args[0])
         self.assertTrue(rep.exists())
 
@@ -123,25 +123,25 @@ class PhasesTest(unittest.TestCase):
         with patch.dict(os.environ, {"MODAL_ID": "x", "some_secret": "x", "API_KEY": "x",
                                     "HF_TOKEN": "hf", "HUGGING_FACE_HUB_TOKEN": "hf2",
                                     "CUDA_INJECTION64_PATH": "nvbit"}, clear=True):
-            env = a._nsys_env()
+            env = nsys._nsys_env()
         self.assertFalse(set(env) & {"MODAL_ID", "some_secret", "API_KEY", "CUDA_INJECTION64_PATH"})
         self.assertEqual(env["HF_TOKEN"], "hf")
         self.assertEqual(env["HUGGING_FACE_HUB_TOKEN"], "hf2")
 
     def test_nsys_flags(self):
-        with patch.object(a.subprocess, "run") as run:
+        with patch.object(nsys.subprocess, "run") as run:
             run.return_value.stdout = "--cuda-event-trace --cuda-graph-trace"
-            cmd = a._nsys_base_cmd(capture_range=True, cuda_events=False)
+            cmd = nsys._nsys_base_cmd(capture_range=True, cuda_events=False)
             self.assertIn("--cuda-event-trace=false", cmd)
             self.assertIn("--cuda-graph-trace=node", cmd)
             self.assertIn("--capture-range=cudaProfilerApi", cmd)
             self.assertIn("--capture-range-end=stop", cmd)
-            self.assertIn("--cuda-event-trace=true", a._nsys_base_cmd())
+            self.assertIn("--cuda-event-trace=true", nsys._nsys_base_cmd())
             run.return_value.stdout = ""
-            self.assertNotIn("--cuda-event-trace=false", a._nsys_base_cmd(cuda_events=False))
+            self.assertNotIn("--cuda-event-trace=false", nsys._nsys_base_cmd(cuda_events=False))
 
     def test_clock_thread_can_stop(self):
-        sampler = a.ClockSampler(self.work / "clocks.csv")
+        sampler = clocks.ClockSampler(self.work / "clocks.csv")
         with patch.object(sampler, "run", return_value=None):
             sampler.start()
             sampler.stop()
@@ -149,18 +149,18 @@ class PhasesTest(unittest.TestCase):
 
     def test_corrected_timeline(self):
         log, baseline = self.fake_log()
-        iterations, _ = a._parse_iterations(log, baseline)
+        iterations, _ = timeline._parse_iterations(log, baseline)
         # Different warmup length shifts global IDs; repeat-local positions still match.
         profiled = [{"step": 10, "repeat": 0}, {"step": 20, "repeat": 1},
                     {"step": 21, "repeat": 1}]
-        nvtx = a._nsys_nvtx(self.db)
+        nvtx = nsys._nsys_nvtx(self.db)
         # The fake sqlite's captured step 2 corresponds to profiled global step 20.
         nvtx[0]["text"] = "vllm_step_20"
-        events = a._nsys_events(self.db, 0, {})
-        apis = a._nsys_api_calls(self.db, 0, {})
-        stats = a._phase_nsys_stats(nvtx, events, apis)
+        events = nsys._nsys_events(self.db, 0, {})
+        apis = nsys._nsys_api_calls(self.db, 0, {})
+        stats = timeline._phase_nsys_stats(nvtx, events, apis)
         ranges = {20: {"start": 100, "end": 200}}
-        kernels = a._nsys_kernels(self.db)
+        kernels = nsys._nsys_kernels(self.db)
         kernels.append({**kernels[0], "start": 115, "end": 125, "grid": "2x3x4"})
         metrics = {"requests": [{"repeat": 1, "metrics": {
             "queued_ts": 1, "scheduled_ts": 2, "first_token_ts": 3, "last_token_ts": 5,
@@ -171,7 +171,7 @@ class PhasesTest(unittest.TestCase):
                 "repeats": 2, "exec_mode": "eager", "gpu_name": "H100",
                 "sm_clock_mhz_median": 1980, "mem_clock_mhz": 2619,
                 "vllm_version": "0.21.0", "layerwise_nvtx": False}
-        result = a._corrected_timeline(meta, baseline, profiled, iterations, metrics,
+        result = timeline._corrected_timeline(meta, baseline, profiled, iterations, metrics,
                                        stats, ranges, kernels)
         self.assertEqual(set(result), {"meta", "steps", "requests", "summary", "gc_summary"})
         self.assertEqual(set(result["meta"]), set(meta) | {"clock"})
@@ -228,20 +228,20 @@ class PhasesTest(unittest.TestCase):
         self.assertIsNone(result["summary"]["decode"]["host_ns"]["mean"])
         self.assertEqual(result["summary"]["decode"]["baseline_wall_ns"]["mean"], 100)
         shorter = [{**r, "wall_end_ns": r["wall_start_ns"] + 80} for r in baseline]
-        changed = a._corrected_timeline(meta, shorter, profiled, iterations, metrics,
+        changed = timeline._corrected_timeline(meta, shorter, profiled, iterations, metrics,
                                         stats, ranges, kernels)
         self.assertEqual(changed["summary"]["prefill"]["profiler_overhead_pct"], 25)
         self.assertEqual(changed["steps"][2]["host_ns"], 40)
         baseline[0].update(num_reqs=2, num_scheduled_tokens=9, kind="mixed")
-        fallback = a._corrected_timeline(meta, baseline, profiled, [], {}, {}, {}, [])
+        fallback = timeline._corrected_timeline(meta, baseline, profiled, [], {}, {}, {}, [])
         self.assertEqual(fallback["steps"][0]["kind"], "mixed")
         self.assertEqual(fallback["steps"][0]["num_reqs"], 2)
         self.assertEqual(fallback["steps"][0]["num_scheduled_tokens"], 9)
-        empty = a._corrected_timeline(meta, [], [], [], {}, {}, {}, [])
+        empty = timeline._corrected_timeline(meta, [], [], [], {}, {}, {}, [])
         self.assertEqual(empty, {"meta": result["meta"], "steps": [], "requests": [], "summary": {},
                                  "gc_summary": {"baseline": [], "profiled": []}})
         with self.assertRaises(ValueError):
-            a._corrected_timeline(meta, baseline, profiled, iterations, {}, stats, ranges,
+            timeline._corrected_timeline(meta, baseline, profiled, iterations, {}, stats, ranges,
                                   [{**kernels[0], "grid": "invalid"}])
 
     def test_corrected_timeline_monotonic_gaps(self):
@@ -274,7 +274,7 @@ class PhasesTest(unittest.TestCase):
         profiled[2].update(gc_pause_ns_in_step=11, gc_pause_ns_in_gap_before=6)
         metrics["gc"] = {"repeats": [{"repeat": 1, "total_gc_pause_ns": 10,
                                       "gc_collect_before_ns": 2}]}
-        result = a._corrected_timeline(meta, baseline, profiled, [], metrics, {}, {}, [],
+        result = timeline._corrected_timeline(meta, baseline, profiled, [], metrics, {}, {}, [],
                                        {"clock": {"wall_minus_monotonic_ns": 2000}})
         self.assertEqual([s["baseline_gap_before_ns"] for s in result["steps"]], [None, None, 30, 40])
         self.assertEqual([s["profiled_gap_before_ns"] for s in result["steps"]], [None, None, 25, None])
@@ -304,9 +304,9 @@ class PhasesTest(unittest.TestCase):
         self.assertEqual(result["summary"]["decode"]["profiled_gap_before_ns"]["mean"], 25)
         self.assertIsNone(result["summary"]["prefill"]["baseline_gap_before_ns"]["mean"])
         legacy = [{k: v for k, v in r.items() if not k.startswith("monotonic_")} for r in baseline]
-        converted = a._corrected_timeline(meta, legacy, [], [], metrics, {}, {}, [])
+        converted = timeline._corrected_timeline(meta, legacy, [], [], metrics, {}, {}, [])
         self.assertEqual(converted["steps"][2]["baseline_wall_start_ns"], 150)
-        missing = a._corrected_timeline(meta, legacy, [], [], {"requests": [{"repeat": 5}]}, {}, {}, [])
+        missing = timeline._corrected_timeline(meta, legacy, [], [], {"requests": [{"repeat": 5}]}, {}, {}, [])
         self.assertIsNone(missing["steps"][2]["baseline_wall_start_ns"])
         self.assertIsNone(missing["requests"][0]["post_last_step_ns"])
         for field in ("pre_first_step_ns", "arrival_to_first_step_ns", "last_step_end_to_return_ns"):
@@ -332,10 +332,10 @@ class PhasesTest(unittest.TestCase):
         meta = {k: None for k in ("run_name", "model", "prompt", "max_tokens", "repeats",
                                   "exec_mode", "gpu_name", "sm_clock_mhz_median", "mem_clock_mhz",
                                   "vllm_version", "layerwise_nvtx")}
-        timeline = a._corrected_timeline(meta, baseline, [], [], {
+        result = timeline._corrected_timeline(meta, baseline, [], [], {
             "clock": {"wall_minus_monotonic_ns": 0}, "requests": requests}, {}, {}, [])
-        for req in timeline["requests"]:
-            steps = [s for s in timeline["steps"] if s["repeat"] == req["repeat"]]
+        for req in result["requests"]:
+            steps = [s for s in result["steps"] if s["repeat"] == req["repeat"]]
             e2e_ns = (req["pre_first_step_ns"] + sum(s["baseline_wall_ns"] for s in steps)
                       + sum(s["baseline_gap_before_ns"] or 0 for s in steps) + req["post_last_step_ns"])
             self.assertAlmostEqual(e2e_ns / 1e6, req["e2e_ms"], delta=0.1)
@@ -346,9 +346,9 @@ class PhasesTest(unittest.TestCase):
             self.assertEqual(req["last_step_end_to_return_ns"], 2_000_000)
 
     def test_unique_run_names(self):
-        with patch.object(a.time, "strftime", return_value="20261108-045308"), \
-                patch.object(a.secrets, "token_hex", side_effect=[f"{i:06x}" for i in range(20)]) as suffix:
-            names = [a._unique_run_name() for _ in range(20)]
+        with patch.object(utils.time, "strftime", return_value="20261108-045308"), \
+                patch.object(utils.secrets, "token_hex", side_effect=[f"{i:06x}" for i in range(20)]) as suffix:
+            names = [utils._unique_run_name() for _ in range(20)]
         suffix.assert_called_with(3)
         self.assertEqual(len(set(names)), 20)
         for name in names:
@@ -413,7 +413,7 @@ class PhasesTest(unittest.TestCase):
                 str(metrics), "--step-log", str(steps)]
         with patch.dict(sys.modules, fake_modules), patch.object(sys, "argv", args), \
                 patch.dict(os.environ, {}, clear=True):
-            workload = runpy.run_path(str(Path(__file__).with_name("vllm_trace.py")), run_name="__main__")
+            workload = runpy.run_path(str(Path(__file__).resolve().parents[1] / "cascade_profiler" / "runner.py"), run_name="__main__")
         self.assertEqual(kwargs["profiler_config"], {"profiler": "cuda"})
         self.assertFalse(kwargs["disable_log_stats"])
         self.assertTrue(kwargs["enable_layerwise_nvtx_tracing"])
@@ -451,7 +451,7 @@ class PhasesTest(unittest.TestCase):
         calls.clear()
         with patch.dict(sys.modules, fake_modules), patch.object(sys, "argv", args + ["--no-step-sync", "--no-gc-between-repeats"]), \
                 patch.dict(os.environ, {}, clear=True):
-            runpy.run_path(str(Path(__file__).with_name("vllm_trace.py")), run_name="__main__")
+            runpy.run_path(str(Path(__file__).resolve().parents[1] / "cascade_profiler" / "runner.py"), run_name="__main__")
         self.assertEqual(calls.count("sync"), 1)  # LLM initialization sync is unchanged
         for r in json.loads(steps.read_text()):
             self.assertEqual(r["pre_step_sync_ns"], 0)
@@ -490,8 +490,56 @@ class PhasesTest(unittest.TestCase):
         with patch.dict(sys.modules, fake_modules), patch.object(sys, "argv", args), \
                 patch.dict(os.environ, {}, clear=True), patch.object(FakeLLM, "generate", fail_generate):
             with self.assertRaisesRegex(RuntimeError, "fake workload failure"):
-                runpy.run_path(str(Path(__file__).with_name("vllm_trace.py")), run_name="__main__")
+                runpy.run_path(str(Path(__file__).resolve().parents[1] / "cascade_profiler" / "runner.py"), run_name="__main__")
         self.assertEqual(len(json.loads(steps.read_text())), 1)
+
+        driver_calls = []
+
+        def custom_driver(llm, repeat, workload):
+            driver_calls.append((repeat, workload.to_dict()))
+            for _ in range((1, 3, 2)[repeat]):
+                llm.llm_engine.step()
+            return [output]
+
+        traces = self.work / "traces"
+        traces.mkdir()
+        stats = traces / "stats_ctx_0xabc"
+        stats.write_text("header\n")
+
+        def init_tracer_llm(self, **kw):
+            kwargs.update(kw)
+            def step():
+                with stats.open("a") as f:
+                    f.write("kernel\n")
+            self.llm_engine = SimpleNamespace(step=step)
+
+        lib = SimpleNamespace(enable_nvbit_instrumentation=lambda: calls.append("enable"),
+                              disable_nvbit_instrumentation=lambda: calls.append("disable"))
+        config = Workload("fake", ["custom"], repeats=3, driver="fake_driver:run",
+                          llm_kwargs={"gpu_memory_utilization": 0.5}, sampling_kwargs={"top_p": 0.9})
+        config_file = self.work / "workload.json"
+        config_file.write_text(json.dumps(config.to_dict()))
+        for selection, expected in (("1", [(1, 1, 2)]), ("", [(1, 0, 1), (1, 1, 2), (1, 2, 3)])):
+            local_args = ["runner", "--workload-json", str(config_file), "--trace-repeat", "1",
+                          "--trace-steps-in-repeat", selection, "--step-log", str(steps)]
+            calls.clear()
+            driver_calls.clear()
+            stats.write_text("header\n")
+            with patch.dict(sys.modules, {**fake_modules, "fake_driver": SimpleNamespace(run=custom_driver)}), \
+                    patch.object(sys, "argv", local_args), patch.object(FakeLLM, "__init__", init_tracer_llm), \
+                    patch("ctypes.CDLL", return_value=lib), patch.dict(os.environ, {
+                        "CUDA_INJECTION64_PATH": "/fake/tracer_tool.so", "TRACES_FOLDER": str(self.work)}, clear=True):
+                runpy.run_path(str(Path(__file__).resolve().parents[1] / "cascade_profiler" / "runner.py"),
+                               run_name="__main__")
+            recorded = json.loads(steps.read_text())
+            self.assertEqual([r["step_in_repeat"] for r in recorded], [0, 0, 1, 2, 0, 1])
+            self.assertEqual([(r["repeat"], r["step_in_repeat"], r["step"]) for r in recorded if r["traced"]], expected)
+            self.assertEqual((recorded[2]["first_kernel_id"], recorded[2]["end_kernel_id"]), (3, 4))
+            self.assertEqual(calls.count("enable"), len(expected))
+            self.assertEqual(calls.count("disable"), len(expected))
+            self.assertEqual(kwargs["gpu_memory_utilization"], 0.5)
+            self.assertEqual([repeat for repeat, _ in driver_calls], [0, 1, 2])
+            self.assertTrue(all(data == config.to_dict() for _, data in driver_calls))
 
 
 if __name__ == "__main__":

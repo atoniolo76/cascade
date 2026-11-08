@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cascade-profiler"
+version = "0.1.0"
+description = "GPU workload tracing and baseline/profiled timeline reconciliation"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+modal = ["modal", "boto3>=1.36"]
+vllm = ["vllm==0.21.0", "nvtx"]
+
+[tool.setuptools.packages.find]
+include = ["cascade_profiler*"]
