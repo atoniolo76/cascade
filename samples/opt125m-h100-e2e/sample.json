@@ -1,0 +1,16 @@
+{
+  "trace_id": "sample__facebook_opt-125m__h100-e2e",
+  "run_id": "run-sample-opt125m-h100-e2e",
+  "sim_id": "sim-sample-opt125m-h100-e2e",
+  "gpu_config": "SM90_H100",
+  "core_clock_mhz": 1980,
+  "trace_gpu_arch": "sm_90",
+  "output_files": [
+    "sim/kernels.csv",
+    "sim/summary.json",
+    "sim/compare.json",
+    "sim/setup.log",
+    "sim/kernel-6207.log"
+  ],
+  "sim_started_at": "2026-11-08T06:50:10+00:00"
+}
