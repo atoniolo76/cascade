@@ -1,0 +1,49 @@
+{
+  "target_abs_error_pct": 1,
+  "e2e_pass": false,
+  "itl_mean_pass": true,
+  "ttft_pass": false,
+  "request_sanity_pass": false,
+  "rows": [
+    {
+      "repeat": 1,
+      "wall_ms": 170.778444,
+      "gap_ms": 32.745459,
+      "walls_plus_gaps_minus_reported_e2e_ms": 0.005275000002342267,
+      "e2e_error_pct": 1.090730623440715,
+      "itl_mean_error_pct": 0.0503169774776139,
+      "ttft_error_pct": 13.500889837387694,
+      "queued_minus_arrival_ms": 0.677819,
+      "step_end_minus_last_token_ms": 0.220796,
+      "post_return_ms": 1.320986,
+      "scalar_span_discrepancy_ms": 0.000239
+    },
+    {
+      "repeat": 2,
+      "wall_ms": 166.681219,
+      "gap_ms": 45.172591,
+      "walls_plus_gaps_minus_reported_e2e_ms": -0.045596000000557524,
+      "e2e_error_pct": 1.446725622250887,
+      "itl_mean_error_pct": 0.029685311912007677,
+      "ttft_error_pct": 11.438515413480166,
+      "queued_minus_arrival_ms": 0.567447,
+      "step_end_minus_last_token_ms": 0.164394,
+      "post_return_ms": 2.333589,
+      "scalar_span_discrepancy_ms": 0.000173
+    },
+    {
+      "repeat": 3,
+      "wall_ms": 176.833704,
+      "gap_ms": 60.491633,
+      "walls_plus_gaps_minus_reported_e2e_ms": -0.02461499998821637,
+      "e2e_error_pct": 1.1837482907988721,
+      "itl_mean_error_pct": 0.03259373211461194,
+      "ttft_error_pct": 10.993408020492382,
+      "queued_minus_arrival_ms": 0.509155,
+      "step_end_minus_last_token_ms": 0.178268,
+      "post_return_ms": 2.121836,
+      "scalar_span_discrepancy_ms": 0.000367
+    }
+  ],
+  "explanation": "Required arrival-to-generate-return reconstruction is compared against queued-to-last-token reference metrics. No formulas, thresholds, or source values were adjusted to fit."
+}

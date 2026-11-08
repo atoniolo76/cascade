@@ -1,0 +1,44 @@
+{
+  "target_abs_error_pct": 1,
+  "e2e_pass": true,
+  "itl_mean_pass": true,
+  "ttft_pass": false,
+  "e2e_itl_pass": true,
+  "request_sanity_pass": false,
+  "rows": [
+    {
+      "repeat": 1,
+      "e2e_error_ms": -0.0011870000091960264,
+      "e2e_error_pct": -0.0009665724551916006,
+      "itl_mean_error_pct": 0.04143311472850289,
+      "ttft_error_ms": 0.11459999999247295,
+      "ttft_error_pct": 2.717988100436262,
+      "prefill_end_minus_first_token_ms": 0.11462,
+      "prefill_scalar_span_discrepancy_ms": -2e-05,
+      "total_measured_gap_ms": 0.928321
+    },
+    {
+      "repeat": 2,
+      "e2e_error_ms": -0.0010429999985035465,
+      "e2e_error_pct": -0.0008521502266695579,
+      "itl_mean_error_pct": 0.03108892181407615,
+      "ttft_error_ms": 0.10479500001277309,
+      "ttft_error_pct": 2.5499111749859975,
+      "prefill_end_minus_first_token_ms": 0.104762,
+      "prefill_scalar_span_discrepancy_ms": 3.3e-05,
+      "total_measured_gap_ms": 0.926102
+    },
+    {
+      "repeat": 3,
+      "e2e_error_ms": -0.0011050000022407858,
+      "e2e_error_pct": -0.0008988875646062344,
+      "itl_mean_error_pct": 0.0557610937337783,
+      "ttft_error_ms": 0.10243500000724026,
+      "ttft_error_pct": 2.5030636171186607,
+      "prefill_end_minus_first_token_ms": 0.102413,
+      "prefill_scalar_span_discrepancy_ms": 2.2e-05,
+      "total_measured_gap_ms": 0.92775
+    }
+  ],
+  "explanation": "Queued-reference reconstruction with signed last-token tail. E2e and mean ITL pass 1%. TTFT retains the modeled prefill end; observed first token is stamped inside prefill. No stamp correction, threshold tuning, or formula change."
+}

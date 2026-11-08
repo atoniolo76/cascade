@@ -2,10 +2,12 @@ import math
 from statistics import mean, median, quantiles
 
 
-def number(value, label, *, positive=False):
+def number(value, label, *, positive=False, signed=False):
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{label} must be a number")
-    if not math.isfinite(value) or value < 0 or (positive and value == 0):
+    if not math.isfinite(value):
+        raise ValueError(f"{label} must be finite")
+    if (value < 0 and not signed) or (positive and value <= 0):
         raise ValueError(f"{label} must be finite and {'positive' if positive else 'nonnegative'}")
     return value
 
@@ -14,6 +16,11 @@ def pre_step(request):
     if "pre_first_step_ns" in request:
         return number(request["pre_first_step_ns"], "pre_first_step_ns")
     return number(request.get("queued_ms", 0), "queued_ms") * 1e6
+
+
+def request_reference(request):
+    field = "queued_ns" if "queued_ns" in request else "arrival_ns"
+    return number(request.get(field, 0), field)
 
 
 def grouped_steps(data):
@@ -49,8 +56,8 @@ def validate_gaps(data):
                     continue
                 start = number(start, f"{prefix}_wall_start_ns")
                 end = number(end, f"{prefix}_wall_end_ns")
-                if abs(end - start - step[f"{prefix}_wall_ns"]) > 1:
-                    raise ValueError(f"{prefix} timestamps must match step wall")
+                if end < start:
+                    raise ValueError(f"{prefix} timestamps must be ordered")
                 if i and prefix == "baseline":
                     previous_end = steps[i - 1].get("baseline_wall_end_ns")
                     if previous_end is not None and abs(start - previous_end - gap) > 1:
@@ -58,9 +65,9 @@ def validate_gaps(data):
     for request in data["requests"]:
         if request["warmup"]:
             continue
-        for field in ("arrival_ns", "pre_first_step_ns", "post_last_step_ns"):
+        for field in ("arrival_ns", "queued_ns", "pre_first_step_ns", "post_last_step_ns"):
             if field in request:
-                number(request[field], field)
+                number(request[field], field, signed=field == "post_last_step_ns")
 
 
 def fit_gaps(data, model):
@@ -104,8 +111,8 @@ def apply_gaps(data, model):
         active = True
         request = requests.get(repeat)
         pre = pre_step(request) if request else 0
-        arrival = number(request.get("arrival_ns", 0), "arrival_ns") if request else 0
-        cursor = arrival + pre if request else (steps[0].get("baseline_wall_start_ns") or 0)
+        reference = request_reference(request) if request else 0
+        cursor = reference + pre if request else (steps[0].get("baseline_wall_start_ns") or 0)
         for i, step in enumerate(steps):
             gap = step["baseline_gap_before_ns"]
             if i:
@@ -129,8 +136,9 @@ def apply_gaps(data, model):
 
 def derive_gap_request(request, steps):
     arrival = number(request.get("arrival_ns", 0), "arrival_ns")
+    reference = request_reference(request)
     pre = pre_step(request)
-    post = number(request.get("post_last_step_ns", 0), "post_last_step_ns")
+    post = number(request.get("post_last_step_ns", 0), "post_last_step_ns", signed=True)
     prefills = [s for s in steps if s["kind"] == "prefill"]
     first_token = prefills[-1]["baseline_wall_end_ns"]
     if any(s["kind"] == "decode" for s in steps[: steps.index(prefills[-1])]):
@@ -149,10 +157,10 @@ def derive_gap_request(request, steps):
         last_step_end_ns=last_end,
         first_token_ns=first_token,
         last_token_ns=last_end + post,
-        ttft_ms=(first_token - arrival) / 1e6,
+        ttft_ms=(first_token - reference) / 1e6,
         itl_ms_mean=mean(decode) if decode else None,
         itl_ms_p50=median(decode) if decode else None,
-        e2e_ms=(last_end + post - arrival) / 1e6,
+        e2e_ms=(last_end + post - reference) / 1e6,
     )
 
 
