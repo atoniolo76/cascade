@@ -316,7 +316,8 @@ blockquote { margin: 14px 0 0; padding: 2px 0 2px 14px; border-left: 2px solid v
 
 /* diagrams */
 .diagram { margin: 20px 0 0; padding: 16px 12px 10px; border: 1px solid var(--rule); border-radius: 12px; background: var(--panel); }
-.diagram svg { display: block; width: 100%; height: auto; }
+.diagram { overflow-x: auto; }
+.diagram svg { display: block; width: 100%; min-width: 540px; height: auto; }
 .diagram figcaption { margin-top: 6px; text-align: center; font: 400 11.5px "Geist Mono", monospace; color: var(--ink-45); }
 .dg-edges path { fill: none; stroke: var(--ink-45); stroke-width: 1.4; }
 .dg-head { fill: var(--ink-45); }

@@ -5,7 +5,7 @@ description: Base URL, bearer-token auth, ids, timestamps and errors for the Cas
 -->
 <p class="lede">Everything the UI does goes through this HTTP API. It serves JSON over the app's URL, the one `deploy_sail.py` prints as `app:`.</p>
 
-<div class="note"><p>Every response on these pages was captured from a running server, by `landing/docs-src/capture_examples.py`. The sims in that run replayed a recorded Accel-Sim log of BabelStream on an RTX 3070, so the cycles, IPC and kernel names come from that log, not from the uploaded trace. Long lists and maps are trimmed, and each cut is marked with a `/* ... trimmed */` comment.</p></div>
+<div class="note"><p>Every response on these pages was captured from a running server, by `landing/docs-src/capture_examples.py`. The sims in that run replayed a recorded Accel-Sim log of BabelStream on an RTX 3070, so the cycles, IPC and kernel names come from that log, not from the uploaded trace. That's also why a finished sim shows `kernels_done` 6 against `kernels_total` 4: the log has six kernels and the uploaded trace has four. Long lists and maps are trimmed, and each cut is marked with a `/* ... trimmed */` comment.</p></div>
 
 <h2>Base URL</h2>
 <p>The samples read the app's URL and your token from the environment.</p>
