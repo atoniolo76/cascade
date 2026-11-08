@@ -365,6 +365,11 @@ window.DOCS_INDEX = [
 "g": "Runs"
 },
 {
+"t": "List a run's kernel timings",
+"u": "api-runs.html#get-run-kernels",
+"g": "Runs"
+},
+{
 "t": "Download run results",
 "u": "api-runs.html#get-run-results",
 "g": "Runs"

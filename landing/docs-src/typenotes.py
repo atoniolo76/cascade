@@ -142,7 +142,11 @@ FIELD_NOTES: dict[str, str] = {
 SETTINGS_NOTES: dict[str, tuple[str | None, str]] = {
     "CASCADE_TOKEN": (
         "required",
-        "The shared bearer token. The UI, the profiler's uploads, and every sim use it. The app refuses to start without it.",
+        "The shared bearer token. The UI and every sim send it. The app refuses to start without it unless `CASCADE_NO_AUTH` is set.",
+    ),
+    "CASCADE_NO_AUTH": (
+        "false",
+        "Local development only. Set to `1` to turn off the token check: the API accepts any request, `/api/health` reports `auth: false`, and the web UI skips its token screen. Never set it on a deployment someone else can reach.",
     ),
     "CASCADE_LAUNCHER": (
         None,

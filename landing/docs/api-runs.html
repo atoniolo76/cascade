@@ -491,13 +491,58 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
   ]
 }</code></pre></div>
 </section>
+<section class="endpoint"><h2 id="get-run-kernels">List a run's kernel timings<a class="anchor" href="#get-run-kernels" aria-label="Link to this section">#</a></h2>
+<div class="route"><span class="method get">GET</span><span class="path">/api/runs/<span class="pp">{run_id}</span>/kernels</span><span class="auth">bearer token</span></div>
+<p>Returns a <a href="types.html#kernelstat"><code>KernelStat</code></a> for every kernel every sim in the run has finished, ordered by config, replica, then kernel. Each <code>stats</code> map is empty to keep the response small; the full maps are in the results downloads. Laying each sim's kernels end to end by <code>sim_time_ns</code> gives its timeline, which is what the app's timeline and Compare views draw.</p>
+<h3 id="path-parameters-4">Path parameters<a class="anchor" href="#path-parameters-4" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>run_id</code></td><td><code class="type">str</code></td><td>The run's <code>id</code>, such as <code>run-d96aefcba965</code>.</td></tr></tbody></table></div>
+<h3 id="returns-7">Returns<a class="anchor" href="#returns-7" aria-label="Link to this section">#</a></h3><p><code>200</code> with a list of <a href="types.html#kernelstat"><code>KernelStat</code></a>.</p>
+<h3 id="errors-7">Errors<a class="anchor" href="#errors-7" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
+<h3 id="example-7">Example<a class="anchor" href="#example-7" aria-label="Link to this section">#</a></h3>
+<div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl <span class="tk-s">"$CASCADE_URL/api/runs/run-a4297b7960e3/kernels"</span> \
+  -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
+
+<span class="tk-k">import</span> httpx
+
+headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
+resp = httpx.get(<span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-a4297b7960e3/kernels"</span>, headers=headers)
+resp.raise_for_status()
+<span class="tk-k">print</span>(resp.json())</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">const</span> resp = <span class="tk-k">await</span> fetch(<span class="tk-s">`${CASCADE_URL}/api/runs/run-a4297b7960e3/kernels`</span>, {
+  headers: { Authorization: <span class="tk-s">`Bearer ${CASCADE_TOKEN}`</span> },
+});
+console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></div></div>
+<div class="code"><div class="code-bar"><span>Response · 200 OK · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>[
+  {
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-b4ded55fc48b"</span>,
+    <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
+    <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
+    <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1</span>,
+    <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">6174</span>,
+    <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">19456</span>,
+    <span class="tk-k">"gpu_ipc"</span>: <span class="tk-n">3.1513</span>,
+    <span class="tk-k">"sim_time_ns"</span>: <span class="tk-n">3118.181818181818</span>,
+    <span class="tk-k">"stats"</span>: {}
+  },
+  {
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-b4ded55fc48b"</span>,
+    <span class="tk-k">"kernel_index"</span>: <span class="tk-n">1</span>,
+    <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11copy_kernelIdEvPKT_PS0_"</span>,
+    <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">2</span>,
+    <span class="tk-k">"gpu_sim_cycle"</span>: <span class="tk-n">5923</span>,
+    <span class="tk-k">"gpu_sim_insn"</span>: <span class="tk-n">11264</span>,
+    <span class="tk-k">"gpu_ipc"</span>: <span class="tk-n">1.9017</span>,
+    <span class="tk-k">"sim_time_ns"</span>: <span class="tk-n">2991.4141414141413</span>,
+    <span class="tk-k">"stats"</span>: {}
+  }
+  <span class="tk-c">/* 46 more kernel stats trimmed */</span>
+]</code></pre></div>
+</section>
 <section class="endpoint"><h2 id="get-run-results">Download run results<a class="anchor" href="#get-run-results" aria-label="Link to this section">#</a></h2>
 <div class="route"><span class="method get">GET</span><span class="path">/api/runs/<span class="pp">{run_id}</span>/results</span><span class="auth">bearer token</span></div>
 <p>Returns everything about a run as one JSON download, with <code>Content-Disposition: attachment; filename="&lt;run_id&gt;-results.json"</code>. Each sim's <code>kernels</code> carry the full <code>stats</code> map, every <code>key = value</code> line Accel-Sim printed for that kernel, which is about 30 KB per kernel.</p>
-<h3 id="path-parameters-4">Path parameters<a class="anchor" href="#path-parameters-4" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>run_id</code></td><td><code class="type">str</code></td><td>The run's <code>id</code>, such as <code>run-d96aefcba965</code>.</td></tr></tbody></table></div>
-<h3 id="returns-7">Returns<a class="anchor" href="#returns-7" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#runresults"><code>RunResults</code></a>.</p>
-<h3 id="errors-7">Errors<a class="anchor" href="#errors-7" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
-<h3 id="example-7">Example<a class="anchor" href="#example-7" aria-label="Link to this section">#</a></h3>
+<h3 id="path-parameters-5">Path parameters<a class="anchor" href="#path-parameters-5" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>run_id</code></td><td><code class="type">str</code></td><td>The run's <code>id</code>, such as <code>run-d96aefcba965</code>.</td></tr></tbody></table></div>
+<h3 id="returns-8">Returns<a class="anchor" href="#returns-8" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#runresults"><code>RunResults</code></a>.</p>
+<h3 id="errors-8">Errors<a class="anchor" href="#errors-8" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
+<h3 id="example-8">Example<a class="anchor" href="#example-8" aria-label="Link to this section">#</a></h3>
 <div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/runs/run-d96aefcba965/results"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
@@ -781,10 +826,10 @@ open(<span class="tk-s">"run-d96aefcba965-results.json"</span>, <span class="tk-
 <section class="endpoint"><h2 id="get-sim-results">Download sim results<a class="anchor" href="#get-sim-results" aria-label="Link to this section">#</a></h2>
 <div class="route"><span class="method get">GET</span><span class="path">/api/sims/<span class="pp">{sim_id}</span>/results</span><span class="auth">bearer token</span></div>
 <p>Returns one sim's results as a JSON download named <code>&lt;sim_id&gt;-results.json</code>. <code>totals</code> is the sim's latest <a href="types.html#simmetrics"><code>SimMetrics</code></a>.</p>
-<h3 id="path-parameters-5">Path parameters<a class="anchor" href="#path-parameters-5" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>sim_id</code></td><td><code class="type">str</code></td><td>The sim's <code>id</code>, such as <code>sim-45609b32f314</code>. Find it in <code>RunDetail.sims</code>.</td></tr></tbody></table></div>
-<h3 id="returns-8">Returns<a class="anchor" href="#returns-8" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#simresults"><code>SimResults</code></a>.</p>
-<h3 id="errors-8">Errors<a class="anchor" href="#errors-8" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No sim has this id.</td></tr></tbody></table></div>
-<h3 id="example-8">Example<a class="anchor" href="#example-8" aria-label="Link to this section">#</a></h3>
+<h3 id="path-parameters-6">Path parameters<a class="anchor" href="#path-parameters-6" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>sim_id</code></td><td><code class="type">str</code></td><td>The sim's <code>id</code>, such as <code>sim-45609b32f314</code>. Find it in <code>RunDetail.sims</code>.</td></tr></tbody></table></div>
+<h3 id="returns-9">Returns<a class="anchor" href="#returns-9" aria-label="Link to this section">#</a></h3><p><code>200</code> with a <a href="types.html#simresults"><code>SimResults</code></a>.</p>
+<h3 id="errors-9">Errors<a class="anchor" href="#errors-9" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No sim has this id.</td></tr></tbody></table></div>
+<h3 id="example-9">Example<a class="anchor" href="#example-9" aria-label="Link to this section">#</a></h3>
 <div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/sims/sim-45609b32f314/results"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
@@ -881,10 +926,10 @@ open(<span class="tk-s">"sim-45609b32f314-results.json"</span>, <span class="tk-
 <section class="endpoint"><h2 id="get-sim-log">Download a sim's log<a class="anchor" href="#get-sim-log" aria-label="Link to this section">#</a></h2>
 <div class="route"><span class="method get">GET</span><span class="path">/api/sims/<span class="pp">{sim_id}</span>/log</span><span class="auth">bearer token</span></div>
 <p>Streams every line the simulator sent, in <code>seq</code> order, as <code>text/plain</code> named <code>&lt;sim_id&gt;.log</code>.</p>
-<h3 id="path-parameters-6">Path parameters<a class="anchor" href="#path-parameters-6" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>sim_id</code></td><td><code class="type">str</code></td><td>The sim's <code>id</code>, such as <code>sim-45609b32f314</code>. Find it in <code>RunDetail.sims</code>.</td></tr></tbody></table></div>
-<h3 id="returns-9">Returns<a class="anchor" href="#returns-9" aria-label="Link to this section">#</a></h3><p><code>200</code> with the log as plain text.</p>
-<h3 id="errors-9">Errors<a class="anchor" href="#errors-9" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No sim has this id.</td></tr></tbody></table></div>
-<h3 id="example-9">Example<a class="anchor" href="#example-9" aria-label="Link to this section">#</a></h3>
+<h3 id="path-parameters-7">Path parameters<a class="anchor" href="#path-parameters-7" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table fields"><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody><tr><td><code>sim_id</code></td><td><code class="type">str</code></td><td>The sim's <code>id</code>, such as <code>sim-45609b32f314</code>. Find it in <code>RunDetail.sims</code>.</td></tr></tbody></table></div>
+<h3 id="returns-10">Returns<a class="anchor" href="#returns-10" aria-label="Link to this section">#</a></h3><p><code>200</code> with the log as plain text.</p>
+<h3 id="errors-10">Errors<a class="anchor" href="#errors-10" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No sim has this id.</td></tr></tbody></table></div>
+<h3 id="example-10">Example<a class="anchor" href="#example-10" aria-label="Link to this section">#</a></h3>
 <div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -OJ <span class="tk-s">"$CASCADE_URL/api/sims/sim-45609b32f314/log"</span> \
   -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> os
 
@@ -914,7 +959,7 @@ The apps require 4.2 because new versions of CUDA tools have dropped parsing sup
 
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="api-traces.html"><span>Previous</span>Traces</a><a class="next" href="api-events.html"><span>Next</span>Live events (SSE)</a></nav>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#list-gpu-configs">List GPU configs</a></li><li class="l2"><a href="#create-run">Create a run</a></li><li class="l2"><a href="#list-runs">List runs</a></li><li class="l2"><a href="#get-run">Get a run</a></li><li class="l2"><a href="#cancel-run">Cancel a run</a></li><li class="l2"><a href="#get-comparison">Compare real and simulated time</a></li><li class="l2"><a href="#get-run-results">Download run results</a></li><li class="l2"><a href="#get-sim-results">Download sim results</a></li><li class="l2"><a href="#get-sim-log">Download a sim's log</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#list-gpu-configs">List GPU configs</a></li><li class="l2"><a href="#create-run">Create a run</a></li><li class="l2"><a href="#list-runs">List runs</a></li><li class="l2"><a href="#get-run">Get a run</a></li><li class="l2"><a href="#cancel-run">Cancel a run</a></li><li class="l2"><a href="#get-comparison">Compare real and simulated time</a></li><li class="l2"><a href="#get-run-kernels">List a run's kernel timings</a></li><li class="l2"><a href="#get-run-results">Download run results</a></li><li class="l2"><a href="#get-sim-results">Download sim results</a></li><li class="l2"><a href="#get-sim-log">Download a sim's log</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">
