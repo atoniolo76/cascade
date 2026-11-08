@@ -305,7 +305,10 @@ class Itanium {
     const c = this.peek();
     this.pos++;
     if ("dfehiusacn".includes(c) && c !== "") return;
-    if (c === "p") { this.type(); return; }
+    if (c === "p") {
+      this.type();
+      return;
+    }
     if (c === "F") {
       this.number();
       this.take("_");
@@ -314,7 +317,8 @@ class Itanium {
     if (c === "v") {
       this.number();
       this.take("_");
-      this.type(); return;
+      this.type();
+      return;
     }
     throw new Bail();
   }
