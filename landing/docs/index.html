@@ -63,7 +63,7 @@
 <h2 id="what-works-today">What works today<a class="anchor" href="#what-works-today" aria-label="Link to this section">#</a></h2>
 <p>Two things are still in progress, and they change what you see.</p>
 <ul>
-<li>A default deploy runs a stand-in simulator, <code>scripts/fake_sim.py</code>, which replays a recorded Accel-Sim log instead of simulating your trace. To simulate your trace, deploy with <code>--base-image</code>, <code>--sim-cmd</code> and <code>--accelsim-dir</code> pointing at an image that has Accel-Sim built in. See <a href="deploy.html">Deploy the app</a>.</li>
+<li>A default deploy runs a stand-in simulator, <code>cascade worker --replay</code>, which replays a recorded Accel-Sim log instead of simulating your trace. To simulate your trace, deploy with <code>--base-image</code>, <code>--sim-cmd</code> and <code>--accelsim-dir</code> pointing at an image that has Accel-Sim built in. See <a href="deploy.html">Deploy the app</a>.</li>
 <li>The profiler doesn't capture real hardware timing (<code>real_timing.json</code>) yet. Until it does, the real-against-simulated comparison shows simulated time only.</li>
 </ul>
 

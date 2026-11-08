@@ -92,7 +92,7 @@ class TraceSummary(BaseModel):
     kernel_count: int  # traced kernels seen so far
     bytes: int  # bytes on disk under the trace dir
     has_real_timing: bool
-    has_step_timeline: bool  # corrected_timeline.json and kernel_mapping.json are in the trace dir
+    has_step_timeline: bool  # corrected_timeline.json + kernel_mapping.json are in the trace dir
 
 
 class TraceDetail(TraceSummary):
@@ -184,8 +184,8 @@ class LogChunk(BaseModel):
 class StepTimelineUpload(BaseModel):
     """What a sim posts after step timing: `cascade simulate` and `cascade compare` output."""
 
-    simulated: dict  # simulated_timeline.json
-    compare: dict | None  # compare.json against the trace's corrected_timeline.json
+    simulated: dict  # `cascade simulate` output (simulated_timeline.json), with steps and summary
+    compare: dict | None  # `cascade compare` output (compare.json) against the real timeline
 
     @field_validator("simulated")
     @classmethod

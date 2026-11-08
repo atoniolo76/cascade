@@ -40,7 +40,7 @@
 <ul>
 <li>A <a href="https://docs.sailresearch.com/quickstart" target="_blank" rel="noopener">Sail</a> account and API key.</li>
 <li>A Cascade token. Pick any long random string. The UI, the profiler and every sim use it.</li>
-<li>For real simulation, a simulator image: a Docker image with Accel-Sim, its trace post-processor and your simulator entrypoint built in. Without one, the app runs the stand-in simulator.</li>
+<li>For real simulation, a simulator image: a Docker image with Accel-Sim and its trace post-processor built in. Without one, the app runs the stand-in simulator.</li>
 </ul>
 
 <h2 id="deploy-with-a-simulator-image">Deploy with a simulator image<a class="anchor" href="#deploy-with-a-simulator-image" aria-label="Link to this section">#</a></h2>
@@ -51,12 +51,12 @@ export SAIL_API_KEY=...
 export CASCADE_TOKEN=$(openssl rand -hex 24)
 uv run --extra sail python scripts/deploy_sail.py \
   --base-image &lt;simulator-image&gt; \
-  --sim-cmd <span class="tk-s">"&lt;simulator command&gt;"</span> \
-  --accelsim-dir &lt;path to accel-sim in that image&gt;</code></pre></div><p>If the image keeps the post-processor somewhere other than <code>&lt;accelsim-dir&gt;/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing</code>, add <code>--postprocess-cmd</code>. <a href="simulator.html#what-the-image-needs">Bring your own simulator</a> lists what the image needs.</p>
+  --sim-cmd <span class="tk-s">"/app/.venv/bin/cascade worker"</span> \
+  --accelsim-dir &lt;path to accel-sim in that image&gt;</code></pre></div><p><code>cascade worker</code> runs <code>&lt;accelsim-dir&gt;/gpu-simulator/bin/release/accel-sim.out</code> on the trace with the sim's config. If the image keeps the post-processor somewhere other than <code>&lt;accelsim-dir&gt;/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing</code>, add <code>--postprocess-cmd</code>. <a href="simulator.html#what-the-image-needs">Bring your own simulator</a> lists what the image needs.</p>
 
 <h2 id="deploy-with-the-stand-in-simulator">Deploy with the stand-in simulator<a class="anchor" href="#deploy-with-the-stand-in-simulator" aria-label="Link to this section">#</a></h2>
 <p>Leave the three flags out to try the UI and the API first.</p>
-<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>uv run --extra sail python scripts/deploy_sail.py</code></pre></div><div class="warn"><p>Without <code>--base-image</code>, <code>--sim-cmd</code> and <code>--accelsim-dir</code>, every sim runs <code>scripts/fake_sim.py</code>, which replays a recorded Accel-Sim log of BabelStream on an RTX 3070. It doesn't simulate your trace, and its numbers are the same for every trace. The image is plain <code>ubuntu:22.04</code>, so it has no post-processor. Upload traces that already contain <code>traces/kernelslist.g</code>, or they fail in <code>processing</code>.</p></div>
+<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>uv run --extra sail python scripts/deploy_sail.py</code></pre></div><div class="warn"><p>Without <code>--base-image</code>, <code>--sim-cmd</code> and <code>--accelsim-dir</code>, every sim runs <code>cascade worker --replay</code>, which replays a recorded Accel-Sim log of BabelStream on an RTX 3070. It doesn't simulate your trace, and its numbers are the same for every trace. The image is plain <code>ubuntu:22.04</code>, so it has no post-processor. Upload traces that already contain <code>traces/kernelslist.g</code>, or they fail in <code>processing</code>.</p></div>
 
 <h2 id="what-the-script-prints">What the script prints<a class="anchor" href="#what-the-script-prints" aria-label="Link to this section">#</a></h2>
 <p>The script builds the image if needed, creates the sandbox, starts <code>cascade serve</code> in it, and waits for the app's port.</p>
@@ -75,7 +75,7 @@ logs:     /data/cascade-serve.log inside the sailbox</code></pre></div><div clas
 <tr><td><code>--app</code></td><td><code>cascade</code></td><td>The Sail app to create the sandbox in. The script creates it if it doesn't exist.</td></tr>
 <tr><td><code>--name</code></td><td><code>cascade-main</code></td><td>The app sandbox's name.</td></tr>
 <tr><td><code>--base-image</code></td><td><code>ubuntu:22.04</code></td><td>The Dockerfile's <code>BASE_IMAGE</code>, the image the app is layered on.</td></tr>
-<tr><td><code>--sim-cmd</code></td><td>the fake simulator</td><td><code>CASCADE_SIM_CMD</code>, the command each sim runs.</td></tr>
+<tr><td><code>--sim-cmd</code></td><td><code>cascade worker --replay</code> on the BabelStream log</td><td><code>CASCADE_SIM_CMD</code>, the command each sim runs.</td></tr>
 <tr><td><code>--accelsim-dir</code></td><td><code>/app/tests/fixtures/accelsim</code></td><td><code>CASCADE_ACCELSIM_DIR</code>. The default holds real Accel-Sim configs but no simulator.</td></tr>
 <tr><td><code>--postprocess-cmd</code></td><td>derived from <code>--accelsim-dir</code></td><td><code>CASCADE_POSTPROCESS_CMD</code>.</td></tr>
 <tr><td><code>--disk-gib</code></td><td>Sail's default</td><td>The app sandbox's disk limit. Sims fork this disk, so size it for your traces.</td></tr>

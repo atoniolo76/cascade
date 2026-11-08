@@ -1,0 +1,551 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/runs/run-9f56e171af08/step-timelines",
+    "body": null
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "body": [
+    {
+      "sim_id": "sim-6b4c91e71437",
+      "gpu_config": "SM86_RTX3070",
+      "replica": 0,
+      "simulated": {
+        "meta": {
+          "run_name": "offline-h100-derived-fixture",
+          "model": "facebook/opt-125m",
+          "prompt": "Hello, my name is",
+          "max_tokens": 4,
+          "repeats": 1,
+          "exec_mode": "eager",
+          "gpu_name": "NVIDIA H100 80GB HBM3",
+          "sm_clock_mhz_median": 1980,
+          "mem_clock_mhz": 3106,
+          "vllm_version": "fixture-unknown",
+          "layerwise_nvtx": false,
+          "fixture_provenance": "Actual nsys kernel names/dimensions/durations and simulator cycles; synthetic phase assignment, baseline/profiled walls, queue/API values and rescaled gaps. Not a real corrected_timeline capture. Synthetic consistent absolute step/request timestamps and baseline inter-step gaps added for gap-aware replay."
+        },
+        "steps": [
+          {
+            "step": -1,
+            "repeat": -1,
+            "warmup": true,
+            "kind": "prefill",
+            "num_reqs": 1,
+            "num_scheduled_tokens": 6,
+            "baseline_wall_ns": 9000000,
+            "profiled_wall_ns": null,
+            "gpu_busy_ns": null,
+            "cuda_api_ns": null,
+            "host_ns": null,
+            "kernels": [],
+            "baseline_wall_start_ns": 100000000,
+            "baseline_wall_end_ns": 109000000,
+            "baseline_gap_before_ns": null,
+            "profiled_wall_start_ns": null,
+            "profiled_wall_end_ns": null,
+            "profiled_gap_before_ns": null
+          },
+          {
+            "step": 0,
+            "repeat": 0,
+            "warmup": false,
+            "kind": "prefill",
+            "num_reqs": 1,
+            "num_scheduled_tokens": 6,
+            "baseline_wall_ns": 6507260.692579505,
+            "profiled_wall_ns": 6507260.692579505,
+            "gpu_busy_ns": 544095.6925795053,
+            "cuda_api_ns": null,
+            "host_ns": 5963165,
+            "kernels": [
+              {
+                "seq": 536,
+                "name": "_ZN8cublasLt19splitKreduce_kernelILi32ELi16Eif6__halffS1_Lb0EfS1_S1_Lb1ELb1ELb0ELb0EEEvNS_18cublasSplitKParamsIT4_EEPKT2_PKT8_PT7_PT3_PKS3_SG_PKT9_S7_PSH_PvlPS3_PiSM_SM_SG_SG_SG_SG_SG_",
+                "grid": "24x1x1",
+                "block": "32x16x1",
+                "duration_ns": 2016,
+                "start_offset_ns": 108088.07402640952
+              },
+              {
+                "seq": 537,
+                "name": "_ZN2at6native29vectorized_elementwise_kernelILi8ENS0_15CUDAFunctor_addIN3c104HalfEEESt5arrayIPcLm3EEEEviT0_T1_",
+                "grid": "5x1x1",
+                "block": "128x1x1",
+                "duration_ns": 1376,
+                "start_offset_ns": 150410.8374180178
+              },
+              {
+                "$trimmed": "150 more items"
+              }
+            ],
+            "baseline_wall_start_ns": 1000200000,
+            "baseline_wall_end_ns": 1006707260.6925795,
+            "baseline_gap_before_ns": null,
+            "profiled_wall_start_ns": 1000200000,
+            "profiled_wall_end_ns": 1006707260.6925795,
+            "profiled_gap_before_ns": null
+          },
+          {
+            "$trimmed": "3 more items"
+          }
+        ],
+        "requests": [
+          {
+            "repeat": -1,
+            "warmup": true,
+            "queued_ms": 0,
+            "ttft_ms": 9,
+            "itl_ms_mean": null,
+            "itl_ms_p50": null,
+            "e2e_ms": 9,
+            "num_output_tokens": 1
+          },
+          {
+            "repeat": 0,
+            "warmup": false,
+            "queued_ms": 0.2,
+            "ttft_ms": 6.707260692579508,
+            "itl_ms_mean": 5.79187032508834,
+            "itl_ms_p50": 5.65,
+            "e2e_ms": 24.082871667844532,
+            "num_output_tokens": 4,
+            "arrival_ns": 1000000000,
+            "pre_first_step_ns": 200000,
+            "post_last_step_ns": 0,
+            "first_step_start_ns": 1000200000,
+            "last_step_end_ns": 1024082871.6678445,
+            "first_token_ns": 1006707260.6925795,
+            "last_token_ns": 1024082871.6678445
+          }
+        ],
+        "summary": {
+          "simulation": {
+            "host_model": "scaled-gaps",
+            "host_fit": {},
+            "coverage": {
+              "kernels": 683,
+              "simulated_kernels": 6,
+              "kernel_fraction": 0.008784773060029283,
+              "gpu_time_fraction": 0.011172026136868988,
+              "measured_gpu_ns": 2228423.0,
+              "covered_measured_gpu_ns": 24896.0,
+              "unmodeled_gpu_ns": 0.0,
+              "steps": [
+                {
+                  "repeat": 0,
+                  "step": 0,
+                  "kernels": 152,
+                  "simulated_kernels": 5,
+                  "measured_gpu_ns": 536835,
+                  "simulated_coverage_gpu_ns": 20128.0,
+                  "unmodeled_gpu_ns": 0,
+                  "measured_kernel_overlap_ns": 0.0
+                },
+                {
+                  "repeat": 0,
+                  "step": 1,
+                  "kernels": 177,
+                  "simulated_kernels": 1,
+                  "measured_gpu_ns": 564801,
+                  "simulated_coverage_gpu_ns": 4768.0,
+                  "unmodeled_gpu_ns": 0,
+                  "measured_kernel_overlap_ns": 0.0
+                },
+                {
+                  "$trimmed": "2 more items"
+                }
+              ]
+            },
+            "request_assumption": "one request per repeat; arrival + pre/steps/inter-step gaps/post",
+            "gap_model": "measured",
+            "gap_fit": {}
+          },
+          "per_kind": {
+            "prefill": {
+              "steps": 1,
+              "wall_ns_mean": 6507260.692579505,
+              "gpu_busy_ns_mean": 544095.6925795053
+            },
+            "decode": {
+              "steps": 3,
+              "wall_ns_mean": 4791870.325088339,
+              "gpu_busy_ns_mean": 575732.9917550059,
+              "gap_before_ns": {
+                "n": 3,
+                "mean": 1000000,
+                "p50": 1000000,
+                "p95": 1180000.0
+              }
+            }
+          }
+        }
+      },
+      "compare": {
+        "steps": [
+          {
+            "repeat": 0,
+            "step": 0,
+            "kind": "prefill",
+            "wall_ns": {
+              "real": 6500000,
+              "simulated": 6507260.692579505,
+              "error": 7260.692579505034,
+              "error_pct": 0.1117029627616159
+            },
+            "gpu_busy_ns": {
+              "real": 536835,
+              "simulated": 544095.6925795053,
+              "error": 7260.692579505267,
+              "error_pct": 1.3524998518176472
+            }
+          },
+          {
+            "repeat": 0,
+            "step": 1,
+            "kind": "decode",
+            "wall_ns": {
+              "real": 4790000,
+              "simulated": 4825610.975265018,
+              "error": 35610.97526501771,
+              "error_pct": 0.7434441600212466
+            },
+            "gpu_busy_ns": {
+              "real": 564801,
+              "simulated": 600411.9752650177,
+              "error": 35610.97526501771,
+              "error_pct": 6.3050481966246
+            }
+          },
+          {
+            "$trimmed": "2 more items"
+          }
+        ],
+        "requests": [
+          {
+            "repeat": 0,
+            "ttft_ms": {
+              "real": 6.7,
+              "simulated": 6.707260692579508,
+              "error": 0.00726069257950801,
+              "error_pct": 0.10836854596280611
+            },
+            "itl_ms_mean": {
+              "real": 5.78,
+              "simulated": 5.79187032508834,
+              "error": 0.011870325088339406,
+              "error_pct": 0.20536894616504162
+            },
+            "itl_ms_p50": {
+              "real": 5.65,
+              "simulated": 5.65,
+              "error": 0.0,
+              "error_pct": 0.0
+            },
+            "e2e_ms": {
+              "real": 24.04,
+              "simulated": 24.082871667844532,
+              "error": 0.042871667844533334,
+              "error_pct": 0.1783347248108708
+            }
+          }
+        ],
+        "summary": {
+          "wall_ns": {
+            "count": 4,
+            "mean_error": 10717.916961130686,
+            "mean_abs_error": 10717.916961130686,
+            "p50_abs_error": 3630.346289752517,
+            "p95_abs_error": 31358.4328621908,
+            "mean_error_pct": 0.2137867806957156,
+            "mean_abs_error_pct": 0.2137867806957156,
+            "p50_abs_error_pct": 0.05585148138080795,
+            "p95_abs_error_pct": 0.6486829804323018
+          },
+          "gpu_busy_ns": {
+            "count": 4,
+            "mean_error": 10717.916961130744,
+            "mean_abs_error": 10717.916961130744,
+            "p50_abs_error": 3630.3462897526333,
+            "p95_abs_error": 31358.432862190835,
+            "mean_error_pct": 1.914387012110562,
+            "mean_abs_error_pct": 1.914387012110562,
+            "p50_abs_error_pct": 0.6762499259088236,
+            "p95_abs_error_pct": 5.562165944903556
+          }
+        }
+      }
+    },
+    {
+      "sim_id": "sim-70f1ae5fc7c6",
+      "gpu_config": "SM86_RTX3070",
+      "replica": 1,
+      "simulated": {
+        "meta": {
+          "run_name": "offline-h100-derived-fixture",
+          "model": "facebook/opt-125m",
+          "prompt": "Hello, my name is",
+          "max_tokens": 4,
+          "repeats": 1,
+          "exec_mode": "eager",
+          "gpu_name": "NVIDIA H100 80GB HBM3",
+          "sm_clock_mhz_median": 1980,
+          "mem_clock_mhz": 3106,
+          "vllm_version": "fixture-unknown",
+          "layerwise_nvtx": false,
+          "fixture_provenance": "Actual nsys kernel names/dimensions/durations and simulator cycles; synthetic phase assignment, baseline/profiled walls, queue/API values and rescaled gaps. Not a real corrected_timeline capture. Synthetic consistent absolute step/request timestamps and baseline inter-step gaps added for gap-aware replay."
+        },
+        "steps": [
+          {
+            "step": -1,
+            "repeat": -1,
+            "warmup": true,
+            "kind": "prefill",
+            "num_reqs": 1,
+            "num_scheduled_tokens": 6,
+            "baseline_wall_ns": 9000000,
+            "profiled_wall_ns": null,
+            "gpu_busy_ns": null,
+            "cuda_api_ns": null,
+            "host_ns": null,
+            "kernels": [],
+            "baseline_wall_start_ns": 100000000,
+            "baseline_wall_end_ns": 109000000,
+            "baseline_gap_before_ns": null,
+            "profiled_wall_start_ns": null,
+            "profiled_wall_end_ns": null,
+            "profiled_gap_before_ns": null
+          },
+          {
+            "step": 0,
+            "repeat": 0,
+            "warmup": false,
+            "kind": "prefill",
+            "num_reqs": 1,
+            "num_scheduled_tokens": 6,
+            "baseline_wall_ns": 6507260.692579505,
+            "profiled_wall_ns": 6507260.692579505,
+            "gpu_busy_ns": 544095.6925795053,
+            "cuda_api_ns": null,
+            "host_ns": 5963165,
+            "kernels": [
+              {
+                "seq": 536,
+                "name": "_ZN8cublasLt19splitKreduce_kernelILi32ELi16Eif6__halffS1_Lb0EfS1_S1_Lb1ELb1ELb0ELb0EEEvNS_18cublasSplitKParamsIT4_EEPKT2_PKT8_PT7_PT3_PKS3_SG_PKT9_S7_PSH_PvlPS3_PiSM_SM_SG_SG_SG_SG_SG_",
+                "grid": "24x1x1",
+                "block": "32x16x1",
+                "duration_ns": 2016,
+                "start_offset_ns": 108088.07402640952
+              },
+              {
+                "seq": 537,
+                "name": "_ZN2at6native29vectorized_elementwise_kernelILi8ENS0_15CUDAFunctor_addIN3c104HalfEEESt5arrayIPcLm3EEEEviT0_T1_",
+                "grid": "5x1x1",
+                "block": "128x1x1",
+                "duration_ns": 1376,
+                "start_offset_ns": 150410.8374180178
+              },
+              {
+                "$trimmed": "150 more items"
+              }
+            ],
+            "baseline_wall_start_ns": 1000200000,
+            "baseline_wall_end_ns": 1006707260.6925795,
+            "baseline_gap_before_ns": null,
+            "profiled_wall_start_ns": 1000200000,
+            "profiled_wall_end_ns": 1006707260.6925795,
+            "profiled_gap_before_ns": null
+          },
+          {
+            "$trimmed": "3 more items"
+          }
+        ],
+        "requests": [
+          {
+            "repeat": -1,
+            "warmup": true,
+            "queued_ms": 0,
+            "ttft_ms": 9,
+            "itl_ms_mean": null,
+            "itl_ms_p50": null,
+            "e2e_ms": 9,
+            "num_output_tokens": 1
+          },
+          {
+            "repeat": 0,
+            "warmup": false,
+            "queued_ms": 0.2,
+            "ttft_ms": 6.707260692579508,
+            "itl_ms_mean": 5.79187032508834,
+            "itl_ms_p50": 5.65,
+            "e2e_ms": 24.082871667844532,
+            "num_output_tokens": 4,
+            "arrival_ns": 1000000000,
+            "pre_first_step_ns": 200000,
+            "post_last_step_ns": 0,
+            "first_step_start_ns": 1000200000,
+            "last_step_end_ns": 1024082871.6678445,
+            "first_token_ns": 1006707260.6925795,
+            "last_token_ns": 1024082871.6678445
+          }
+        ],
+        "summary": {
+          "simulation": {
+            "host_model": "scaled-gaps",
+            "host_fit": {},
+            "coverage": {
+              "kernels": 683,
+              "simulated_kernels": 6,
+              "kernel_fraction": 0.008784773060029283,
+              "gpu_time_fraction": 0.011172026136868988,
+              "measured_gpu_ns": 2228423.0,
+              "covered_measured_gpu_ns": 24896.0,
+              "unmodeled_gpu_ns": 0.0,
+              "steps": [
+                {
+                  "repeat": 0,
+                  "step": 0,
+                  "kernels": 152,
+                  "simulated_kernels": 5,
+                  "measured_gpu_ns": 536835,
+                  "simulated_coverage_gpu_ns": 20128.0,
+                  "unmodeled_gpu_ns": 0,
+                  "measured_kernel_overlap_ns": 0.0
+                },
+                {
+                  "repeat": 0,
+                  "step": 1,
+                  "kernels": 177,
+                  "simulated_kernels": 1,
+                  "measured_gpu_ns": 564801,
+                  "simulated_coverage_gpu_ns": 4768.0,
+                  "unmodeled_gpu_ns": 0,
+                  "measured_kernel_overlap_ns": 0.0
+                },
+                {
+                  "$trimmed": "2 more items"
+                }
+              ]
+            },
+            "request_assumption": "one request per repeat; arrival + pre/steps/inter-step gaps/post",
+            "gap_model": "measured",
+            "gap_fit": {}
+          },
+          "per_kind": {
+            "prefill": {
+              "steps": 1,
+              "wall_ns_mean": 6507260.692579505,
+              "gpu_busy_ns_mean": 544095.6925795053
+            },
+            "decode": {
+              "steps": 3,
+              "wall_ns_mean": 4791870.325088339,
+              "gpu_busy_ns_mean": 575732.9917550059,
+              "gap_before_ns": {
+                "n": 3,
+                "mean": 1000000,
+                "p50": 1000000,
+                "p95": 1180000.0
+              }
+            }
+          }
+        }
+      },
+      "compare": {
+        "steps": [
+          {
+            "repeat": 0,
+            "step": 0,
+            "kind": "prefill",
+            "wall_ns": {
+              "real": 6500000,
+              "simulated": 6507260.692579505,
+              "error": 7260.692579505034,
+              "error_pct": 0.1117029627616159
+            },
+            "gpu_busy_ns": {
+              "real": 536835,
+              "simulated": 544095.6925795053,
+              "error": 7260.692579505267,
+              "error_pct": 1.3524998518176472
+            }
+          },
+          {
+            "repeat": 0,
+            "step": 1,
+            "kind": "decode",
+            "wall_ns": {
+              "real": 4790000,
+              "simulated": 4825610.975265018,
+              "error": 35610.97526501771,
+              "error_pct": 0.7434441600212466
+            },
+            "gpu_busy_ns": {
+              "real": 564801,
+              "simulated": 600411.9752650177,
+              "error": 35610.97526501771,
+              "error_pct": 6.3050481966246
+            }
+          },
+          {
+            "$trimmed": "2 more items"
+          }
+        ],
+        "requests": [
+          {
+            "repeat": 0,
+            "ttft_ms": {
+              "real": 6.7,
+              "simulated": 6.707260692579508,
+              "error": 0.00726069257950801,
+              "error_pct": 0.10836854596280611
+            },
+            "itl_ms_mean": {
+              "real": 5.78,
+              "simulated": 5.79187032508834,
+              "error": 0.011870325088339406,
+              "error_pct": 0.20536894616504162
+            },
+            "itl_ms_p50": {
+              "real": 5.65,
+              "simulated": 5.65,
+              "error": 0.0,
+              "error_pct": 0.0
+            },
+            "e2e_ms": {
+              "real": 24.04,
+              "simulated": 24.082871667844532,
+              "error": 0.042871667844533334,
+              "error_pct": 0.1783347248108708
+            }
+          }
+        ],
+        "summary": {
+          "wall_ns": {
+            "count": 4,
+            "mean_error": 10717.916961130686,
+            "mean_abs_error": 10717.916961130686,
+            "p50_abs_error": 3630.346289752517,
+            "p95_abs_error": 31358.4328621908,
+            "mean_error_pct": 0.2137867806957156,
+            "mean_abs_error_pct": 0.2137867806957156,
+            "p50_abs_error_pct": 0.05585148138080795,
+            "p95_abs_error_pct": 0.6486829804323018
+          },
+          "gpu_busy_ns": {
+            "count": 4,
+            "mean_error": 10717.916961130744,
+            "mean_abs_error": 10717.916961130744,
+            "p50_abs_error": 3630.3462897526333,
+            "p95_abs_error": 31358.432862190835,
+            "mean_error_pct": 1.914387012110562,
+            "mean_abs_error_pct": 1.914387012110562,
+            "p50_abs_error_pct": 0.6762499259088236,
+            "p95_abs_error_pct": 5.562165944903556
+          }
+        }
+      }
+    }
+  ]
+}

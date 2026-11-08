@@ -11,8 +11,8 @@
       "id": "demo-failed",
       "state": "failed",
       "error": "profiler reported status 'failed' in metadata.json",
-      "created_at": "2026-11-08T03:05:33.588607Z",
-      "updated_at": "2026-11-08T03:05:33.589005Z",
+      "created_at": "2026-11-08T05:20:35.073314Z",
+      "updated_at": "2026-11-08T05:20:35.073674Z",
       "model": null,
       "layers": [],
       "source_gpu": null,
@@ -20,22 +20,24 @@
       "suggested_sim_config": null,
       "kernel_count": 0,
       "bytes": 31660291,
-      "has_real_timing": false
+      "has_real_timing": false,
+      "has_step_timeline": false
     },
     {
       "id": "demo",
       "state": "ready",
       "error": null,
-      "created_at": "2026-11-08T03:05:31.585353Z",
-      "updated_at": "2026-11-08T03:05:31.586920Z",
+      "created_at": "2026-11-08T05:20:35.068777Z",
+      "updated_at": "2026-11-08T05:20:35.073498Z",
       "model": null,
       "layers": [],
       "source_gpu": null,
       "trace_gpu_arch": "sm_86",
       "suggested_sim_config": "SM86_RTX3070",
       "kernel_count": 4,
-      "bytes": 31660273,
-      "has_real_timing": false
+      "bytes": 31899901,
+      "has_real_timing": false,
+      "has_step_timeline": true
     }
   ]
 }

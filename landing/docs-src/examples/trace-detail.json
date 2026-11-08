@@ -10,33 +10,34 @@
     "id": "demo",
     "state": "ready",
     "error": null,
-    "created_at": "2026-11-08T03:05:31.585353Z",
-    "updated_at": "2026-11-08T03:05:31.586920Z",
+    "created_at": "2026-11-08T05:20:35.068777Z",
+    "updated_at": "2026-11-08T05:20:35.073498Z",
     "model": null,
     "layers": [],
     "source_gpu": null,
     "trace_gpu_arch": "sm_86",
     "suggested_sim_config": "SM86_RTX3070",
     "kernel_count": 4,
-    "bytes": 31660273,
+    "bytes": 31899901,
     "has_real_timing": false,
+    "has_step_timeline": true,
     "metadata": {
       "status": "ok",
       "files": [
+        {
+          "key": "accelsim-traces/demo/corrected_timeline.json",
+          "bytes": 238744
+        },
+        {
+          "key": "accelsim-traces/demo/kernel_mapping.json",
+          "bytes": 699
+        },
         {
           "key": "accelsim-traces/demo/trace.log",
           "bytes": 55
         },
         {
-          "key": "accelsim-traces/demo/traces/kernel-1.traceg",
-          "bytes": 7942581
-        },
-        {
-          "key": "accelsim-traces/demo/traces/kernel-2.traceg",
-          "bytes": 7913421
-        },
-        {
-          "$trimmed": "5 more items"
+          "$trimmed": "7 more items"
         }
       ],
       "trace_gpu_arch": "sm_86",

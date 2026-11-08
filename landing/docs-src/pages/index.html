@@ -31,7 +31,7 @@ description: Cascade traces an ML workload once on a real GPU and simulates it o
 <h2>What works today</h2>
 <p>Two things are still in progress, and they change what you see.</p>
 <ul>
-<li>A default deploy runs a stand-in simulator, `scripts/fake_sim.py`, which replays a recorded Accel-Sim log instead of simulating your trace. To simulate your trace, deploy with `--base-image`, `--sim-cmd` and `--accelsim-dir` pointing at an image that has Accel-Sim built in. See [Deploy the app](deploy.html).</li>
+<li>A default deploy runs a stand-in simulator, `cascade worker --replay`, which replays a recorded Accel-Sim log instead of simulating your trace. To simulate your trace, deploy with `--base-image`, `--sim-cmd` and `--accelsim-dir` pointing at an image that has Accel-Sim built in. See [Deploy the app](deploy.html).</li>
 <li>The profiler doesn't capture real hardware timing (`real_timing.json`) yet. Until it does, the real-against-simulated comparison shows simulated time only.</li>
 </ul>
 

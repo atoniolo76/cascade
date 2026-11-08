@@ -2,17 +2,18 @@
 title: Bring your own simulator
 description: The contract a program follows to run as a Cascade simulator, what the simulator image needs, and a complete stdlib client.
 -->
-<p class="lede">Cascade runs whatever command is in `CASCADE_SIM_CMD` inside each sim. Any program that follows this contract can be the simulator: Accel-Sim behind a wrapper, a patched build, or something else entirely.</p>
+<p class="lede">Cascade runs whatever command is in `CASCADE_SIM_CMD` inside each sim. The app ships one, `cascade worker`, which runs Accel-Sim. Any other program that follows this contract can be the simulator: a patched build, or something else entirely.</p>
 
 <h2>The contract</h2>
 <ol>
 <li>Read your identity from the environment.
 <div class="table-wrap"><table class="table"><thead><tr><th>variable</th><th>value</th></tr></thead><tbody>
-<tr><td>`CASCADE_SIM_ID`</td><td>This sim's id, such as `sim-45609b32f314`.</td></tr>
+<tr><td>`CASCADE_SIM_ID`</td><td>This sim's id, such as `sim-6b4c91e71437`.</td></tr>
 <tr><td>`CASCADE_MAIN_URL`</td><td>The app's URL, from `CASCADE_PUBLIC_URL`.</td></tr>
 <tr><td>`CASCADE_TOKEN`</td><td>The bearer token for every request.</td></tr>
 <tr><td>`CASCADE_GPU_CONFIG`</td><td>The config to simulate, such as `SM90_H100`.</td></tr>
 <tr><td>`CASCADE_TRACE_DIR`</td><td>The trace's directory. The processed trace is at `$CASCADE_TRACE_DIR/traces/kernelslist.g`.</td></tr>
+<tr><td>`CASCADE_ACCELSIM_DIR`</td><td>The app's `CASCADE_ACCELSIM_DIR`, where Accel-Sim and its configs live.</td></tr>
 </tbody></table></div>
 </li>
 <li>Send `POST /api/sims/{id}/heartbeat` with `{"state": "running"}` right away, and again every few seconds. If the reply has `"cancel": true`, stop and exit.</li>
@@ -25,25 +26,36 @@ description: The contract a program follows to run as a Cascade simulator, what 
 <p>Both calls are safe to repeat, so retry any `5xx` or network error with backoff. The app ignores a log chunk whose `seq` it already has, and a heartbeat that repeats the current state only refreshes the heartbeat time. Don't retry a `4xx`. It means the token or the body is wrong, or the sim doesn't exist.</p>
 <p>Keep heartbeats going while you wait on retries. After 60 seconds of silence the sim shows as `lost`, and after 600 seconds it fails and the app stops its sandbox.</p>
 
+<h2>The built-in worker</h2>
+<p>`cascade worker` follows this contract for Accel-Sim. To use it, deploy with `--sim-cmd "/app/.venv/bin/cascade worker"`.</p>
+<ul>
+<li>It runs `$CASCADE_ACCELSIM_DIR/gpu-simulator/bin/release/accel-sim.out -trace $CASCADE_TRACE_DIR/traces/kernelslist.g` with the sim's `gpgpusim.config` and `trace.config`. It runs in a fresh directory, `$TMPDIR/cascade-worker/<sim id>/`, with a copy of every file in both config directories, because some configs name their aux files by relative path.</li>
+<li>It keeps the full log in that directory as `accelsim.log`.</li>
+<li>If the binary, a config or `kernelslist.g` is missing, it sends a `failed` heartbeat with exit code 2 and an error that names the missing path.</li>
+<li>It sends a chunk every 200 lines or 0.5 seconds, a heartbeat every 5 seconds, and every chunk before its final heartbeat.</li>
+<li>`cascade worker --replay <log>` replays a recorded Accel-Sim log instead of running Accel-Sim. `--delay` sets the pause every 200 lines, 0.05 seconds by default. This is the stand-in simulator.</li>
+</ul>
+
+<h2>Step timing</h2>
+<p>A trace can carry two more files next to `metadata.json`. When both are there, the trace's `has_step_timeline` is true. The app checks on every scan, so they can arrive after the trace is ready.</p>
+<ul>
+<li>`corrected_timeline.json`, the profiler's per-step timeline of the real run.</li>
+<li>`kernel_mapping.json`, a list of `{"uid", "name", "repeat", "step", "seq"}`. `uid` and `name` name a kernel in the sim's log. `repeat`, `step` and `seq` name the kernel in the corrected timeline that the sim's time replaces.</li>
+</ul>
+<p>After a sim succeeds on such a trace, `cascade worker` runs the step-timing model in `cascade/sim/` on its own log. It imports each mapped kernel's cycles with the config's core clock, rebuilds every step with `cascade simulate`'s defaults, and compares the result with the corrected timeline using `cascade compare`. Then it sends both results to [Send step timing](api-simulator.html#post-step-timeline), before its final heartbeat. If either file is missing, it writes one log line and skips this. If the model fails, for example because the mapping names a kernel the log doesn't have, the sim still succeeds, nothing is sent, and the error goes to the log.</p>
+
 <h2>A complete client</h2>
-<p>This client runs any command, forwards its stdout as log chunks, sends a heartbeat every 5 seconds, stops the command if the run is cancelled, and reports the exit code. It uses only the Python standard library.</p>
+<p>To run a simulator other than Accel-Sim, write your own client. This one runs any command, forwards its stdout as log chunks, sends a heartbeat every 5 seconds, stops the command if the run is cancelled, and reports the exit code. It uses only the Python standard library.</p>
 {{snippet cascade_sim.py}}
-<p>To use it with Accel-Sim, put it in your simulator image and point `CASCADE_SIM_CMD` at it. Single quotes keep the shell from expanding the variables until the command runs in the sim.</p>
-```bash
---sim-cmd 'python3 /opt/cascade_sim.py /opt/accel-sim-framework/gpu-simulator/bin/release/accel-sim.out \
-  -trace $CASCADE_TRACE_DIR/traces/kernelslist.g \
-  -config /opt/accel-sim-framework/gpu-simulator/gpgpu-sim/configs/tested-cfgs/$CASCADE_GPU_CONFIG/gpgpusim.config \
-  -config /opt/accel-sim-framework/gpu-simulator/configs/tested-cfgs/$CASCADE_GPU_CONFIG/trace.config'
-```
-<p>On Sail, the app runs the command through a shell inside the fork. The local launcher splits it into arguments with `shlex` and runs it without a shell, so `$VARIABLES` in it don't expand locally.</p>
-<p>`scripts/fake_sim.py` in the repo is another client of the same contract. It replays a recorded log instead of running a command, which is how the stand-in simulator works.</p>
+<p>Put it in your simulator image and point `CASCADE_SIM_CMD` at it, followed by your command. On Sail, the app runs the command through a shell inside the fork, so `$VARIABLES` such as `$CASCADE_GPU_CONFIG` expand there. Quote them with single quotes so your own shell leaves them alone. The local launcher splits the command into arguments with `shlex` and runs it without a shell, so they don't expand locally.</p>
 
 <h2>What the image needs</h2>
 <p>The app is layered on top of your image with the Dockerfile's `BASE_IMAGE` argument, so the app and every sim run the same image. It needs these things.</p>
 <div class="table-wrap"><table class="table"><thead><tr><th>what</th><th>where the app looks</th></tr></thead><tbody>
 <tr><td>Accel-Sim's GPU configs</td><td>`$CASCADE_ACCELSIM_DIR/gpu-simulator/gpgpu-sim/configs/tested-cfgs/*/gpgpusim.config`. Each directory becomes a GPU config.</td></tr>
 <tr><td>The trace post-processor</td><td>`CASCADE_POSTPROCESS_CMD`, by default `$CASCADE_ACCELSIM_DIR/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing`. The app runs it on the main sandbox, not in sims.</td></tr>
-<tr><td>Your simulator command</td><td>`CASCADE_SIM_CMD`, a shell command. Sims run it with the environment above.</td></tr>
+<tr><td>Accel-Sim</td><td>`$CASCADE_ACCELSIM_DIR/gpu-simulator/bin/release/accel-sim.out`, and each config's `trace.config` under `$CASCADE_ACCELSIM_DIR/gpu-simulator/configs/tested-cfgs/`. `cascade worker` runs it.</td></tr>
+<tr><td>Your simulator command</td><td>`CASCADE_SIM_CMD`, a shell command, such as `/app/.venv/bin/cascade worker`. Sims run it with the environment above.</td></tr>
 <tr><td>A shell and `apt-get`</td><td>The Dockerfile installs rclone and uv with `apt-get`, so the base must be Debian or Ubuntu.</td></tr>
 </tbody></table></div>
 <p>Pin the simulator to the version the profiler traced with. The profiler at `b348d7d` builds the tracer from Accel-Sim commit `7ba54ded`. The app's notes name Accel-Sim tag `v2.0.1` for the simulator.</p>

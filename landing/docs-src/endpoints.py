@@ -42,12 +42,12 @@ UNAUTHORIZED = (
     401,
     "The `Authorization` header is missing, is not `Bearer <token>`, or the token is wrong.",
 )
-RUN_ID = Param("run_id", "str", "path", "The run's `id`, such as `run-d96aefcba965`.")
+RUN_ID = Param("run_id", "str", "path", "The run's `id`, such as `run-9f56e171af08`.")
 SIM_ID = Param(
     "sim_id",
     "str",
     "path",
-    "The sim's `id`, such as `sim-45609b32f314`. Find it in `RunDetail.sims`.",
+    "The sim's `id`, such as `sim-6b4c91e71437`. Find it in `RunDetail.sims`.",
 )
 TRACE_ID = Param("trace_id", "str", "path", "The trace's `id`, which is the profiler's run name.")
 
@@ -199,6 +199,19 @@ ENDPOINTS: tuple[Endpoint, ...] = (
         errors=(UNAUTHORIZED, (404, "No run has this id.")),
     ),
     Endpoint(
+        key="get-step-timelines",
+        page="api-runs",
+        method="GET",
+        path="/api/runs/{run_id}/step-timelines",
+        title="List a run's step timing",
+        summary="Each sim's predicted step timeline and its comparison with the real run.",
+        doc="Returns a `SimStepTimeline` for every sim in the run that has sent step timing, ordered by config, then replica. A sim sends one after it succeeds on a trace whose `has_step_timeline` is true, so the list is empty until then, and stays empty for other traces. `simulated` is a full `simulated_timeline.json`, with every kernel of every step, so for a real model it can be several megabytes per sim. Per-kind step means are in `simulated.summary.per_kind`, coverage is in `simulated.summary.simulation.coverage`, and per-step and per-request errors against the real run are in `compare`.",
+        returns="`200` with a list of `SimStepTimeline`.",
+        example="run-step-timelines",
+        params=(RUN_ID,),
+        errors=(UNAUTHORIZED, (404, "No run has this id.")),
+    ),
+    Endpoint(
         key="get-run-results",
         page="api-runs",
         method="GET",
@@ -303,6 +316,27 @@ ENDPOINTS: tuple[Endpoint, ...] = (
             UNAUTHORIZED,
             (404, "No sim has this id."),
             (422, "`seq` is negative or `lines` is not a list of strings."),
+        ),
+    ),
+    Endpoint(
+        key="post-step-timeline",
+        page="api-simulator",
+        method="POST",
+        path="/api/sims/{sim_id}/step-timeline",
+        title="Send step timing",
+        summary="Store a sim's predicted step timeline and its comparison.",
+        doc="Stores the output of `cascade simulate` and `cascade compare` for this sim. `cascade worker` sends it after a successful sim on a trace with step timing, before its final heartbeat. Sending again replaces the earlier upload, so a retry is safe. The app checks only that `simulated` has a `steps` list and a `summary` object and stores both objects as they are.",
+        returns="`204` with no body.",
+        example="step-timeline-post",
+        params=(SIM_ID,),
+        body="StepTimelineUpload",
+        errors=(
+            UNAUTHORIZED,
+            (404, "No sim has this id."),
+            (
+                422,
+                "`simulated` lacks a `steps` list or a `summary` object, or `compare` is neither an object nor `null`.",
+            ),
         ),
     ),
 )

@@ -6,7 +6,7 @@ description: What Cascade does not do yet, and the fixed limits on runs, traces,
 
 <h2>Not built yet</h2>
 <ul>
-<li>A default deploy runs the stand-in simulator, `scripts/fake_sim.py`, unless you pass `--base-image`, `--sim-cmd` and `--accelsim-dir`. Its numbers come from a recorded log, not from your trace.</li>
+<li>A default deploy runs the stand-in simulator, `cascade worker --replay`, unless you pass `--base-image`, `--sim-cmd` and `--accelsim-dir`. Its numbers come from a recorded log, not from your trace.</li>
 <li>The profiler doesn't capture real hardware timing (`real_timing.json`) yet, so the comparison shows simulated time only.</li>
 <li>Each sim models one GPU. Making many simulated GPUs act as one system is the next step, not something Cascade does yet.</li>
 <li>The Sail launcher is written against the Sail SDK 0.17.2 source and tested with a fake SDK. It hasn't run against the live Sail service.</li>

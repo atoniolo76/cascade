@@ -1,16 +1,16 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/runs/run-d96aefcba965/results",
+    "path": "/api/runs/run-9f56e171af08/results",
     "body": null
   },
   "status": 200,
   "content_type": "application/json",
   "body": {
     "run": {
-      "id": "run-d96aefcba965",
+      "id": "run-9f56e171af08",
       "trace_id": "demo",
-      "created_at": "2026-11-08T03:05:34.001386Z",
+      "created_at": "2026-11-08T05:20:35.174845Z",
       "state": "succeeded",
       "entries": [
         {
@@ -26,29 +26,30 @@
       "id": "demo",
       "state": "ready",
       "error": null,
-      "created_at": "2026-11-08T03:05:31.585353Z",
-      "updated_at": "2026-11-08T03:05:31.586920Z",
+      "created_at": "2026-11-08T05:20:35.068777Z",
+      "updated_at": "2026-11-08T05:20:35.073498Z",
       "model": null,
       "layers": [],
       "source_gpu": null,
       "trace_gpu_arch": "sm_86",
       "suggested_sim_config": "SM86_RTX3070",
       "kernel_count": 4,
-      "bytes": 31660273,
+      "bytes": 31899901,
       "has_real_timing": false,
+      "has_step_timeline": true,
       "metadata": {
         "status": "ok",
         "files": [
           {
-            "key": "accelsim-traces/demo/trace.log",
-            "bytes": 55
+            "key": "accelsim-traces/demo/corrected_timeline.json",
+            "bytes": 238744
           },
           {
-            "key": "accelsim-traces/demo/traces/kernel-1.traceg",
-            "bytes": 7942581
+            "key": "accelsim-traces/demo/kernel_mapping.json",
+            "bytes": 699
           },
           {
-            "$trimmed": "6 more items"
+            "$trimmed": "8 more items"
           }
         ],
         "trace_gpu_arch": "sm_86",
@@ -90,17 +91,17 @@
     "sims": [
       {
         "sim": {
-          "id": "sim-45609b32f314",
-          "run_id": "run-d96aefcba965",
+          "id": "sim-6b4c91e71437",
+          "run_id": "run-9f56e171af08",
           "gpu_config": "SM86_RTX3070",
           "replica": 0,
           "state": "succeeded",
           "error": null,
-          "launcher_ref": "91078",
-          "created_at": "2026-11-08T03:05:34.001386Z",
-          "started_at": "2026-11-08T03:05:34.066598Z",
-          "finished_at": "2026-11-08T03:05:37.087222Z",
-          "last_heartbeat_at": "2026-11-08T03:05:37.087222Z",
+          "launcher_ref": "60269",
+          "created_at": "2026-11-08T05:20:35.174845Z",
+          "started_at": "2026-11-08T05:20:35.402704Z",
+          "finished_at": "2026-11-08T05:20:38.270540Z",
+          "last_heartbeat_at": "2026-11-08T05:20:38.270540Z",
           "exit_code": 0,
           "kernels_done": 6,
           "kernels_total": 4,
@@ -112,9 +113,9 @@
             "sim_rate_ips": 510774.0
           },
           "log_tail": [
-            "",
             "Reply_Network_injected_packets_num = 4096",
             "Reply_Network_cycles = 76713",
+            "Reply_Network_injected_packets_per_cycle =        0.0534",
             {
               "$trimmed": "17 more items"
             }
@@ -128,7 +129,7 @@
         },
         "kernels": [
           {
-            "sim_id": "sim-45609b32f314",
+            "sim_id": "sim-6b4c91e71437",
             "kernel_index": 0,
             "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
             "kernel_launch_uid": 1,
@@ -145,7 +146,7 @@
             }
           },
           {
-            "sim_id": "sim-45609b32f314",
+            "sim_id": "sim-6b4c91e71437",
             "kernel_index": 1,
             "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
             "kernel_launch_uid": 2,
@@ -174,17 +175,17 @@
       },
       {
         "sim": {
-          "id": "sim-d698ff59b168",
-          "run_id": "run-d96aefcba965",
+          "id": "sim-70f1ae5fc7c6",
+          "run_id": "run-9f56e171af08",
           "gpu_config": "SM86_RTX3070",
           "replica": 1,
           "state": "succeeded",
           "error": null,
-          "launcher_ref": "91079",
-          "created_at": "2026-11-08T03:05:34.001386Z",
-          "started_at": "2026-11-08T03:05:34.066118Z",
-          "finished_at": "2026-11-08T03:05:37.088830Z",
-          "last_heartbeat_at": "2026-11-08T03:05:37.088830Z",
+          "launcher_ref": "60270",
+          "created_at": "2026-11-08T05:20:35.174845Z",
+          "started_at": "2026-11-08T05:20:35.402415Z",
+          "finished_at": "2026-11-08T05:20:38.268961Z",
+          "last_heartbeat_at": "2026-11-08T05:20:38.268961Z",
           "exit_code": 0,
           "kernels_done": 6,
           "kernels_total": 4,
@@ -196,9 +197,9 @@
             "sim_rate_ips": 510774.0
           },
           "log_tail": [
-            "",
             "Reply_Network_injected_packets_num = 4096",
             "Reply_Network_cycles = 76713",
+            "Reply_Network_injected_packets_per_cycle =        0.0534",
             {
               "$trimmed": "17 more items"
             }
@@ -212,7 +213,7 @@
         },
         "kernels": [
           {
-            "sim_id": "sim-d698ff59b168",
+            "sim_id": "sim-70f1ae5fc7c6",
             "kernel_index": 0,
             "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
             "kernel_launch_uid": 1,
@@ -229,7 +230,7 @@
             }
           },
           {
-            "sim_id": "sim-d698ff59b168",
+            "sim_id": "sim-70f1ae5fc7c6",
             "kernel_index": 1,
             "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
             "kernel_launch_uid": 2,

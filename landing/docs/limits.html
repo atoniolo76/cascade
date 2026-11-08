@@ -38,7 +38,7 @@
 
 <h2 id="not-built-yet">Not built yet<a class="anchor" href="#not-built-yet" aria-label="Link to this section">#</a></h2>
 <ul>
-<li>A default deploy runs the stand-in simulator, <code>scripts/fake_sim.py</code>, unless you pass <code>--base-image</code>, <code>--sim-cmd</code> and <code>--accelsim-dir</code>. Its numbers come from a recorded log, not from your trace.</li>
+<li>A default deploy runs the stand-in simulator, <code>cascade worker --replay</code>, unless you pass <code>--base-image</code>, <code>--sim-cmd</code> and <code>--accelsim-dir</code>. Its numbers come from a recorded log, not from your trace.</li>
 <li>The profiler doesn't capture real hardware timing (<code>real_timing.json</code>) yet, so the comparison shows simulated time only.</li>
 <li>Each sim models one GPU. Making many simulated GPUs act as one system is the next step, not something Cascade does yet.</li>
 <li>The Sail launcher is written against the Sail SDK 0.17.2 source and tested with a fake SDK. It hasn't run against the live Sail service.</li>

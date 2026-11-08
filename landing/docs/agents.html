@@ -164,8 +164,8 @@ Give times in the largest unit that keeps the number above 1, such as 5.2 µs or
 - Launch a run only when the user asked for one. Above 4 sims in total, get the user's yes to the entries first.
 - Cancel a run only when the user asks. `POST /api/runs/{run_id}/cancel` stops every sim that has not finished. It is safe to repeat.
 - Use `GET /api/runs/{run_id}/kernels` for per-kernel numbers. Use `GET /api/runs/{run_id}/results` only for the full stats maps.
-- Check whether the numbers come from Cascade's stand-in simulator, unless the user has said the app runs a real Accel-Sim image. A default deploy runs the stand-in, `scripts/fake_sim.py`, which replays one recorded Accel-Sim log of the BabelStream benchmark on an RTX 3070, whatever the trace. The signs are BabelStream's kernel names (`init_kernel`, `copy_kernel`, `mul_kernel`, `add_kernel`, `triad_kernel` and `dot_kernel`) for a trace of something else, the same kernels for every trace, and `kernels_done` different from `kernels_total`. When you see these signs, say at the top of the report that the numbers come from the stand-in and do not describe the trace.
-- Never call `POST /api/sims/{sim_id}/heartbeat` or `POST /api/sims/{sim_id}/logs`. Those routes are for simulators, and a heartbeat changes a sim's state.
+- Check whether the numbers come from Cascade's stand-in simulator, unless the user has said the app runs a real Accel-Sim image. A default deploy runs the stand-in, `cascade worker --replay`, which replays one recorded Accel-Sim log of the BabelStream benchmark on an RTX 3070, whatever the trace. The signs are BabelStream's kernel names (`init_kernel`, `copy_kernel`, `mul_kernel`, `add_kernel`, `triad_kernel` and `dot_kernel`) for a trace of something else, the same kernels for every trace, and `kernels_done` different from `kernels_total`. When you see these signs, say at the top of the report that the numbers come from the stand-in and do not describe the trace.
+- Never call `POST /api/sims/{sim_id}/heartbeat`, `POST /api/sims/{sim_id}/logs` or `POST /api/sims/{sim_id}/step-timeline`. Those routes are for simulators, and a heartbeat changes a sim's state.
 - Lists come back whole, with no pagination.
 
 ## Errors
@@ -194,6 +194,7 @@ Every route takes the bearer token except `GET /api/health`. Bodies are JSON, an
 | POST | `/api/runs/{run_id}/cancel` | Cancel every unfinished sim. |
 | GET | `/api/runs/{run_id}/comparison` | Per-kernel real time against simulated time per config. |
 | GET | `/api/runs/{run_id}/kernels` | Every sim's per-kernel stats, without the full stats maps. |
+| GET | `/api/runs/{run_id}/step-timelines` | Each sim's predicted step timeline and its comparison with the real run. |
 | GET | `/api/runs/{run_id}/results` | One JSON file with the run, trace, every sim's stats and the comparison. |
 | GET | `/api/sims/{sim_id}/results` | One sim's config, per-kernel stats and totals. |
 | GET | `/api/sims/{sim_id}/log` | The sim's full raw output. |
@@ -247,7 +248,7 @@ List runs. Lists every run, newest first, with per-state sim counts. Use `GET /a
 
 Get a run. Returns the run, its trace, and every sim with its state, progress, latest metrics and last 20 log lines.
 
-- Path parameter `run_id` (str): The run's `id`, such as `run-d96aefcba965`.
+- Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
 - Returns: `200` with a `RunDetail`.
 - `404`: No run has this id.
 
@@ -255,7 +256,7 @@ Get a run. Returns the run, its trace, and every sim with its state, progress, l
 
 Cancel a run. Moves every sim that has not finished to `cancelled` and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets `cancel: true`. Calling it again changes nothing, so it is safe to retry.
 
-- Path parameter `run_id` (str): The run's `id`, such as `run-d96aefcba965`.
+- Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
 - Returns: `200` with the `RunDetail` after cancelling.
 - `404`: No run has this id.
 
@@ -263,7 +264,7 @@ Cancel a run. Moves every sim that has not finished to `cancelled` and asks the 
 
 Compare real and simulated time. Lines up kernels by order. Row `i` holds the `i`th kernel the sims finished and the `i`th row of the trace's real timing, sorted by `kernel_id`. For each config, `sim_ns` is the median `sim_time_ns` over that config's replicas, or `null` if no replica has finished that kernel. `real_ns` is `null` until the trace has real timing, which the profiler does not capture yet.
 
-- Path parameter `run_id` (str): The run's `id`, such as `run-d96aefcba965`.
+- Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
 - Returns: `200` with a `Comparison`.
 - `404`: No run has this id.
 
@@ -271,15 +272,23 @@ Compare real and simulated time. Lines up kernels by order. Row `i` holds the `i
 
 List a run's kernel timings. Returns a `KernelStat` for every kernel every sim in the run has finished, ordered by config, replica, then kernel. Each `stats` map is empty to keep the response small; the full maps are in the results downloads. Laying each sim's kernels end to end by `sim_time_ns` gives its timeline, which is what the app's timeline and Compare views draw.
 
-- Path parameter `run_id` (str): The run's `id`, such as `run-d96aefcba965`.
+- Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
 - Returns: `200` with a list of `KernelStat`.
+- `404`: No run has this id.
+
+### GET /api/runs/{run_id}/step-timelines
+
+List a run's step timing. Returns a `SimStepTimeline` for every sim in the run that has sent step timing, ordered by config, then replica. A sim sends one after it succeeds on a trace whose `has_step_timeline` is true, so the list is empty until then, and stays empty for other traces. `simulated` is a full `simulated_timeline.json`, with every kernel of every step, so for a real model it can be several megabytes per sim. Per-kind step means are in `simulated.summary.per_kind`, coverage is in `simulated.summary.simulation.coverage`, and per-step and per-request errors against the real run are in `compare`.
+
+- Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
+- Returns: `200` with a list of `SimStepTimeline`.
 - `404`: No run has this id.
 
 ### GET /api/runs/{run_id}/results
 
 Download run results. Returns everything about a run as one JSON download, with `Content-Disposition: attachment; filename="&lt;run_id&gt;-results.json"`. Each sim's `kernels` carry the full `stats` map, every `key = value` line Accel-Sim printed for that kernel, which is about 30 KB per kernel.
 
-- Path parameter `run_id` (str): The run's `id`, such as `run-d96aefcba965`.
+- Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
 - Returns: `200` with a `RunResults`.
 - `404`: No run has this id.
 
@@ -287,7 +296,7 @@ Download run results. Returns everything about a run as one JSON download, with 
 
 Download sim results. Returns one sim's results as a JSON download named `&lt;sim_id&gt;-results.json`. `totals` is the sim's latest `SimMetrics`.
 
-- Path parameter `sim_id` (str): The sim's `id`, such as `sim-45609b32f314`. Find it in `RunDetail.sims`.
+- Path parameter `sim_id` (str): The sim's `id`, such as `sim-6b4c91e71437`. Find it in `RunDetail.sims`.
 - Returns: `200` with a `SimResults`.
 - `404`: No sim has this id.
 
@@ -295,7 +304,7 @@ Download sim results. Returns one sim's results as a JSON download named `&lt;si
 
 Download a sim's log. Streams every line the simulator sent, in `seq` order, as `text/plain` named `&lt;sim_id&gt;.log`.
 
-- Path parameter `sim_id` (str): The sim's `id`, such as `sim-45609b32f314`. Find it in `RunDetail.sims`.
+- Path parameter `sim_id` (str): The sim's `id`, such as `sim-6b4c91e71437`. Find it in `RunDetail.sims`.
 - Returns: `200` with the log as plain text.
 - `404`: No sim has this id.
 
@@ -304,7 +313,7 @@ Download a sim's log. Streams every line the simulator sent, in `seq` order, as 
 Stream run events. Opens a `text/event-stream`. The first event is always a `snapshot`. After that the stream sends `sim`, `log` and `kernel` events as they happen, and a `: keepalive` comment after 15 seconds without one. The stream does not close when the run finishes.
 
 - Auth: Bearer token, or the token as the `token` query parameter.
-- Path parameter `run_id` (str): The run's `id`, such as `run-d96aefcba965`.
+- Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
 - Query parameter `token` (str, optional): Your `CASCADE_TOKEN`. Use it when you can't set headers, as with `EventSource`. If present, it is checked instead of the header.
 - Returns: `200` with a `text/event-stream` of `RunEvent`, one JSON object per `data:` line.
 - `404`: No run has this id.
@@ -377,6 +386,7 @@ One kernel launch from the trace's stats_ctx_* file (original hardware).
 - `kernel_count` (`int`): Traced kernels seen so far.
 - `bytes` (`int`): Bytes on disk under the trace dir.
 - `has_real_timing` (`bool`): True when the trace has real per-kernel timings (`real_timing.json`). The profiler does not write them yet.
+- `has_step_timeline` (`bool`): corrected_timeline.json + kernel_mapping.json are in the trace dir.
 
 ### TraceDetail
 
@@ -479,6 +489,14 @@ One per-kernel stats block parsed from Accel-Sim output.
 - `trace` (`TraceDetail`): The full trace.
 - `sims` (`list[SimResults]`): One entry per sim.
 - `comparison` (`Comparison`): Same as `GET /api/runs/{run_id}/comparison`.
+
+### SimStepTimeline
+
+- `sim_id` (`str`): The sim that sent it.
+- `gpu_config` (`str`): The sim's config.
+- `replica` (`int`): The sim's replica.
+- `simulated` (`dict`): As sent in `StepTimelineUpload.simulated`.
+- `compare` (`dict | None`): As sent in `StepTimelineUpload.compare`.
 
 ### RunEvent
 

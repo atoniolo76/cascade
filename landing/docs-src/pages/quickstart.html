@@ -3,7 +3,7 @@ title: Quickstart
 description: Run Cascade on your laptop with the stand-in simulator, upload a trace, launch a run, and download its results.
 -->
 <p class="lede">In this quickstart, we run the Cascade app on your laptop, upload a small stand-in trace, simulate it on two copies of the `SM86_RTX3070` config, and download the results.</p>
-<p>The simulators here are `scripts/fake_sim.py`, which replays a recorded Accel-Sim log of BabelStream on an RTX 3070. Every number you see comes from that log, not from the trace you upload. The point is to see the whole loop work before you deploy for real.</p>
+<p>The simulators here are `cascade worker --replay`, which replays a recorded Accel-Sim log of BabelStream on an RTX 3070 instead of running Accel-Sim. Every number you see comes from that log, not from the trace you upload. The point is to see the whole loop work before you deploy for real.</p>
 
 <h2>Before you start</h2>
 <p>You need these on your machine.</p>
@@ -31,7 +31,7 @@ uv sync
 export CASCADE_TOKEN=dev-token
 CASCADE_DATA_DIR=./data \
 CASCADE_ACCELSIM_DIR=$PWD/tests/fixtures/accelsim \
-CASCADE_SIM_CMD="$PWD/.venv/bin/python $PWD/scripts/fake_sim.py $PWD/tests/fixtures/logs/babelstream_sm86_rtx3070.log" \
+CASCADE_SIM_CMD="$PWD/.venv/bin/cascade worker --replay $PWD/tests/fixtures/logs/babelstream_sm86_rtx3070.log" \
 uv run cascade serve
 ```
 <p>When the app is up, the log ends with this line.</p>
@@ -39,7 +39,7 @@ uv run cascade serve
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 ```
 </li>
-<li><strong>Make a stand-in trace.</strong> The fake simulator only checks that `traces/kernelslist.g` exists, so one line is enough. A real trace comes from the profiler. See [Trace a workload](trace-a-workload.html).
+<li><strong>Make a stand-in trace.</strong> The replaying worker only checks that `traces/kernelslist.g` exists, so one line is enough. A real trace comes from the profiler. See [Trace a workload](trace-a-workload.html).
 ```bash
 export CASCADE_TOKEN=dev-token CASCADE_URL=http://127.0.0.1:8000
 mkdir -p demo/traces
@@ -73,7 +73,7 @@ RUN=$(curl -s -X POST "$CASCADE_URL/api/runs" \
 echo $RUN
 ```
 </li>
-<li><strong>Watch it finish.</strong> Each fake sim replays about 10,000 log lines and finishes in a few seconds.
+<li><strong>Watch it finish.</strong> Each sim replays about 10,000 log lines and finishes in a few seconds.
 ```bash
 curl -s -H "Authorization: Bearer $CASCADE_TOKEN" "$CASCADE_URL/api/runs/$RUN" \
   | python3 -c 'import json, sys; r = json.load(sys.stdin); print(r["state"], r["sim_counts"])'
@@ -98,5 +98,5 @@ curl -s -OJ -H "Authorization: Bearer $CASCADE_TOKEN" "$CASCADE_URL/api/runs/$RU
 <ul>
 <li>[Concepts](concepts.html) explains what a trace, a run and a sim are, and how their states move.</li>
 <li>[Deploy the app](deploy.html) runs the same app on Sail, where each sim is its own sandbox.</li>
-<li>[Bring your own simulator](simulator.html) replaces `fake_sim.py` with Accel-Sim or anything else.</li>
+<li>[Bring your own simulator](simulator.html) replaces the replay with Accel-Sim or anything else.</li>
 </ul>

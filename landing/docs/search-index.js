@@ -320,6 +320,16 @@ window.DOCS_INDEX = [
 "g": "Bring your own simulator"
 },
 {
+"t": "The built-in worker",
+"u": "simulator.html#the-built-in-worker",
+"g": "Bring your own simulator"
+},
+{
+"t": "Step timing",
+"u": "simulator.html#step-timing",
+"g": "Bring your own simulator"
+},
+{
 "t": "A complete client",
 "u": "simulator.html#a-complete-client",
 "g": "Bring your own simulator"
@@ -420,6 +430,11 @@ window.DOCS_INDEX = [
 "g": "Runs"
 },
 {
+"t": "List a run's step timing",
+"u": "api-runs.html#get-step-timelines",
+"g": "Runs"
+},
+{
 "t": "Download run results",
 "u": "api-runs.html#get-run-results",
 "g": "Runs"
@@ -492,6 +507,11 @@ window.DOCS_INDEX = [
 {
 "t": "Send log lines",
 "u": "api-simulator.html#logs",
+"g": "Simulator endpoints"
+},
+{
+"t": "Send step timing",
+"u": "api-simulator.html#post-step-timeline",
 "g": "Simulator endpoints"
 },
 {
@@ -610,6 +630,11 @@ window.DOCS_INDEX = [
 "g": "Types"
 },
 {
+"t": "SimStepTimeline",
+"u": "types.html#simsteptimeline",
+"g": "Types"
+},
+{
 "t": "Simulator calls",
 "u": "types.html#simulator-calls",
 "g": "Types"
@@ -627,6 +652,11 @@ window.DOCS_INDEX = [
 {
 "t": "LogChunk",
 "u": "types.html#logchunk",
+"g": "Types"
+},
+{
+"t": "StepTimelineUpload",
+"u": "types.html#steptimelineupload",
 "g": "Types"
 },
 {

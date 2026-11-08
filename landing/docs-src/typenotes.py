@@ -15,8 +15,18 @@ MODEL_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
         "Runs and sims",
         ("RunEntry", "RunCreate", "RunSummary", "RunDetail", "SimSummary", "SimMetrics"),
     ),
-    ("Results", ("KernelStat", "ComparisonRow", "Comparison", "SimResults", "RunResults")),
-    ("Simulator calls", ("Heartbeat", "HeartbeatAck", "LogChunk")),
+    (
+        "Results",
+        (
+            "KernelStat",
+            "ComparisonRow",
+            "Comparison",
+            "SimResults",
+            "RunResults",
+            "SimStepTimeline",
+        ),
+    ),
+    ("Simulator calls", ("Heartbeat", "HeartbeatAck", "LogChunk", "StepTimelineUpload")),
     ("Events", ("RunEvent", "SnapshotEvent", "SimEvent", "LogEvent", "KernelEvent")),
 )
 
@@ -127,6 +137,11 @@ FIELD_NOTES: dict[str, str] = {
     "Heartbeat.error": "A short reason, with a `failed` heartbeat.",
     "HeartbeatAck.state": "The sim's state after this heartbeat.",
     "LogChunk.lines": "Lines of simulator stdout, without trailing newlines.",
+    "SimStepTimeline.sim_id": "The sim that sent it.",
+    "SimStepTimeline.gpu_config": "The sim's config.",
+    "SimStepTimeline.replica": "The sim's replica.",
+    "SimStepTimeline.simulated": "As sent in `StepTimelineUpload.simulated`.",
+    "SimStepTimeline.compare": "As sent in `StepTimelineUpload.compare`.",
     "SnapshotEvent.run": "The run as it is at connect time.",
     "SimEvent.sim": "The sim after a change: state, heartbeat, progress or metrics.",
     "LogEvent.sim_id": "The sim the lines came from.",

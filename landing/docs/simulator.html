@@ -34,17 +34,18 @@
   <main id="content" class="content">
     <p class="eyebrow">Guides</p>
     <h1>Bring your own simulator</h1>
-<p class="lede">Cascade runs whatever command is in <code>CASCADE_SIM_CMD</code> inside each sim. Any program that follows this contract can be the simulator: Accel-Sim behind a wrapper, a patched build, or something else entirely.</p>
+<p class="lede">Cascade runs whatever command is in <code>CASCADE_SIM_CMD</code> inside each sim. The app ships one, <code>cascade worker</code>, which runs Accel-Sim. Any other program that follows this contract can be the simulator: a patched build, or something else entirely.</p>
 
 <h2 id="the-contract">The contract<a class="anchor" href="#the-contract" aria-label="Link to this section">#</a></h2>
 <ol>
 <li>Read your identity from the environment.
 <div class="table-wrap"><table class="table"><thead><tr><th>variable</th><th>value</th></tr></thead><tbody>
-<tr><td><code>CASCADE_SIM_ID</code></td><td>This sim's id, such as <code>sim-45609b32f314</code>.</td></tr>
+<tr><td><code>CASCADE_SIM_ID</code></td><td>This sim's id, such as <code>sim-6b4c91e71437</code>.</td></tr>
 <tr><td><code>CASCADE_MAIN_URL</code></td><td>The app's URL, from <code>CASCADE_PUBLIC_URL</code>.</td></tr>
 <tr><td><code>CASCADE_TOKEN</code></td><td>The bearer token for every request.</td></tr>
 <tr><td><code>CASCADE_GPU_CONFIG</code></td><td>The config to simulate, such as <code>SM90_H100</code>.</td></tr>
 <tr><td><code>CASCADE_TRACE_DIR</code></td><td>The trace's directory. The processed trace is at <code>$CASCADE_TRACE_DIR/traces/kernelslist.g</code>.</td></tr>
+<tr><td><code>CASCADE_ACCELSIM_DIR</code></td><td>The app's <code>CASCADE_ACCELSIM_DIR</code>, where Accel-Sim and its configs live.</td></tr>
 </tbody></table></div>
 </li>
 <li>Send <code>POST /api/sims/{id}/heartbeat</code> with <code>{"state": "running"}</code> right away, and again every few seconds. If the reply has <code>"cancel": true</code>, stop and exit.</li>
@@ -57,8 +58,26 @@
 <p>Both calls are safe to repeat, so retry any <code>5xx</code> or network error with backoff. The app ignores a log chunk whose <code>seq</code> it already has, and a heartbeat that repeats the current state only refreshes the heartbeat time. Don't retry a <code>4xx</code>. It means the token or the body is wrong, or the sim doesn't exist.</p>
 <p>Keep heartbeats going while you wait on retries. After 60 seconds of silence the sim shows as <code>lost</code>, and after 600 seconds it fails and the app stops its sandbox.</p>
 
+<h2 id="the-built-in-worker">The built-in worker<a class="anchor" href="#the-built-in-worker" aria-label="Link to this section">#</a></h2>
+<p><code>cascade worker</code> follows this contract for Accel-Sim. To use it, deploy with <code>--sim-cmd "/app/.venv/bin/cascade worker"</code>.</p>
+<ul>
+<li>It runs <code>$CASCADE_ACCELSIM_DIR/gpu-simulator/bin/release/accel-sim.out -trace $CASCADE_TRACE_DIR/traces/kernelslist.g</code> with the sim's <code>gpgpusim.config</code> and <code>trace.config</code>. It runs in a fresh directory, <code>$TMPDIR/cascade-worker/&lt;sim id&gt;/</code>, with a copy of every file in both config directories, because some configs name their aux files by relative path.</li>
+<li>It keeps the full log in that directory as <code>accelsim.log</code>.</li>
+<li>If the binary, a config or <code>kernelslist.g</code> is missing, it sends a <code>failed</code> heartbeat with exit code 2 and an error that names the missing path.</li>
+<li>It sends a chunk every 200 lines or 0.5 seconds, a heartbeat every 5 seconds, and every chunk before its final heartbeat.</li>
+<li><code>cascade worker --replay &lt;log&gt;</code> replays a recorded Accel-Sim log instead of running Accel-Sim. <code>--delay</code> sets the pause every 200 lines, 0.05 seconds by default. This is the stand-in simulator.</li>
+</ul>
+
+<h2 id="step-timing">Step timing<a class="anchor" href="#step-timing" aria-label="Link to this section">#</a></h2>
+<p>A trace can carry two more files next to <code>metadata.json</code>. When both are there, the trace's <code>has_step_timeline</code> is true. The app checks on every scan, so they can arrive after the trace is ready.</p>
+<ul>
+<li><code>corrected_timeline.json</code>, the profiler's per-step timeline of the real run.</li>
+<li><code>kernel_mapping.json</code>, a list of <code>{"uid", "name", "repeat", "step", "seq"}</code>. <code>uid</code> and <code>name</code> name a kernel in the sim's log. <code>repeat</code>, <code>step</code> and <code>seq</code> name the kernel in the corrected timeline that the sim's time replaces.</li>
+</ul>
+<p>After a sim succeeds on such a trace, <code>cascade worker</code> runs the step-timing model in <code>cascade/sim/</code> on its own log. It imports each mapped kernel's cycles with the config's core clock, rebuilds every step with <code>cascade simulate</code>'s defaults, and compares the result with the corrected timeline using <code>cascade compare</code>. Then it sends both results to <a href="api-simulator.html#post-step-timeline">Send step timing</a>, before its final heartbeat. If either file is missing, it writes one log line and skips this. If the model fails, for example because the mapping names a kernel the log doesn't have, the sim still succeeds, nothing is sent, and the error goes to the log.</p>
+
 <h2 id="a-complete-client">A complete client<a class="anchor" href="#a-complete-client" aria-label="Link to this section">#</a></h2>
-<p>This client runs any command, forwards its stdout as log chunks, sends a heartbeat every 5 seconds, stops the command if the run is cancelled, and reports the exit code. It uses only the Python standard library.</p>
+<p>To run a simulator other than Accel-Sim, write your own client. This one runs any command, forwards its stdout as log chunks, sends a heartbeat every 5 seconds, stops the command if the run is cancelled, and reports the exit code. It uses only the Python standard library.</p>
 <div class="code"><div class="code-bar"><span>cascade_sim.py</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-s">""</span>"Run a simulator command <span class="tk-k">as</span> a Cascade sim: send heartbeats and forward its stdout.
 
 CASCADE_SIM_CMD=<span class="tk-s">"python3 cascade_sim.py accel-sim.out -trace ... -config ..."</span>
@@ -141,19 +160,15 @@ cancelled = threading.Event()
 
 <span class="tk-k">if</span> __name__ == <span class="tk-s">"__main__"</span>:
     sys.exit(main())</code></pre></div>
-<p>To use it with Accel-Sim, put it in your simulator image and point <code>CASCADE_SIM_CMD</code> at it. Single quotes keep the shell from expanding the variables until the command runs in the sim.</p>
-<div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>--sim-cmd <span class="tk-s">'python3 /opt/cascade_sim.py /opt/accel-sim-framework/gpu-simulator/bin/release/accel-sim.out \
-  -trace $CASCADE_TRACE_DIR/traces/kernelslist.g \
-  -config /opt/accel-sim-framework/gpu-simulator/gpgpu-sim/configs/tested-cfgs/$CASCADE_GPU_CONFIG/gpgpusim.config \
-  -config /opt/accel-sim-framework/gpu-simulator/configs/tested-cfgs/$CASCADE_GPU_CONFIG/trace.config'</span></code></pre></div><p>On Sail, the app runs the command through a shell inside the fork. The local launcher splits it into arguments with <code>shlex</code> and runs it without a shell, so <code>$VARIABLES</code> in it don't expand locally.</p>
-<p><code>scripts/fake_sim.py</code> in the repo is another client of the same contract. It replays a recorded log instead of running a command, which is how the stand-in simulator works.</p>
+<p>Put it in your simulator image and point <code>CASCADE_SIM_CMD</code> at it, followed by your command. On Sail, the app runs the command through a shell inside the fork, so <code>$VARIABLES</code> such as <code>$CASCADE_GPU_CONFIG</code> expand there. Quote them with single quotes so your own shell leaves them alone. The local launcher splits the command into arguments with <code>shlex</code> and runs it without a shell, so they don't expand locally.</p>
 
 <h2 id="what-the-image-needs">What the image needs<a class="anchor" href="#what-the-image-needs" aria-label="Link to this section">#</a></h2>
 <p>The app is layered on top of your image with the Dockerfile's <code>BASE_IMAGE</code> argument, so the app and every sim run the same image. It needs these things.</p>
 <div class="table-wrap"><table class="table"><thead><tr><th>what</th><th>where the app looks</th></tr></thead><tbody>
 <tr><td>Accel-Sim's GPU configs</td><td><code>$CASCADE_ACCELSIM_DIR/gpu-simulator/gpgpu-sim/configs/tested-cfgs/*/gpgpusim.config</code>. Each directory becomes a GPU config.</td></tr>
 <tr><td>The trace post-processor</td><td><code>CASCADE_POSTPROCESS_CMD</code>, by default <code>$CASCADE_ACCELSIM_DIR/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing</code>. The app runs it on the main sandbox, not in sims.</td></tr>
-<tr><td>Your simulator command</td><td><code>CASCADE_SIM_CMD</code>, a shell command. Sims run it with the environment above.</td></tr>
+<tr><td>Accel-Sim</td><td><code>$CASCADE_ACCELSIM_DIR/gpu-simulator/bin/release/accel-sim.out</code>, and each config's <code>trace.config</code> under <code>$CASCADE_ACCELSIM_DIR/gpu-simulator/configs/tested-cfgs/</code>. <code>cascade worker</code> runs it.</td></tr>
+<tr><td>Your simulator command</td><td><code>CASCADE_SIM_CMD</code>, a shell command, such as <code>/app/.venv/bin/cascade worker</code>. Sims run it with the environment above.</td></tr>
 <tr><td>A shell and <code>apt-get</code></td><td>The Dockerfile installs rclone and uv with <code>apt-get</code>, so the base must be Debian or Ubuntu.</td></tr>
 </tbody></table></div>
 <p>Pin the simulator to the version the profiler traced with. The profiler at <code>b348d7d</code> builds the tracer from Accel-Sim commit <code>7ba54ded</code>. The app's notes name Accel-Sim tag <code>v2.0.1</code> for the simulator.</p>
@@ -164,7 +179,7 @@ cancelled = threading.Event()
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="reading-results.html"><span>Previous</span>Reading results</a><a class="next" href="api.html"><span>Next</span>Overview and auth</a></nav>
     <footer class="doc-foot"><span>For AI agents</span><a href="agents.html">Use with AI agents</a><a href="agent-prompt.md">Agent prompt</a><a href="llms.txt">llms.txt</a><a href="llms-full.txt">llms-full.txt</a></footer>
   </main>
-  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#the-contract">The contract</a></li><li class="l2"><a href="#retries-are-safe">Retries are safe</a></li><li class="l2"><a href="#a-complete-client">A complete client</a></li><li class="l2"><a href="#what-the-image-needs">What the image needs</a></li><li class="l2"><a href="#where-output-goes">Where output goes</a></li></ul></nav>
+  <nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li class="l2"><a href="#the-contract">The contract</a></li><li class="l2"><a href="#retries-are-safe">Retries are safe</a></li><li class="l2"><a href="#the-built-in-worker">The built-in worker</a></li><li class="l2"><a href="#step-timing">Step timing</a></li><li class="l2"><a href="#a-complete-client">A complete client</a></li><li class="l2"><a href="#what-the-image-needs">What the image needs</a></li><li class="l2"><a href="#where-output-goes">Where output goes</a></li></ul></nav>
 </div>
 <div class="scrim" hidden></div>
 <dialog class="search" aria-label="Search docs">

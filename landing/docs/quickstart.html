@@ -35,7 +35,7 @@
     <p class="eyebrow">Getting started</p>
     <h1>Quickstart</h1>
 <p class="lede">In this quickstart, we run the Cascade app on your laptop, upload a small stand-in trace, simulate it on two copies of the <code>SM86_RTX3070</code> config, and download the results.</p>
-<p>The simulators here are <code>scripts/fake_sim.py</code>, which replays a recorded Accel-Sim log of BabelStream on an RTX 3070. Every number you see comes from that log, not from the trace you upload. The point is to see the whole loop work before you deploy for real.</p>
+<p>The simulators here are <code>cascade worker --replay</code>, which replays a recorded Accel-Sim log of BabelStream on an RTX 3070 instead of running Accel-Sim. Every number you see comes from that log, not from the trace you upload. The point is to see the whole loop work before you deploy for real.</p>
 
 <h2 id="before-you-start">Before you start<a class="anchor" href="#before-you-start" aria-label="Link to this section">#</a></h2>
 <p>You need these on your machine.</p>
@@ -56,10 +56,10 @@ uv sync</code></pre></div><p>To get the web UI as well, build it once. The build
 <div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>export CASCADE_TOKEN=dev-token
 CASCADE_DATA_DIR=./data \
 CASCADE_ACCELSIM_DIR=$PWD/tests/fixtures/accelsim \
-CASCADE_SIM_CMD=<span class="tk-s">"$PWD/.venv/bin/python $PWD/scripts/fake_sim.py $PWD/tests/fixtures/logs/babelstream_sm86_rtx3070.log"</span> \
+CASCADE_SIM_CMD=<span class="tk-s">"$PWD/.venv/bin/cascade worker --replay $PWD/tests/fixtures/logs/babelstream_sm86_rtx3070.log"</span> \
 uv run cascade serve</code></pre></div><p>When the app is up, the log ends with this line.</p>
 <div class="code"><div class="code-bar"><span>text</span><button class="copy" type="button">Copy</button></div><pre><code>INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)</code></pre></div></li>
-<li><strong>Make a stand-in trace.</strong> The fake simulator only checks that <code>traces/kernelslist.g</code> exists, so one line is enough. A real trace comes from the profiler. See <a href="trace-a-workload.html">Trace a workload</a>.
+<li><strong>Make a stand-in trace.</strong> The replaying worker only checks that <code>traces/kernelslist.g</code> exists, so one line is enough. A real trace comes from the profiler. See <a href="trace-a-workload.html">Trace a workload</a>.
 <div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>export CASCADE_TOKEN=dev-token CASCADE_URL=http://127.0.0.1:8000
 mkdir -p demo/traces
 echo kernel-1.traceg &gt; demo/traces/kernelslist.g</code></pre></div></li>
@@ -78,7 +78,7 @@ uploaded metadata.json (1 files listed) to s3://cascade/accelsim-traces/demo/</c
   -d <span class="tk-s">'{"trace_id": "demo", "entries": [{"gpu_config": "SM86_RTX3070", "count": 2}]}'</span> \
   | python3 -c <span class="tk-s">'import json, sys; print(json.load(sys.stdin)["id"])'</span>)
 echo $RUN</code></pre></div></li>
-<li><strong>Watch it finish.</strong> Each fake sim replays about 10,000 log lines and finishes in a few seconds.
+<li><strong>Watch it finish.</strong> Each sim replays about 10,000 log lines and finishes in a few seconds.
 <div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -s -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span> <span class="tk-s">"$CASCADE_URL/api/runs/$RUN"</span> \
   | python3 -c <span class="tk-s">'import json, sys; r = json.load(sys.stdin); print(r["state"], r["sim_counts"])'</span></code></pre></div><p>When both sims are done, you see this.</p>
 <div class="code"><div class="code-bar"><span>text</span><button class="copy" type="button">Copy</button></div><pre><code>succeeded {'succeeded': 2}</code></pre></div><p>If you built the UI, open <a href="http://127.0.0.1:8000" target="_blank" rel="noopener">http://127.0.0.1:8000</a>, paste <code>dev-token</code>, and open the run to see the same thing live.</p>
@@ -94,7 +94,7 @@ echo $RUN</code></pre></div></li>
 <ul>
 <li><a href="concepts.html">Concepts</a> explains what a trace, a run and a sim are, and how their states move.</li>
 <li><a href="deploy.html">Deploy the app</a> runs the same app on Sail, where each sim is its own sandbox.</li>
-<li><a href="simulator.html">Bring your own simulator</a> replaces <code>fake_sim.py</code> with Accel-Sim or anything else.</li>
+<li><a href="simulator.html">Bring your own simulator</a> replaces the replay with Accel-Sim or anything else.</li>
 </ul>
 
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="index.html"><span>Previous</span>Introduction</a><a class="next" href="agents.html"><span>Next</span>Use with AI agents</a></nav>

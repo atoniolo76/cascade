@@ -59,8 +59,8 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     <span class="tk-k">"id"</span>: <span class="tk-s">"demo-failed"</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"failed"</span>,
     <span class="tk-k">"error"</span>: <span class="tk-s">"profiler reported status 'failed' in metadata.json"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:33.588607Z"</span>,
-    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T03:05:33.589005Z"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T05:20:35.073314Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T05:20:35.073674Z"</span>,
     <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"layers"</span>: [],
     <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
@@ -68,22 +68,24 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
     <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"kernel_count"</span>: <span class="tk-n">0</span>,
     <span class="tk-k">"bytes"</span>: <span class="tk-n">31660291</span>,
-    <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>
+    <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
+    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">false</span>
   },
   {
     <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
     <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.585353Z"</span>,
-    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.586920Z"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T05:20:35.068777Z"</span>,
+    <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T05:20:35.073498Z"</span>,
     <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"layers"</span>: [],
     <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
     <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
     <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
-    <span class="tk-k">"bytes"</span>: <span class="tk-n">31660273</span>,
-    <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>
+    <span class="tk-k">"bytes"</span>: <span class="tk-n">31899901</span>,
+    <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
+    <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>
   }
 ]</code></pre></div>
 </section>
@@ -110,32 +112,33 @@ console.log(<span class="tk-k">await</span> resp.json());</code></pre></div></di
   <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
   <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
   <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.585353Z"</span>,
-  <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T03:05:31.586920Z"</span>,
+  <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T05:20:35.068777Z"</span>,
+  <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T05:20:35.073498Z"</span>,
   <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
   <span class="tk-k">"layers"</span>: [],
   <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
   <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
   <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
   <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
-  <span class="tk-k">"bytes"</span>: <span class="tk-n">31660273</span>,
+  <span class="tk-k">"bytes"</span>: <span class="tk-n">31899901</span>,
   <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
+  <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>,
   <span class="tk-k">"metadata"</span>: {
     <span class="tk-k">"status"</span>: <span class="tk-s">"ok"</span>,
     <span class="tk-k">"files"</span>: [
       {
+        <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/corrected_timeline.json"</span>,
+        <span class="tk-k">"bytes"</span>: <span class="tk-n">238744</span>
+      },
+      {
+        <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/kernel_mapping.json"</span>,
+        <span class="tk-k">"bytes"</span>: <span class="tk-n">699</span>
+      },
+      {
         <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/trace.log"</span>,
         <span class="tk-k">"bytes"</span>: <span class="tk-n">55</span>
-      },
-      {
-        <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/traces/kernel-1.traceg"</span>,
-        <span class="tk-k">"bytes"</span>: <span class="tk-n">7942581</span>
-      },
-      {
-        <span class="tk-k">"key"</span>: <span class="tk-s">"accelsim-traces/demo/traces/kernel-2.traceg"</span>,
-        <span class="tk-k">"bytes"</span>: <span class="tk-n">7913421</span>
       }
-      <span class="tk-c">/* 5 more items trimmed */</span>
+      <span class="tk-c">/* 7 more items trimmed */</span>
     ],
     <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
     <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>

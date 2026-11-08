@@ -94,7 +94,7 @@ Give times in the largest unit that keeps the number above 1, such as 5.2 µs or
 - Launch a run only when the user asked for one. Above 4 sims in total, get the user's yes to the entries first.
 - Cancel a run only when the user asks. `POST /api/runs/{run_id}/cancel` stops every sim that has not finished. It is safe to repeat.
 - Use `GET /api/runs/{run_id}/kernels` for per-kernel numbers. Use `GET /api/runs/{run_id}/results` only for the full stats maps.
-- Check whether the numbers come from Cascade's stand-in simulator, unless the user has said the app runs a real Accel-Sim image. A default deploy runs the stand-in, `scripts/fake_sim.py`, which replays one recorded Accel-Sim log of the BabelStream benchmark on an RTX 3070, whatever the trace. The signs are BabelStream's kernel names ({{stand-in-kernels}}) for a trace of something else, the same kernels for every trace, and `kernels_done` different from `kernels_total`. When you see these signs, say at the top of the report that the numbers come from the stand-in and do not describe the trace.
+- Check whether the numbers come from Cascade's stand-in simulator, unless the user has said the app runs a real Accel-Sim image. A default deploy runs the stand-in, `cascade worker --replay`, which replays one recorded Accel-Sim log of the BabelStream benchmark on an RTX 3070, whatever the trace. The signs are BabelStream's kernel names ({{stand-in-kernels}}) for a trace of something else, the same kernels for every trace, and `kernels_done` different from `kernels_total`. When you see these signs, say at the top of the report that the numbers come from the stand-in and do not describe the trace.
 {{simulator-routes}}
 - Lists come back whole, with no pagination.
 

@@ -1,0 +1,64 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/sims/sim-4027617ca959/step-timeline",
+    "body": {
+      "simulated": {
+        "meta": {
+          "run_name": "empty"
+        },
+        "steps": [],
+        "requests": [],
+        "summary": {
+          "simulation": {
+            "host_model": "scaled-gaps",
+            "host_fit": {},
+            "coverage": {
+              "kernels": 0,
+              "simulated_kernels": 0,
+              "kernel_fraction": 0,
+              "gpu_time_fraction": 0,
+              "measured_gpu_ns": 0.0,
+              "covered_measured_gpu_ns": 0.0,
+              "unmodeled_gpu_ns": 0.0,
+              "steps": []
+            },
+            "request_assumption": "one request per repeat; queue + prefill/decode walls"
+          },
+          "per_kind": {}
+        }
+      },
+      "compare": {
+        "steps": [],
+        "requests": [],
+        "summary": {
+          "wall_ns": {
+            "count": 0,
+            "mean_error": null,
+            "mean_abs_error": null,
+            "p50_abs_error": null,
+            "p95_abs_error": null,
+            "mean_error_pct": null,
+            "mean_abs_error_pct": null,
+            "p50_abs_error_pct": null,
+            "p95_abs_error_pct": null
+          },
+          "gpu_busy_ns": {
+            "count": 0,
+            "mean_error": null,
+            "mean_abs_error": null,
+            "p50_abs_error": null,
+            "p95_abs_error": null,
+            "mean_error_pct": null,
+            "mean_abs_error_pct": null,
+            "p50_abs_error_pct": null,
+            "p95_abs_error_pct": null
+          }
+        }
+      }
+    }
+  },
+  "status": 204,
+  "content_type": null,
+  "body": null
+}

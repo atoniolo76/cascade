@@ -1,24 +1,24 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/sims/sim-45609b32f314/results",
+    "path": "/api/sims/sim-6b4c91e71437/results",
     "body": null
   },
   "status": 200,
   "content_type": "application/json",
   "body": {
     "sim": {
-      "id": "sim-45609b32f314",
-      "run_id": "run-d96aefcba965",
+      "id": "sim-6b4c91e71437",
+      "run_id": "run-9f56e171af08",
       "gpu_config": "SM86_RTX3070",
       "replica": 0,
       "state": "succeeded",
       "error": null,
-      "launcher_ref": "91078",
-      "created_at": "2026-11-08T03:05:34.001386Z",
-      "started_at": "2026-11-08T03:05:34.066598Z",
-      "finished_at": "2026-11-08T03:05:37.087222Z",
-      "last_heartbeat_at": "2026-11-08T03:05:37.087222Z",
+      "launcher_ref": "60269",
+      "created_at": "2026-11-08T05:20:35.174845Z",
+      "started_at": "2026-11-08T05:20:35.402704Z",
+      "finished_at": "2026-11-08T05:20:38.270540Z",
+      "last_heartbeat_at": "2026-11-08T05:20:38.270540Z",
       "exit_code": 0,
       "kernels_done": 6,
       "kernels_total": 4,
@@ -30,9 +30,9 @@
         "sim_rate_ips": 510774.0
       },
       "log_tail": [
-        "",
         "Reply_Network_injected_packets_num = 4096",
         "Reply_Network_cycles = 76713",
+        "Reply_Network_injected_packets_per_cycle =        0.0534",
         {
           "$trimmed": "17 more items"
         }
@@ -46,7 +46,7 @@
     },
     "kernels": [
       {
-        "sim_id": "sim-45609b32f314",
+        "sim_id": "sim-6b4c91e71437",
         "kernel_index": 0,
         "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
         "kernel_launch_uid": 1,
@@ -63,7 +63,7 @@
         }
       },
       {
-        "sim_id": "sim-45609b32f314",
+        "sim_id": "sim-6b4c91e71437",
         "kernel_index": 1,
         "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
         "kernel_launch_uid": 2,

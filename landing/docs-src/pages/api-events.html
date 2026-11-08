@@ -10,9 +10,9 @@ description: Subscribe to one Cascade run's live updates over server-sent events
 <h2>Wire format</h2>
 <p>Each event is one `data:` line holding one JSON object, followed by a blank line. The stream uses no `event:` or `id:` fields, so read the object's `type` to tell events apart.</p>
 ```text
-data: {"type":"snapshot","run":{"id":"run-d96aefcba965","trace_id":"demo", ...}, "kernels":[]}
+data: {"type":"snapshot","run":{"id":"run-9f56e171af08","trace_id":"demo", ...}, "kernels":[]}
 
-data: {"type":"sim","sim":{"id":"sim-d698ff59b168","state":"running", ...}}
+data: {"type":"sim","sim":{"id":"sim-70f1ae5fc7c6","state":"running", ...}}
 
 : keepalive
 ```

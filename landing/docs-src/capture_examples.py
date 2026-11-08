@@ -1,5 +1,6 @@
-"""Recapture with: start `cascade serve` on :8020/:9020 with the fake simulator (see the Quickstart
-page), then `uv run python landing/docs-src/capture_examples.py <processed trace dir>`.
+"""Recapture with: start `cascade serve` on :8020/:9020 with `cascade worker --replay` as the sim
+(see the Quickstart page), then `uv run python landing/docs-src/capture_examples.py <processed
+trace dir>`. The `demo` trace also gets the step-timing fixtures, so its sims post step timing.
 
 Drives a running Cascade server through every route and saves each real response, trimmed, to
 landing/docs-src/examples/. Trimmed spots hold {"$trimmed": "..."}, which build.py renders as a
@@ -10,8 +11,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -22,6 +25,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 OUT = HERE / "examples"
 CONFIG = "SM86_RTX3070"
+TIMELINE = ROOT / "tests" / "fixtures" / "timeline"
 
 
 def trim(value, *, items: int = 3, keys: int = 6, tail: int = 3, dict_keys=("stats", "metadata")):
@@ -104,6 +108,24 @@ def upload(src: Path, name: str, s3: str, *extra: str) -> None:
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL)
 
 
+def with_step_timing(trace_dir: Path, into: Path) -> Path:
+    """A copy of the trace with a corrected timeline and a mapping that matches the replayed log."""
+    shutil.copytree(trace_dir, into, ignore=shutil.ignore_patterns("metadata.json"))
+    shutil.copy(TIMELINE / "corrected_timeline.json", into / "corrected_timeline.json")
+    shutil.copy(TIMELINE / "babelstream_kernel_mapping.json", into / "kernel_mapping.json")
+    return into
+
+
+def empty_step_timing() -> dict:
+    """`cascade simulate` and `cascade compare` on a capture with no steps: small, real output."""
+    from cascade.sim.compare import compare
+    from cascade.sim.timeline import simulate
+
+    capture = {"meta": {"run_name": "empty"}, "steps": [], "requests": []}
+    simulated = simulate(capture, {})
+    return {"simulated": simulated, "compare": compare(capture, simulated)}
+
+
 def collect_events(rec: Recorder, run_id: str, found: dict, done: threading.Event) -> None:
     url = f"/api/runs/{run_id}/events?token={rec.token}"
     with httpx.Client(base_url=rec.base, timeout=None) as c, c.stream("GET", url) as resp:
@@ -135,7 +157,9 @@ def main() -> int:
     rec.snap("gpu-configs", "GET", "/api/gpu-configs", items=10)
 
     arch = ["--meta", "trace_gpu_arch=sm_86"]
-    upload(args.trace_dir, "demo", args.s3, *arch, "--meta", f"suggested_sim_config={CONFIG}")
+    tmp = Path(tempfile.mkdtemp())
+    stepped = with_step_timing(args.trace_dir, tmp / "demo")
+    upload(stepped, "demo", args.s3, *arch, "--meta", f"suggested_sim_config={CONFIG}")
     upload(args.trace_dir, "demo-failed", args.s3, *arch, "--status", "failed")
 
     def trace_state(tid):
@@ -175,6 +199,7 @@ def main() -> int:
     rec.snap("runs-list", "GET", "/api/runs")
     rec.snap("run-detail", "GET", f"/api/runs/{run_id}")
     rec.snap("comparison", "GET", f"/api/runs/{run_id}/comparison")
+    rec.snap("run-step-timelines", "GET", f"/api/runs/{run_id}/step-timelines", items=2, keys=4)
     rec.snap("run-results", "GET", f"/api/runs/{run_id}/results", items=2, keys=4)
     rec.snap("sim-results", "GET", f"/api/sims/{sim_id}/results", items=2, keys=4)
     rec.snap("sim-log", "GET", f"/api/sims/{sim_id}/log")
@@ -191,6 +216,9 @@ def main() -> int:
     chunk = {"seq": 0, "lines": ["replayed line"]}
     rec.snap("logs-post", "POST", f"/api/sims/{sim_id}/logs", body=chunk)
     rec.snap("error-404-sim", "POST", "/api/sims/sim-000000000000/heartbeat", body=running)
+    path = f"/api/sims/{cancelled}/step-timeline"
+    rec.snap("step-timeline-post", "POST", path, body=empty_step_timing())
+    shutil.rmtree(tmp)
     return 0
 
 
