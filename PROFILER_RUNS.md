@@ -55,7 +55,56 @@ modal run accelsim_trace.py::microbench_main --n 200 --tokens 1,6
 - `--gpu-metrics` adds nsys GPU metrics sampling (may need privileges).
 - `--out-name <dir>` sets the output folder name.
 
-## Download
+## vLLM-native baseline and steady-state profiling
+
+```
+modal run accelsim_trace.py::phases_main --max-tokens 32 --repeats 4
+```
+
+Phase A runs without a profiler or NVBit; Phase B runs sequentially on the same GPU under
+light nsys capture. Both use identical prompts, greedy sampling and synchronous scheduling.
+Repeat 0 is warmup; only repeats 1 onward are captured in B via cudaProfilerStart/Stop.
+Layerwise NVTX is enabled only in B and only in eager mode. Use `--phase baseline` or
+`--phase profiled` to run one side (unavailable reconciliation columns are null).
+NVBit runs are for instruction traces only, **never timing**.
+
+Outputs live at `/phases/<run_name>/` on `accelsim-traces`:
+
+| File | Contents |
+|---|---|
+| `baseline_iterations.jsonl`, `profiled_iterations.jsonl` | Parsed vLLM iteration counts/timing joined by global step index to repeat, warmup, wall timestamps/span and prefill/decode/mixed kind |
+| `reconcile.json`, `reconcile.csv` | Non-warmup prefill/decode distributions (n/mean/p50/p95), B−A mean/p50 overhead in ns and %, iteration/step mismatch flags in JSON |
+| `baseline/baseline.log`, `profiled/profiled.log` | Full subprocess logs |
+| `<phase>/steps.json` | StepRecorder metadata for every repeat, including uncaptured warmup |
+| `<phase>/metrics.json` | Per-request RequestStateStats plus derived latencies and final cumulative `llm.get_metrics()` snapshot (histogram count/sum/buckets included) |
+| `<phase>/clocks.csv` | NVML samples for each phase; summary/error in reconcile.json |
+| `profiled/profile.sqlite` | Scrubbed nsys export |
+| `profiled/kernels.csv`, `events.csv`, `api_calls.csv`, `steps.csv` | Kernel, GPU activity, runtime API and per-step exports (timestamps in ns; activity/API exports use absolute nsys timeline) |
+| `profiled/nvtx.csv` | All NVTX events, including layerwise ranges/shapes, with start/end/text/domain ID/pid/tid |
+
+Derived request metrics use monotonic timestamps only: `queue_s = scheduled_ts - queued_ts`,
+`ttft_s = first_token_ts - scheduled_ts`, `queued_ttft_s = first_token_ts - queued_ts`,
+`decode_s = last_token_ts - first_token_ts`, and `mean_itl_s = decode_s / (num_generation_tokens - 1)`
+(null for fewer than two generated tokens). Arrival time is wall-clock and is never subtracted
+from monotonic timestamps. Metrics snapshots include warmup. Quantiles use linear interpolation.
+Reconciliation keeps vLLM elapsed time in ms, but converts its overhead delta to ns.
+GPU busy is the clipped union of kernel/memcpy/memset intervals; CUDA API time is the clipped
+union of runtime calls on the NVTX step's thread. Other host time is NVTX span minus API time,
+not pure CPU compute (it includes waits). Steps outside capture are excluded from nsys columns.
+Iteration counts/indices are checked against StepRecorder; inspect mismatch flags before
+trusting joins. Mixed steps are exported but excluded from the prefill/decode comparison.
+
+All nsys entrypoints strip MODAL and secret-named environment variables (except the two HF
+token variables required by gated models), remove environment rows from sqlite and VACUUM.
+**`.nsys-rep` is no longer uploaded by default** because it retains the unscrubbed environment.
+The remote functions accept `keep_nsys_rep=True` to opt in with a warning; `phases_main` also
+exposes `--keep-nsys-rep`. Treat retained reports as secret-bearing files.
+
+```
+modal volume get accelsim-traces phases/<run_name> ./phases
+```
+
+## Download existing trace runs
 
 ```
 modal volume get accelsim-traces <run_name> ./<run_name>        # trace dir (incl. nsys*/ once profiled)

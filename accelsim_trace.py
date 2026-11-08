@@ -536,7 +536,7 @@ class ClockSampler(threading.Thread):
     def __init__(self, path: Path, period_s: float = 0.05):
         super().__init__(daemon=True, name="clock-sampler")
         self.path, self.period_s = path, period_s
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()
         self.rows: list[dict] = []
         self.error: str | None = None
 
@@ -550,7 +550,7 @@ class ClockSampler(threading.Thread):
             names = {getattr(nv, a): a.split("Reason", 1)[1] for a in dir(nv)
                      if a.startswith(("nvmlClocksThrottleReason", "nvmlClocksEventReason"))
                      and "All" not in a and "None" not in a and isinstance(getattr(nv, a), int)}
-            while not self._stop.is_set():
+            while not self._stop_event.is_set():
                 r = get_reasons(h)
                 self.rows.append({
                     "wall_ns": time.time_ns(),
@@ -562,13 +562,13 @@ class ClockSampler(threading.Thread):
                     "throttle_reasons_hex": hex(r),
                     "throttle_reasons": "|".join(sorted({n for b, n in names.items() if r & b})),
                 })
-                self._stop.wait(self.period_s)
+                self._stop_event.wait(self.period_s)
         except Exception as e:
             self.error = repr(e)
             print(f"[clocks] NVML sampling failed: {e!r}", flush=True)
 
     def stop(self):
-        self._stop.set()
+        self._stop_event.set()
         self.join(10)
         import csv
         with open(self.path, "w", newline="") as f:
@@ -608,7 +608,8 @@ STEP_RE = re.compile(r"^vllm_step_(\d+)$")
 STEP_KIND_RE = re.compile(r"^(prefill|decode|mixed|empty|unknown)_(\d+)$")
 
 
-def _nsys_base_cmd(gpu_metrics: bool = False) -> list[str]:
+def _nsys_base_cmd(gpu_metrics: bool = False, capture_range: bool = False,
+                   cuda_events: bool = True) -> list[str]:
     """nsys profile flags; optional ones are only added if this nsys version knows them."""
     help_text = subprocess.run(["nsys", "profile", "--help"], capture_output=True, text=True).stdout
     cmd = [
@@ -623,7 +624,9 @@ def _nsys_base_cmd(gpu_metrics: bool = False) -> list[str]:
         cmd.append("--cuda-graph-trace=node")
     # cudaEventRecord/cudaStreamWaitEvent etc. as activity records (synchronization table).
     if "--cuda-event-trace" in help_text:
-        cmd.append("--cuda-event-trace=true")
+        cmd.append(f"--cuda-event-trace={str(cuda_events).lower()}")
+    if capture_range:
+        cmd.append("--capture-range=cudaProfilerApi")
     if gpu_metrics:
         flag = "--gpu-metrics-devices" if "--gpu-metrics-devices" in help_text else "--gpu-metrics-device"
         cmd.append(f"{flag}=all")
@@ -642,7 +645,30 @@ def _nsys_env(extra: dict | None = None) -> dict:
         **(extra or {}),
     }
     env.pop("CUDA_INJECTION64_PATH", None)
-    return env
+    return {k: v for k, v in env.items() if k in {"HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"}
+            or not (k.upper().startswith("MODAL_") or
+                    re.search(r"TOKEN|SECRET|PASSWORD|CREDENTIAL|API_KEY|ACCESS_KEY", k, re.I))}
+
+
+def _scrub_nsys(work: Path, keep_nsys_rep: bool = False):
+    import sqlite3
+
+    db = work / "profile.sqlite"
+    if db.exists():
+        with sqlite3.connect(db) as con:
+            if _has_table(con, "META_DATA_CAPTURE"):
+                cols = [r[1] for r in con.execute('PRAGMA table_info("META_DATA_CAPTURE")')]
+                quoted = ['"' + c.replace('"', '""') + '"' for c in cols]
+                if quoted:
+                    con.execute('DELETE FROM META_DATA_CAPTURE WHERE ' + ' OR '.join(
+                        f"(typeof({c})='text' AND {c} LIKE 'ENVIRONMENT_VARIABLE%')"
+                        for c in quoted))
+            con.commit()
+            con.execute("VACUUM")
+    if keep_nsys_rep:
+        print("WARNING: .nsys-rep contains the unscrubbed environment (including HF tokens)")
+    else:
+        (work / "profile.nsys-rep").unlink(missing_ok=True)
 
 
 def _write_csv(path: Path, rows: list[dict], cols: list[str] | None = None):
@@ -667,7 +693,8 @@ def _gpu_name() -> str:
     volumes={"/root/.cache/huggingface": hf_cache_vol, TRACES_MOUNT: traces_vol},
 )
 def profile_nsys(trace_run: str, exec_mode: str = "", lock_clocks_mhz: int = 0,
-                 gpu_metrics: bool = False, out_name: str = "") -> dict:
+                 gpu_metrics: bool = False, out_name: str = "",
+                 keep_nsys_rep: bool = False) -> dict:
     """Re-run a traced workload *without* the tracer, under nsys, to get real kernel timings.
 
     The Accel-Sim tracer records no timestamps, only launch order (kernel-N = N-th kernel launch
@@ -682,7 +709,7 @@ def profile_nsys(trace_run: str, exec_mode: str = "", lock_clocks_mhz: int = 0,
     gpu_metrics: also sample nsys GPU metrics (SM clock, occupancy...); may need privileges.
 
     Writes to the volume under /<trace_run>/<out_name or nsys>/:
-      profile.nsys-rep, profile.sqlite   raw nsys output (open the .nsys-rep in the Nsight GUI)
+      profile.sqlite   scrubbed nsys export (.nsys-rep only with keep_nsys_rep=True)
       kernels.csv     one row per kernel launch, in launch order: trace_kernel_id, step, GPU
                       start/end/duration, launch API name/start/end, correlation id, pid/tid
       events.csv      every GPU activity (kernel, memcpy, memset, synchronization) in time order
@@ -787,8 +814,11 @@ def profile_nsys(trace_run: str, exec_mode: str = "", lock_clocks_mhz: int = 0,
     }
     (work / "summary.json").write_text(json.dumps(summary, indent=2))
 
+    _scrub_nsys(work, keep_nsys_rep)
     dest = run_dir / out_name
     dest.mkdir(exist_ok=True)
+    if not keep_nsys_rep:
+        (dest / "profile.nsys-rep").unlink(missing_ok=True)
     for p in work.iterdir():
         if p.is_file():
             (dest / p.name).write_bytes(p.read_bytes())
@@ -1148,10 +1178,12 @@ def _per_step(rows: list[dict], steps: dict[int, dict], step_log: list[dict],
     memory=32 * 1024,
     volumes={TRACES_MOUNT: traces_vol},
 )
-def microbench_nsys(n: int = 200, tokens: str = "1,6", ops: str = "", run_name: str = "") -> dict:
+def microbench_nsys(n: int = 200, tokens: str = "1,6", ops: str = "", run_name: str = "",
+                    keep_nsys_rep: bool = False) -> dict:
     """Run kernel_microbench.py under nsys; per (op, tokens, eager|graph) kernel stats.
 
-    Writes to the volume under /microbench/<run_name>/: profile.{nsys-rep,sqlite},
+    Writes to the volume under /microbench/<run_name>/: scrubbed profile.sqlite,
+    profile.nsys-rep only with keep_nsys_rep=True,
     microbench_kernels.csv (every kernel with its range, duration, gap to previous kernel,
     launch API start/end), microbench.csv (per range: count, median/mean/p10/p90 duration,
     median start-to-start interval and gap, median API call duration), clocks.csv, summary.json.
@@ -1221,13 +1253,228 @@ def microbench_nsys(n: int = 200, tokens: str = "1,6", ops: str = "", run_name: 
     summary = {"run_name": run_name, "n": n, "tokens": tokens, "gpu": _gpu_name(),
                "clocks": _clock_stats(sampler.rows, None, None), "ranges": stats}
     (work / "summary.json").write_text(json.dumps(summary, indent=2))
+    con.close()
+    _scrub_nsys(work, keep_nsys_rep)
     dest = Path(TRACES_MOUNT) / "microbench" / run_name
     dest.mkdir(parents=True, exist_ok=True)
+    if not keep_nsys_rep:
+        (dest / "profile.nsys-rep").unlink(missing_ok=True)
     for p in work.iterdir():
         if p.is_file():
             (dest / p.name).write_bytes(p.read_bytes())
     traces_vol.commit()
     return summary
+
+
+ITERATION_RE = re.compile(
+    r"Iteration\((\d+)\): (\d+) context requests, (\d+) context tokens, "
+    r"(\d+) generation requests, (\d+) generation tokens, iteration elapsed time: ([\d.]+) ms")
+
+
+def _parse_iterations(log: str, step_log: list[dict]) -> tuple[list[dict], dict]:
+    steps = {r["step"]: r for r in step_log}
+    rows = []
+    for match in ITERATION_RE.finditer(log):
+        i, ctx, ctok, gen, gtok = map(int, match.groups()[:5])
+        st = steps.get(i, {})
+        start, end = st.get("wall_start_ns"), st.get("wall_end_ns")
+        rows.append({"step": i, "repeat": st.get("repeat"), "warmup": st.get("warmup"),
+                     "ctx_reqs": ctx, "ctx_tokens": ctok, "gen_reqs": gen, "gen_tokens": gtok,
+                     "elapsed_ms": float(match[6]), "wall_start_ns": start, "wall_end_ns": end,
+                     "wall_ns": end - start if start is not None and end is not None else None,
+                     "kind": "prefill" if ctx and not gen else "decode" if gen and not ctx else "mixed"})
+    ids = [r["step"] for r in rows]
+    return rows, {"iteration_count": len(rows), "step_count": len(step_log),
+                  "iteration_step_mismatch": len(rows) != len(step_log) or
+                  set(ids) != set(steps) or len(ids) != len(set(ids))}
+
+
+def _nsys_nvtx(db: Path) -> list[dict]:
+    import sqlite3
+
+    with sqlite3.connect(db) as con:
+        if not _has_table(con, "NVTX_EVENTS"):
+            return []
+        cols = _cols(con, "NVTX_EVENTS")
+        text = "COALESCE(n.text,s.value)" if "textId" in cols else "n.text"
+        join = "LEFT JOIN StringIds s ON s.id=n.textId" if "textId" in cols else ""
+        domain = "n.domainId" if "domainId" in cols else "NULL"
+        tid = "n.globalTid" if "globalTid" in cols else "NULL"
+        rows = []
+        for a, b, name, dom, gtid in con.execute(
+                f"SELECT n.start,n.end,{text},{domain},{tid} FROM NVTX_EVENTS n {join}"):
+            pid, thread = _pid_tid(gtid)
+            rows.append({"start": a, "end": b, "text": name, "domain": dom,
+                         "pid": pid, "tid": thread})
+        return rows
+
+
+def _interval_union(intervals: list[tuple], start: int, end: int) -> int:
+    total, cursor = 0, start
+    for a, b in sorted(intervals):
+        a, b = max(a, start, cursor), min(b, end)
+        if b > a:
+            total += b - a
+            cursor = b
+    return total
+
+
+def _phase_nsys_stats(nvtx: list[dict], events: list[dict], apis: list[dict]) -> dict:
+    out = {}
+    for r in nvtx:
+        m = STEP_RE.match(r["text"] or "")
+        if not m or r["end"] is None:
+            continue
+        a, b = r["start"], r["end"]
+        busy = _interval_union([(e["start_ns"], e["end_ns"]) for e in events
+                                if e["event_type"] in {"kernel", "memcpy", "memset"}], a, b)
+        api = _interval_union([(e["start_ns"], e["end_ns"]) for e in apis
+                               if (e["pid"], e["tid"]) == (r["pid"], r["tid"])], a, b)
+        out[int(m[1])] = {"gpu_busy_ns": busy, "cuda_api_ns": api,
+                          "other_host_ns": b - a - api, "nsys_span_ns": b - a}
+    return out
+
+
+def _distribution(values: list) -> dict:
+    import statistics
+
+    v = sorted(values)
+    def percentile(q):
+        pos = (len(v) - 1) * q
+        lo = int(pos)
+        hi = min(lo + 1, len(v) - 1)
+        return v[lo] + (v[hi] - v[lo]) * (pos - lo)
+    return {"n": len(v), "mean": statistics.fmean(v) if v else None,
+            "p50": percentile(.5) if v else None, "p95": percentile(.95) if v else None}
+
+
+def _reconcile(phases: dict, nsys_stats: dict) -> list[dict]:
+    rows = []
+    for kind in ("prefill", "decode"):
+        row = {"kind": kind}
+        for phase in ("baseline", "profiled"):
+            selected = [r for r in phases.get(phase, [])
+                        if r["warmup"] is False and r["kind"] == kind]
+            for metric in ("wall_ns", "elapsed_ms", "gpu_busy_ns", "cuda_api_ns", "other_host_ns"):
+                if phase == "baseline" and metric not in {"wall_ns", "elapsed_ms"}:
+                    continue
+                values = ([r[metric] for r in selected if r.get(metric) is not None]
+                          if metric in {"wall_ns", "elapsed_ms"} else
+                          [nsys_stats[r["step"]][metric] for r in selected if r["step"] in nsys_stats])
+                for stat, value in _distribution(values).items():
+                    row[f"{phase}_{metric}_{stat}"] = value
+        for metric in ("wall_ns", "elapsed_ms"):
+            for stat in ("mean", "p50"):
+                a, b = (row[f"{p}_{metric}_{stat}"] for p in ("baseline", "profiled"))
+                delta = b - a if a is not None and b is not None else None
+                row[f"delta_{metric}_{stat}_ns"] = (delta * (1e6 if metric == "elapsed_ms" else 1)
+                                                       if delta is not None else None)
+                row[f"delta_{metric}_{stat}_pct"] = delta / a * 100 if delta is not None and a else None
+        rows.append(row)
+    return rows
+
+
+@app.function(
+    gpu="H100!", timeout=NSYS_TIMEOUT_S, cpu=8, memory=64 * 1024,
+    volumes={"/root/.cache/huggingface": hf_cache_vol, TRACES_MOUNT: traces_vol},
+)
+def profile_phases(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is",
+                   max_tokens: int = 32, repeats: int = 4, max_model_len: int = 2048,
+                   exec_mode: str = "eager", phase: str = "both", layerwise_nvtx: bool = True,
+                   run_name: str = "", keep_nsys_rep: bool = False) -> dict:
+    if phase not in {"baseline", "profiled", "both"}:
+        raise ValueError("phase must be baseline, profiled, or both")
+    if repeats < (1 if phase == "baseline" else 2) or exec_mode not in EXEC_MODES:
+        raise ValueError("repeats must be positive (>= 2 for capture); exec_mode must be eager, compile, or graphs")
+    run_name = run_name or time.strftime("%Y%m%d-%H%M%S")
+    if Path(run_name).name != run_name or run_name in {".", ".."}:
+        raise ValueError("run_name must be a single directory name")
+    dest = Path(TRACES_MOUNT) / "phases" / run_name
+    dest.mkdir(parents=True, exist_ok=True)
+    phases, diagnostics, nsys_stats = {}, {}, {}
+    deadline = time.monotonic() + NSYS_TIMEOUT_S - 600
+    for name in (("baseline", "profiled") if phase == "both" else (phase,)):
+        work = Path.home() / "phases-work" / run_name / name
+        work.mkdir(parents=True, exist_ok=True)
+        # Fresh export files even if the caller reuses a run name.
+        (work / "profile.nsys-rep").unlink(missing_ok=True)
+        (work / "profile.sqlite").unlink(missing_ok=True)
+        meta = {"model": model, "prompts": [prompt], "max_tokens": max_tokens,
+                "max_model_len": max_model_len, "trace_scope": "steps", "async_scheduling": False}
+        cmd = [*_workload(meta, exec_mode), "--iteration-details", "--repeats", str(repeats),
+               "--metrics-out", str(work / "metrics.json")]
+        if name == "profiled":
+            cmd += ["--cuda-profiler-from-repeat", "1"]
+            if exec_mode == "eager" and layerwise_nvtx:
+                cmd.append("--layerwise-nvtx")
+            cmd = [*_nsys_base_cmd(capture_range=True, cuda_events=False),
+                   "-o", str(work / "profile"), *cmd]
+        sampler = ClockSampler(work / "clocks.csv")
+        sampler.start()
+        try:
+            _run_logged(name, cmd, _nsys_env({"VLLM_STEP_LOG": str(work / "steps.json")}),
+                        work, deadline)
+        finally:
+            sampler.stop()
+            _scrub_nsys(work, keep_nsys_rep if name == "profiled" else False)
+            traces_vol.commit()
+        step_log = json.loads((work / "steps.json").read_text())
+        parsed, diag = _parse_iterations((work / f"{name}.log").read_text(), step_log)
+        phases[name] = parsed
+        diagnostics[name] = {**diag, "clocks": _clock_stats(sampler.rows, None, None),
+                             "clock_sampler_error": sampler.error}
+        (dest / f"{name}_iterations.jsonl").write_text(
+            "".join(json.dumps(r) + "\n" for r in parsed))
+        if name == "profiled":
+            db = work / "profile.sqlite"
+            kernels, steps = _nsys_kernels(db), _nsys_steps(db)
+            _assign_steps(kernels, steps)
+            events, apis = _nsys_events(db, 0, steps), _nsys_api_calls(db, 0, steps)
+            nvtx = _nsys_nvtx(db)
+            nsys_stats = _phase_nsys_stats(nvtx, events, apis)
+            for filename, rows in (("kernels", kernels), ("events", events),
+                                   ("api_calls", apis), ("nvtx", nvtx)):
+                _write_csv(work / f"{filename}.csv", rows)
+            aligned = [{**k, "trace_kernel_id": "", "traced": False,
+                        "duration_ns": k["end"] - k["start"], "launch_to_start_ns": ""}
+                       for k in kernels]
+            per_step = _per_step(aligned, steps, step_log, [], db)
+            for row in per_step:
+                row.update(nsys_stats.get(row["step"], {}))
+            _write_csv(work / "steps.csv", per_step)
+        phase_dest = dest / name
+        phase_dest.mkdir(exist_ok=True)
+        if not keep_nsys_rep:
+            (phase_dest / "profile.nsys-rep").unlink(missing_ok=True)
+        for path in work.iterdir():
+            if path.is_file():
+                (phase_dest / path.name).write_bytes(path.read_bytes())
+    table = _reconcile(phases, nsys_stats)
+    summary = {"run_name": run_name, "phase": phase, "model": model, "prompt": prompt,
+               "max_tokens": max_tokens, "repeats": repeats, "max_model_len": max_model_len,
+               "exec_mode": exec_mode, "layerwise_nvtx": layerwise_nvtx,
+               "diagnostics": diagnostics, "table": table}
+    (dest / "reconcile.json").write_text(json.dumps(summary, indent=2))
+    _write_csv(dest / "reconcile.csv", table)
+    traces_vol.commit()
+    return summary
+
+
+@app.local_entrypoint()
+def phases_main(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is",
+                max_tokens: int = 32, repeats: int = 4, max_model_len: int = 2048,
+                exec_mode: str = "eager", phase: str = "both", layerwise_nvtx: bool = True,
+                run_name: str = "", keep_nsys_rep: bool = False):
+    s = profile_phases.remote(model=model, prompt=prompt, max_tokens=max_tokens, repeats=repeats,
+                              max_model_len=max_model_len, exec_mode=exec_mode, phase=phase,
+                              layerwise_nvtx=layerwise_nvtx, run_name=run_name,
+                              keep_nsys_rep=keep_nsys_rep)
+    print("kind       A wall mean(ns) B wall mean(ns) delta(%) A elapsed(ms) B elapsed(ms)")
+    for r in s["table"]:
+        print(r["kind"], *(r[k] for k in ("baseline_wall_ns_mean", "profiled_wall_ns_mean",
+              "delta_wall_ns_mean_pct", "baseline_elapsed_ms_mean", "profiled_elapsed_ms_mean")))
+    print(f"Saved to accelsim-traces:/phases/{s['run_name']}/\n"
+          f"modal volume get accelsim-traces phases/{s['run_name']} ./phases")
 
 
 @app.local_entrypoint()

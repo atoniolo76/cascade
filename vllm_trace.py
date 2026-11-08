@@ -29,6 +29,7 @@ import logging
 import os
 import time
 from ctypes import CDLL
+from dataclasses import asdict
 from pathlib import Path
 
 import torch
@@ -105,6 +106,10 @@ class StepRecorder:
 
     def __init__(self, llm: LLM, nvbit_lib, trace_steps: set[int] | None, log_path: str):
         self.engine = llm.llm_engine
+        self.llm = llm
+        self.repeat = 0
+        self.profiler_from_repeat = None
+        self.profiling = False
         self.nvbit_lib, self.trace_steps, self.log_path = nvbit_lib, trace_steps, log_path
         self.steps: list[dict] = []
         self._sched = None
@@ -131,6 +136,9 @@ class StepRecorder:
 
     def step(self):
         i = len(self.steps)
+        if self.repeat == self.profiler_from_repeat and not self.profiling:
+            self.llm.start_profile()
+            self.profiling = True
         trace_this = self.nvbit_lib is not None and self.trace_steps is not None and (
             not self.trace_steps or i in self.trace_steps)
         self._sched = None
@@ -153,7 +161,8 @@ class StepRecorder:
                     nvtx.pop_range(domain="vllm_steps")
                 nvtx.pop_range(domain="vllm_steps")
         wall_end = time.time_ns()
-        rec = {"step": i, "nvtx_range": f"vllm_step_{i}", "traced": trace_this,
+        rec = {"step": i, "repeat": self.repeat, "warmup": self.repeat == 0,
+               "nvtx_range": f"vllm_step_{i}", "traced": trace_this,
                "wall_start_ns": wall_start, "wall_end_ns": wall_end,
                "first_kernel_id": first_id, "end_kernel_id": tracer_next_kernel_id()}
         rec.update(self._describe(self._sched))
@@ -207,7 +216,28 @@ def main():
                    help="disable vLLM async scheduling so each engine step is one forward pass")
     p.add_argument("--step-log", default=os.environ.get("VLLM_STEP_LOG", ""),
                    help="write per-step JSON here (default: $VLLM_STEP_LOG)")
+    p.add_argument("--iteration-details", action="store_true")
+    p.add_argument("--layerwise-nvtx", action="store_true")
+    p.add_argument("--repeats", type=int, default=1)
+    p.add_argument("--cuda-profiler-from-repeat", type=int)
+    p.add_argument("--metrics-out", default="")
     args = p.parse_args()
+    if args.layerwise_nvtx and args.exec_mode != "eager":
+        p.error("--layerwise-nvtx requires --exec-mode eager")
+    if args.repeats < 1:
+        p.error("--repeats must be positive")
+    if args.cuda_profiler_from_repeat is not None and not (
+            0 <= args.cuda_profiler_from_repeat < args.repeats):
+        p.error("--cuda-profiler-from-repeat must be in [0, repeats)")
+    extra = {}
+    if args.iteration_details:
+        extra.update(enable_logging_iteration_details=True, disable_log_stats=False)
+    if args.metrics_out:
+        extra["disable_log_stats"] = False
+    if args.layerwise_nvtx:
+        extra["enable_layerwise_nvtx_tracing"] = True
+    if args.cuda_profiler_from_repeat is not None:
+        extra["profiler_config"] = {"profiler": "cuda"}
 
     # Startup: weight load, memory profiling, warmup, torch.compile, CUDA-graph capture.
     if nvtx:
@@ -216,6 +246,7 @@ def main():
         model=args.model,
         max_model_len=args.max_model_len,
         gpu_memory_utilization=0.8,
+        **extra,
         **llm_kwargs(args.exec_mode, args.no_async_scheduling),
     )
     torch.cuda.synchronize()
@@ -234,15 +265,39 @@ def main():
         llm.collective_rpc(lambda self: apply_nvbit_hook(self.model_runner.model, layers))
     else:
         trace_steps = {int(s) for s in args.trace_steps.split(",") if s.strip()}
-    StepRecorder(llm, load_nvbit_tool() if trace_steps is not None else None, trace_steps,
-                 args.step_log)
+    recorder = StepRecorder(llm, load_nvbit_tool() if trace_steps is not None else None,
+                            trace_steps, args.step_log)
+    recorder.profiler_from_repeat = args.cuda_profiler_from_repeat
 
     # Greedy + ignore_eos: the spinlock-detection passes, the trace pass and the nsys pass must
     # launch the exact same kernel sequence (same number of decode steps), so no randomness.
     sampling_params = SamplingParams(
         temperature=0.0, max_tokens=args.max_tokens, ignore_eos=True, seed=0
     )
-    outputs = llm.generate(json.loads(args.prompts), sampling_params)
+    requests = []
+    try:
+        for repeat in range(args.repeats):
+            recorder.repeat = repeat
+            outputs = llm.generate(json.loads(args.prompts), sampling_params)
+            if args.metrics_out:
+                for output in outputs:
+                    m = asdict(output.metrics) if output.metrics is not None else None
+                    row = {"repeat": repeat, "request_id": output.request_id, "metrics": m}
+                    if m:
+                        decode = m["last_token_ts"] - m["first_token_ts"]
+                        row.update(queue_s=m["scheduled_ts"] - m["queued_ts"],
+                                   ttft_s=m["first_token_ts"] - m["scheduled_ts"],
+                                   queued_ttft_s=m["first_token_ts"] - m["queued_ts"],
+                                   decode_s=decode,
+                                   mean_itl_s=decode / (m["num_generation_tokens"] - 1)
+                                   if m["num_generation_tokens"] > 1 else None)
+                    requests.append(row)
+    finally:
+        if recorder.profiling:
+            llm.stop_profile()
+    if args.metrics_out:
+        Path(args.metrics_out).write_text(json.dumps({
+            "requests": requests, "metrics": [asdict(m) for m in llm.get_metrics()]}, indent=2))
     for output in outputs:
         print(f"Prompt: {output.prompt!r}, Generated text: {output.outputs[0].text!r}")
 
