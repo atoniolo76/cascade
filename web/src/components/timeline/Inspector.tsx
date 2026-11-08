@@ -27,7 +27,9 @@ export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; me
   const k = focusReading && !focusReading.before ? focusReading.clip.kernelIndex : null;
   const focusClip = k === null ? undefined : clipForKernel(focus, k);
 
-  const readings = rows.map(({ track }) => {
+  const shown = rows.filter((r) => r.depth === 0 || r.track === focus);
+  const replicasHidden = rows.length - shown.length;
+  const readings = shown.map(({ track }) => {
     const reading = readTrack(track, pos, scene.mode, scene.align);
     const other = k === null ? undefined : clipForKernel(track, k);
     const diff = linkable && focusClip && other && !other.pending && !focusClip.pending && track !== focus ? other.start - focusClip.start : null;
@@ -144,6 +146,7 @@ export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; me
           </tbody>
         </table>
       </div>
+      {replicasHidden > 0 && <p className="mt-2 text-[12px] text-muted">{replicasHidden} expanded replicas are on the timeline; click one's header to inspect it here.</p>}
     </section>
   );
 }

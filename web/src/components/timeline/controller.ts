@@ -62,7 +62,7 @@ export interface Scene {
   focusId: string | null;
 }
 
-export interface Elements {
+interface Elements {
   root: HTMLElement;
   ruler: HTMLCanvasElement;
   tracks: HTMLCanvasElement;
@@ -77,7 +77,33 @@ export interface Elements {
   kernelReadout: HTMLElement;
   hoverCard: HTMLElement;
   probe: HTMLElement;
-  zoom: HTMLInputElement | null;
+  zoom: HTMLInputElement;
+}
+
+function part<T extends HTMLElement>(root: HTMLElement, name: string, type: new () => T): T {
+  const node = root.querySelector(`[data-tl="${name}"]`);
+  if (!(node instanceof type)) throw new Error(`timeline is missing its ${name} element`);
+  return node;
+}
+
+function findElements(root: HTMLElement): Elements {
+  return {
+    root,
+    ruler: part(root, "ruler", HTMLCanvasElement),
+    tracks: part(root, "tracks", HTMLCanvasElement),
+    trackBox: part(root, "track-box", HTMLElement),
+    scroller: part(root, "scroller", HTMLElement),
+    minimap: part(root, "minimap", HTMLCanvasElement),
+    minimapBox: part(root, "minimap-box", HTMLElement),
+    minimapWindow: part(root, "minimap-window", HTMLElement),
+    minimapPlayhead: part(root, "minimap-playhead", HTMLElement),
+    playhead: part(root, "playhead", HTMLElement),
+    timecode: part(root, "timecode", HTMLElement),
+    kernelReadout: part(root, "kernel-readout", HTMLElement),
+    hoverCard: part(root, "hover-card", HTMLElement),
+    probe: part(root, "probe", HTMLElement),
+    zoom: part(root, "zoom", HTMLInputElement),
+  };
 }
 
 export const RULER_H = 30;
@@ -167,7 +193,8 @@ export class TimelineController {
     else this.readTimer = setTimeout(fire, 90 - (now - this.lastRead));
   }
 
-  attach(el: Elements) {
+  attach(root: HTMLElement) {
+    const el = findElements(root);
     this.el = el;
     this.colors = new ColorResolver(el.probe);
     const on = <K extends keyof HTMLElementEventMap>(target: HTMLElement, type: K, fn: (e: HTMLElementEventMap[K]) => void, opts?: AddEventListenerOptions) => {
@@ -307,12 +334,11 @@ export class TimelineController {
     if (prev.mode !== next.mode) {
       this.playhead = this.convert(this.playhead, prev, next);
       this.follow = true;
-      this.coarse = { ...this.coarse, range: null };
+      if (this.coarse.range) this.setCoarse({ range: null });
     }
     if (prev.compact !== next.compact || prev.rows.length !== next.rows.length) this.measure();
     if (this.follow || prev.mode !== next.mode) this.view = fitView(next.end);
     else this.view = clampView(this.view, next.end, this.minSpan());
-    if (this.coarse.speed === 1 && prev.end === 0 && next.end > 0) this.coarse = { ...this.coarse };
     this.invalidate();
     this.bumpRead();
   }
@@ -1020,7 +1046,7 @@ export class TimelineController {
     el.minimapWindow.style.transform = `translateX(${a}px)`;
     el.minimapWindow.style.width = `${Math.max(8, b - a)}px`;
     el.minimapPlayhead.style.transform = `translateX(${fx(this.playhead)}px)`;
-    if (el.zoom) el.zoom.value = String(Math.round(this.zoomLevel * 1000));
+    el.zoom.value = String(Math.round(this.zoomLevel * 1000));
     el.timecode.textContent =
       this.scene.mode === "time" ? formatTimecode(this.playhead, this.axisPerPx) : `#${this.playhead.toFixed(this.axisPerPx < 0.05 ? 2 : 1)}`;
     const track = this.focusTrack();

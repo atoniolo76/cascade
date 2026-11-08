@@ -64,25 +64,9 @@ export function TimelineView({
   }, [rows, effectiveMode, linkable, compact, focusId]);
 
   const root = useRef<HTMLDivElement>(null);
-  const ruler = useRef<HTMLCanvasElement>(null);
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const trackBox = useRef<HTMLDivElement>(null);
-  const scroller = useRef<HTMLDivElement>(null);
-  const minimap = useRef<HTMLCanvasElement>(null);
-  const minimapBox = useRef<HTMLDivElement>(null);
-  const minimapWindow = useRef<HTMLDivElement>(null);
-  const minimapPlayhead = useRef<HTMLDivElement>(null);
-  const playhead = useRef<HTMLDivElement>(null);
-  const timecode = useRef<HTMLSpanElement>(null);
-  const kernelReadout = useRef<HTMLSpanElement>(null);
-  const hoverCard = useRef<HTMLDivElement>(null);
-  const probe = useRef<HTMLSpanElement>(null);
-  const zoom = useRef<HTMLInputElement>(null);
-
   useLayoutEffect(() => {
-    const [r, ru, t, tb, sc, mm, mb, mw, mp, ph, tc, kr, hc, pr] = [root, ruler, canvas, trackBox, scroller, minimap, minimapBox, minimapWindow, minimapPlayhead, playhead, timecode, kernelReadout, hoverCard, probe].map((ref) => ref.current);
-    if (!r || !(ru instanceof HTMLCanvasElement) || !(t instanceof HTMLCanvasElement) || !tb || !sc || !(mm instanceof HTMLCanvasElement) || !mb || !mw || !mp || !ph || !tc || !kr || !hc || !pr) return;
-    ctl.attach({ root: r, ruler: ru, tracks: t, trackBox: tb, scroller: sc, minimap: mm, minimapBox: mb, minimapWindow: mw, minimapPlayhead: mp, playhead: ph, timecode: tc, kernelReadout: kr, hoverCard: hc, probe: pr, zoom: zoom.current });
+    if (!root.current) return;
+    ctl.attach(root.current);
     const offTheme = onThemeChange(() => {
       ctl.themeChanged();
     });
@@ -188,7 +172,7 @@ export function TimelineView({
       aria-label="Timeline. Space plays, J K L shuttle, arrows step kernels, question mark lists shortcuts."
       className="relative min-w-0 rounded-b-[18px] outline-none [--hdr:60px] focus-visible:shadow-[inset_0_0_0_2px_var(--ring)] sm:[--hdr:264px]"
     >
-      <span ref={probe} aria-hidden className="pointer-events-none absolute size-0 opacity-0" />
+      <span data-tl="probe" aria-hidden className="pointer-events-none absolute size-0 opacity-0" />
       <Transport
         ctl={ctl}
         coarse={coarse}
@@ -199,9 +183,6 @@ export function TimelineView({
         onCompact={setCompact}
         showKeys={showKeys}
         onShowKeys={setShowKeys}
-        timecodeRef={timecode}
-        kernelRef={kernelReadout}
-        zoomRef={zoom}
       />
       {!linkable && unlinkedReason !== undefined && (
         <div className="flex items-center gap-2 border-b border-border bg-[var(--st-lost-bg)] px-5 py-2 text-[13px] text-[var(--st-lost-ink)]">
@@ -215,10 +196,10 @@ export function TimelineView({
           <span className="hidden sm:inline">{rows.length} tracks</span>
         </div>
         <div className="relative border-b border-border bg-card" style={{ height: RULER_H }}>
-          <canvas ref={ruler} className="block cursor-ew-resize touch-none" aria-label="Time ruler. Click or drag to scrub." />
+          <canvas data-tl="ruler" className="block cursor-ew-resize touch-none" aria-label="Time ruler. Click or drag to scrub." />
         </div>
 
-        <div ref={scroller} className="col-span-2 grid grid-cols-[var(--hdr)_minmax(0,1fr)] overflow-x-hidden overflow-y-auto overscroll-y-contain" style={{ maxHeight: maxTrackHeight }}>
+        <div data-tl="scroller" className="col-span-2 grid grid-cols-[var(--hdr)_minmax(0,1fr)] overflow-x-hidden overflow-y-auto overscroll-y-contain" style={{ maxHeight: maxTrackHeight }}>
           <TrackHeaders
             rows={rows}
             meta={meta}
@@ -240,14 +221,14 @@ export function TimelineView({
             hidden={hidden}
             height={contentH}
           />
-          <div ref={trackBox} className="relative" style={{ height: contentH }}>
-            <canvas ref={canvas} className="sticky top-0 block cursor-default touch-none" />
+          <div data-tl="track-box" className="relative" style={{ height: contentH }}>
+            <canvas data-tl="tracks" className="sticky top-0 block cursor-default touch-none" />
             {rows.length === 0 && <p className="absolute inset-0 grid place-items-center text-[13px] text-muted">No kernels simulated yet</p>}
           </div>
         </div>
 
         <div className="pointer-events-none absolute top-0 right-0 bottom-0 left-[var(--hdr)] overflow-hidden">
-          <div ref={playhead} className="absolute top-0 bottom-0 left-0 w-0 will-change-transform" style={{ visibility: "hidden" }}>
+          <div data-tl="playhead" className="absolute top-0 bottom-0 left-0 w-0 will-change-transform" style={{ visibility: "hidden" }}>
             <div className="absolute top-0 bottom-0 -left-px w-[2px] bg-accent/90" />
             <svg aria-hidden width="14" height="16" viewBox="0 0 14 16" className="absolute top-[3px] -left-[7px] text-accent drop-shadow-sm">
               <path d="M1 2.5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v6.6a2 2 0 0 1-.7 1.5l-4 3.5a2 2 0 0 1-2.6 0l-4-3.5A2 2 0 0 1 1 9.1z" fill="currentColor" />
@@ -260,10 +241,10 @@ export function TimelineView({
         <div className="flex items-center border-r border-border px-3 text-[11px] font-medium tracking-[0.04em] text-faint uppercase" style={{ height: MINIMAP_H }}>
           <span className="hidden sm:inline">Overview</span>
         </div>
-        <div ref={minimapBox} className="relative touch-none overflow-hidden bg-card select-none" style={{ height: MINIMAP_H }} aria-label="Overview. Drag the window to pan, drag its edges to zoom.">
-          <canvas ref={minimap} className="pointer-events-none absolute inset-0 block" />
-          <div ref={minimapPlayhead} className="pointer-events-none absolute top-0 bottom-0 left-0 w-px bg-accent" />
-          <div ref={minimapWindow} data-edge="move" className="absolute top-1 bottom-1 left-0 cursor-grab rounded-[7px] bg-accent/8 ring-1 ring-accent/70 active:cursor-grabbing" style={{ width: 40 }}>
+        <div data-tl="minimap-box" className="relative touch-none overflow-hidden bg-card select-none" style={{ height: MINIMAP_H }} aria-label="Overview. Drag the window to pan, drag its edges to zoom.">
+          <canvas data-tl="minimap" className="pointer-events-none absolute inset-0 block" />
+          <div data-tl="minimap-playhead" className="pointer-events-none absolute top-0 bottom-0 left-0 w-px bg-accent" />
+          <div data-tl="minimap-window" data-edge="move" className="absolute top-1 bottom-1 left-0 cursor-grab rounded-[7px] bg-accent/8 ring-1 ring-accent/70 active:cursor-grabbing" style={{ width: 40 }}>
             <span data-edge="start" className="absolute inset-y-0 -left-1 flex w-3 cursor-ew-resize items-center justify-center">
               <span data-edge="start" className="h-4 w-[3px] rounded-full bg-accent" />
             </span>
@@ -276,7 +257,7 @@ export function TimelineView({
 
       <Inspector ctl={ctl} meta={meta} linkable={linkable} />
 
-      <div ref={hoverCard} className="pointer-events-none absolute top-0 left-0 z-20 will-change-transform" style={{ visibility: coarse.hover ? "visible" : "hidden" } satisfies CSSProperties}>
+      <div data-tl="hover-card" className="pointer-events-none absolute top-0 left-0 z-20 will-change-transform" style={{ visibility: coarse.hover ? "visible" : "hidden" } satisfies CSSProperties}>
         {coarse.hover && <HoverCard hover={coarse.hover} />}
       </div>
     </div>

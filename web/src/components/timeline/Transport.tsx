@@ -1,4 +1,4 @@
-import type { ReactNode, RefObject } from "react";
+import type { ReactNode } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Keyboard, Maximize2, Minus, Pause, Play, Plus, Rows2, Rows3, SkipBack, SkipForward } from "lucide-react";
 import { SPEEDS, type Mode } from "../../domain/timeline";
 import { cx } from "../cx";
@@ -41,9 +41,6 @@ export function Transport({
   onCompact,
   showKeys,
   onShowKeys,
-  timecodeRef,
-  kernelRef,
-  zoomRef,
 }: {
   ctl: TimelineController;
   coarse: Coarse;
@@ -54,9 +51,6 @@ export function Transport({
   onCompact: (c: boolean) => void;
   showKeys: boolean;
   onShowKeys: (v: boolean) => void;
-  timecodeRef: RefObject<HTMLSpanElement | null>;
-  kernelRef: RefObject<HTMLSpanElement | null>;
-  zoomRef: RefObject<HTMLInputElement | null>;
 }) {
   const playing = coarse.rate !== 0;
   return (
@@ -88,13 +82,13 @@ export function Transport({
       </div>
 
       <div className="flex h-9 min-w-0 items-center gap-3 rounded-[12px] bg-card px-3 ring-1 ring-border">
-        <span ref={timecodeRef} data-testid="timecode" className="min-w-[112px] font-mono text-[14px] font-medium text-fg tabular-nums">
+        <span data-tl="timecode" data-testid="timecode" className="min-w-[112px] font-mono text-[14px] font-medium text-fg tabular-nums">
           0 µs
         </span>
         <span aria-hidden className="h-4 w-px bg-border-strong" />
         <span className="flex items-baseline gap-1.5 font-mono text-[12px] text-muted tabular-nums">
           <span className="hidden text-faint sm:inline">kernel</span>
-          <span ref={kernelRef} data-testid="kernel-readout">—</span>
+          <span data-tl="kernel-readout" data-testid="kernel-readout">—</span>
         </span>
         {coarse.rate !== 0 && Math.abs(coarse.rate) !== 1 && (
           <span className="rounded-[6px] bg-accent-soft px-1.5 font-mono text-[11px] font-medium text-accent-ink tabular-nums">
@@ -133,7 +127,7 @@ export function Transport({
             <Minus {...ICON} />
           </TBtn>
           <input
-            ref={zoomRef}
+            data-tl="zoom"
             type="range"
             min={0}
             max={1000}
