@@ -54,13 +54,35 @@ Decision:
 
 ## Trace upload
 
-- ~~Provisional: `POST /api/traces` multipart `.tar.gz`.~~ Superseded 2026-11-07: Alessio's profiler uploads through an S3-compatible endpoint, and the app saves the object to local disk.
-- The main app runs MinIO in the same container, with its data dir on local disk (e.g. `/data/minio`).
-- MinIO gets its own exposed port (9000) and its own `sail.box` URL. It is not proxied under a FastAPI path, because SigV4 signs the host and path and proxying breaks that.
-- Profiler auth uses MinIO access/secret keys (`CASCADE_S3_ACCESS_KEY` / `CASCADE_S3_SECRET_KEY`), not the bearer token.
-- MinIO sends a bucket notification webhook to FastAPI (`POST /internal/minio-events`) on object-created. FastAPI then registers the trace and reads its metadata.
-- Because MinIO's data dir is on local disk, the run checkpoint carries the trace into every sim fork. Sims run with `restore_memory=False`, so MinIO does not run in sims.
-- Still to confirm with Alessio: bucket and key layout, what the object is (single archive vs. many files), and how the app knows an upload is complete.
+Contract from Alessio (2026-11-07, tested end to end from a Modal H100):
+
+- boto3 `upload_file`, raw files (no archive), path-style addressing, multipart for files over 128 MiB. Unsigned requests for now, so the endpoint must allow anonymous writes.
+- Layout: `s3://<bucket>/<prefix>/<run_name>/` with `metadata.json`, `traces/kernel-<N>-ctx_<0x..>.trace.xz`, `traces/kernelslist_ctx_<0x..>`, `traces/stats_ctx_<0x..>`, `spinlock_detection/`, `*.log`. Kernel files trickle in during tracing. Kernel numbers have gaps; sort numerically.
+- Done signal: `metadata.json` is uploaded last, with `status` (`ok`/`failed`) and `files: [{key, bytes}]`. Until that ships, done = `metadata.json` exists AND `traces/kernelslist_ctx_*` exists.
+- Uploads are RAW. The simulator needs processed `kernelslist.g` + `kernel-*.tracez`, so main runs `post-traces-processing <run>/traces -j 8` once per trace, before any run checkpoint.
+- Sizes: ~14 MiB raw for the small test, GBs to hundreds of GBs for real models. Disk needed is ~2.2x uploaded bytes.
+
+Decision:
+
+- ~~Provisional: `POST /api/traces` multipart `.tar.gz`.~~ Superseded: profiler uploads through S3.
+- ~~MinIO in the same container with a webhook.~~ Superseded 2026-11-07: MinIO stores objects in its own format, not plain files, so sims could not read traces off the forked disk. Use **`rclone serve s3`** instead (what Alessio tested). It serves a plain directory, so objects land as normal files at `/data/s3/<bucket>/<prefix>/<run_name>/...`.
+- rclone gets its own exposed port (9000) and `sail.box` URL, not proxied under FastAPI (SigV4 signs host and path). Anonymous for now; add `--auth-key` when the profiler sends keys.
+- Main watches the bucket directory, registers a trace when its first file appears (state `uploading`), and marks it `complete` per the done signal above. Then it post-processes (`processing` → `ready` or `failed`).
+- Runs can only launch on `ready` traces.
+
+## Simulator configs
+
+- These traces contain Hopper-only instructions, so they are valid only on sm_90 configs (`SM90_H100`, likely `SM90_H200`).
+- `metadata.json` will carry `trace_gpu_arch` and `suggested_sim_config`. The New run screen only offers configs matching the trace's arch (default `sm_90` when missing) and preselects the suggested one.
+- Simulator: Accel-Sim tag v2.0.1 (`1c9cc831`), built with CMake (the legacy make fails). Profiler will pin the same version.
+
+## Real vs. simulated comparison
+
+- Charter update: save the simulator's output and compare it one-to-one to the job on real hardware.
+- Each sim's results are saved as a JSON document (`GET /api/sims/{id}/results`): config, per-kernel stats, totals, and the raw log is downloadable.
+- Alessio will add `<run_name>/real_timing.json`: `[{kernel_id, kernel_name, duration_ns, grid, block}]`, pointed to by `metadata.json` `real_timing`. `kernel_id` matches `kernel-<N>`.
+- Comparison: simulated time = `gpu_sim_cycle / core_clock_mhz` from the sim config's `gpgpusim.config` (`-gpgpu_clock_domains`, first value). Matched by kernel order.
+- Until `real_timing.json` exists, the UI shows simulated metrics plus original-hardware context (`metadata.json`, `stats_ctx_*` launch dims), and the comparison panel says real timing is not captured yet.
 
 ## UI (v1)
 
@@ -70,7 +92,7 @@ Three screens:
 - **New run:** pick a trace, add `{gpu_config, count}` rows, launch.
 - **Run detail:** a grid of sim cards (status, heartbeat age, kernel progress i/N, live log tail via SSE) plus a chart of simulated cycles per GPU config.
 
-Deferred until Alessio's trace data is known: per-kernel original-vs-simulated comparison, cost/timing panel.
+Superseded 2026-11-07: per-kernel real-vs-simulated comparison is now in scope (see above), shown when `real_timing.json` exists. Cost/timing panel still deferred.
 
 ## Metrics parsing
 
@@ -81,5 +103,5 @@ Deferred until Alessio's trace data is known: per-kernel original-vs-simulated c
 ## Defaults (not separately discussed)
 
 - State lives in SQLite at `/data/cascade.db` on main's local disk.
-- A `scripts/deploy_sail.py` creates the main sailbox from the image, sets env/secrets, and exposes ports 8000 (app) and 9000 (MinIO).
+- A `scripts/deploy_sail.py` creates the main sailbox from the image, sets env/secrets, and exposes ports 8000 (app) and 9000 (rclone S3).
 - The sim command is configurable (`CASCADE_SIM_CMD`), with a fake-sim that replays a sample Accel-Sim log for local dev. The real Accel-Sim invocation is the seam where Alessio's simulator work plugs in.
