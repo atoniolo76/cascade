@@ -100,9 +100,16 @@ def esc(s: str) -> str:
     return html.escape(s, quote=False)
 
 
+def code_span(text: str) -> str:
+    """Inline code; a bare documented type name links to its entry on the Types page."""
+    if text in TYPE_NAMES:
+        return f'<a href="types.html#{text.lower()}"><code>{text}</code></a>'
+    return f"<code>{esc(text)}</code>"
+
+
 def inline(text: str) -> str:
     """Backticks become <code> and [text](href) becomes a link; everything else is trusted HTML."""
-    text = re.sub(r"`([^`\n]+)`", lambda m: f"<code>{esc(m.group(1))}</code>", text)
+    text = re.sub(r"`([^`\n]+)`", lambda m: code_span(m.group(1)), text)
     text = re.sub(r"\*\*([^*\n]+)\*\*", r"<strong>\1</strong>", text)
     return re.sub(r"\[([^\]\n]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', text)
 
@@ -429,6 +436,14 @@ def check_type_notes() -> None:
             raise SystemExit(f"typenotes.FIELD_NOTES has a stale key {key!r}")
         if field and fields[field].comment:
             raise SystemExit(f"{key} already has a comment in cascade/models.py; drop the note")
+    bare = [
+        f"{m}.{f.name}"
+        for m, info in MODELS.items()
+        for f in info.fields
+        if not f.comment and f"{m}.{f.name}" not in FIELD_NOTES
+    ]
+    if bare:
+        raise SystemExit(f"add a comment in cascade/models.py or a typenotes note for {bare}")
     for name in (models.TraceState.__name__, models.SimState.__name__):
         values = {m.value for m in getattr(models, name)}
         if set(ENUM_NOTES[name]) != values:
@@ -962,6 +977,11 @@ def sidebar(pages: list[Page], current: Page) -> str:
             for s in slugs
         )
         groups.append(f'<div class="nav-group"><h2>{esc(group)}</h2><ul>{links}</ul></div>')
+    groups.append(
+        '<div class="nav-group site-links"><h2>Cascade</h2><ul>'
+        '<li><a href="../index.html">Home</a></li><li><a href="../writeup.html">Writeup</a></li>'
+        f'<li><a href="{GITHUB}" target="_blank" rel="noopener">GitHub</a></li></ul></div>'
+    )
     return "".join(groups)
 
 

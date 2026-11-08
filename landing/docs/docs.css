@@ -164,6 +164,7 @@ kbd { font-size: 11px; color: var(--ink-45); border: 1px solid var(--rule-strong
 @media (min-width: 960px) {
   .sidebar { position: sticky; top: var(--top); height: calc(100dvh - var(--top)); width: auto; transform: none; padding: 28px 16px 48px 24px; }
 }
+@media (min-width: 900px) { .site-links { display: none; } }
 .scrim { position: fixed; inset: 0; z-index: 35; background: rgb(0 0 0 / 0.28); }
 .nav-group + .nav-group { margin-top: 24px; }
 .nav-group h2 { margin: 0 0 6px; padding: 0 10px; font: 400 11px/1.4 "Geist Mono", monospace; color: var(--ink-45); text-transform: lowercase; }
