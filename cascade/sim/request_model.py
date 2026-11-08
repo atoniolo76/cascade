@@ -73,6 +73,7 @@ class PerfProfile:
     post_last_step_ns: float
     calibration_range: dict
     assumptions: tuple[str, ...]
+    gpu_memory_utilization: float = 0.8
 
 
 @dataclass(frozen=True)
@@ -212,12 +213,31 @@ def _max_model_len(real: dict) -> int:
     )
 
 
+def _memory_utilization(real: dict) -> float:
+    meta = real.get("meta", {})
+    for source in (meta, meta.get("run", {}), real.get("run", {}), meta.get("workload", {})):
+        for config in (
+            source,
+            source.get("effective_llm_kwargs", {}),
+            source.get("llm_kwargs", {}),
+        ):
+            if "gpu_memory_utilization" in config:
+                value = config["gpu_memory_utilization"]
+                if isinstance(value, bool) or not isinstance(value, (float, int)):
+                    raise ValueError("invalid gpu_memory_utilization")
+                if not 0 < value <= 1:
+                    raise ValueError("gpu_memory_utilization must be in (0, 1]")
+                return float(value)
+    return 0.8
+
+
 def build_profile(real_timeline: dict, simulated_timeline: dict, gpu_config: str) -> PerfProfile:
     if gpu_config not in GPU_SPECS:
         raise ValueError(f"unknown GPU config: {gpu_config}")
     assumptions = [
         f"Achievable compute fraction={COMPUTE_FRACTION}; memory fraction={MEMORY_FRACTION}.",
-        "Dense, ungated two-projection FFN; biases/norm parameters omitted; no KV capacity model.",
+        "Dense, ungated two-projection FFN; biases/norm parameters omitted; "
+        "roofline omits KV capacity.",
         f"Linear activation passes={LINEAR_ACTIVATION_PASSES}; "
         f"elementwise memory passes={ELEMENTWISE_PASSES}.",
         "Host/gaps/envelopes and unattributed GPU busy are kind/repeat medians, held constant.",
@@ -291,12 +311,16 @@ def build_profile(real_timeline: dict, simulated_timeline: dict, gpu_config: str
             "decode_context": (min(decode), max(decode)) if decode else None,
         },
         tuple(assumptions),
+        _memory_utilization(real_timeline),
     )
 
 
-def _roofline(profile: PerfProfile, queries: list[int], contexts: list[int]) -> dict[str, float]:
+def _roofline(
+    profile: PerfProfile, queries: list[int], contexts: list[int], sampling_seqs: int | None = None
+) -> dict[str, float]:
     m, spec = profile.model_config, GPU_SPECS[profile.gpu_config]
     t, seqs = sum(queries), len(contexts)
+    seqs = seqs if sampling_seqs is None else sampling_seqs
     h, layers, width = m.hidden_size, m.num_layers, m.dtype_bytes
     work = {
         "linear": (
@@ -309,7 +333,7 @@ def _roofline(profile: PerfProfile, queries: list[int], contexts: list[int]) -> 
         ),
         "kv_write": (0, t * m.kv_bytes_per_token),
         "elementwise": (0, ELEMENTWISE_PASSES * t * h * layers * width),
-        "lm_head": (2 * h * m.vocab_size * seqs, m.vocab_size * h * width),
+        "lm_head": (2 * h * m.vocab_size * seqs, m.vocab_size * h * width if seqs else 0),
         "sampler": (m.vocab_size * seqs, 2 * m.vocab_size * width * seqs),
     }
     return {
@@ -344,6 +368,7 @@ def step_gpu_time(
     contexts: int | list[int],
     *,
     kind: str | None = None,
+    sampling_seqs: int | None = None,
 ) -> StepGPUTime:
     """Total query tokens (uniform per sequence), or explicit per-sequence query counts.
 
@@ -352,6 +377,10 @@ def step_gpu_time(
     contexts = [contexts] if isinstance(contexts, int) else list(contexts)
     if not contexts:
         raise ValueError("contexts must not be empty")
+    if sampling_seqs is not None and (
+        type(sampling_seqs) is not int or not 0 <= sampling_seqs <= len(contexts)
+    ):
+        raise ValueError("sampling_seqs must be between zero and the batch size")
     for context in contexts:
         _positive_int(context, "context")
     if isinstance(tokens, int):
@@ -378,10 +407,23 @@ def step_gpu_time(
         anchor_q = 1
     else:
         raise ValueError("kind must be prefill or decode")
-    roof = _roofline(profile, queries, contexts)
+    roof = _roofline(profile, queries, contexts, sampling_seqs)
     anchor = _roofline(profile, [anchor_q], [anchor_c])
     groups = {g: max(baseline[g], roof[g] * min(1.0, baseline[g] / anchor[g])) for g in GROUPS}
+    if sampling_seqs == 0:
+        groups.update(lm_head=0.0, sampler=0.0)
     return StepGPUTime(groups, profile.residual_gpu_ns[kind])
+
+
+def step_provenance(profile: PerfProfile, kind: str, tokens: int, context: int) -> str:
+    if kind == "prefill":
+        return "measured" if tokens == context == profile.prompt_tokens else "extrapolated:roofline"
+    if context in profile.decode_gpu_ns:
+        return "measured"
+    bounds = profile.calibration_range["decode_context"]
+    if bounds and bounds[0] <= context <= bounds[1]:
+        return "interpolated"
+    return "extrapolated:roofline"
 
 
 def simulate_request(profile: PerfProfile, prompt_tokens: int, output_tokens: int) -> RequestResult:
@@ -400,12 +442,7 @@ def simulate_request(profile: PerfProfile, prompt_tokens: int, output_tokens: in
     ]
     for kind, tokens, context in shapes:
         gpu = step_gpu_time(profile, tokens, context, kind=kind)
-        calibrated = kind == "prefill" and prompt_tokens == profile.prompt_tokens
-        calibrated |= kind == "decode" and context in profile.decode_gpu_ns
-        provenance = "measured" if calibrated else "extrapolated:roofline"
-        bounds = profile.calibration_range["decode_context"] if kind == "decode" else None
-        if not calibrated and bounds and bounds[0] <= context <= bounds[1]:
-            provenance = "interpolated"
+        provenance = step_provenance(profile, kind, tokens, context)
         gap = profile.gap_ns[kind] if steps else 0.0
         start = cursor + gap
         wall = profile.host_ns[kind] + gpu.total_ns
