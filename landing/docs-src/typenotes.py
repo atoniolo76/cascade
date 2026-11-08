@@ -203,6 +203,10 @@ SETTINGS_NOTES: dict[str, tuple[str | None, str]] = {
         None,
         "Seconds without a heartbeat before a sim becomes `lost`. After 10 times this, a `lost` sim becomes `failed`.",
     ),
+    "CASCADE_OPENAI_WAIT_S": (
+        None,
+        "Seconds `/v1` and `/api/scenarios` wait for base-simulation step timing. A timeout returns 504 with the run/sim IDs; it does not cancel the simulation.",
+    ),
     "CASCADE_WORKSPACE": (
         None,
         "The workspace's name. `/api/health` returns it and the web UI shows it in the rail. `cascade deploy` and the Get started page set it.",
@@ -214,10 +218,6 @@ SETTINGS_NOTES: dict[str, tuple[str | None, str]] = {
     "CASCADE_SAMPLES": (
         None,
         "Whether `cascade serve` seeds the bundled sample trace and run (`samples/`) into the workspace on startup. Set `false` to start empty. A sample already seeded stays.",
-    ),
-    "CASCADE_OPENAI_WAIT_S": (
-        None,
-        "Seconds the OpenAI-compatible endpoint waits for its simulation to finish before giving up. Must be positive.",
     ),
     "CASCADE_RUN_S3": (
         None,

@@ -38,6 +38,7 @@ description: Cascade traces an ML workload once on a real GPU and simulates it o
 <tr><td>A100 / SM80_A100</td><td>222.08 ms</td><td>229.58 ms</td><td><strong>+3.38%</strong></td></tr>
 </tbody></table></div>
 <p>The A100 result is the complete Modal SM80_A100 reference, not the partial Sail attempt. Small request errors retain measured eager host time and are not equivalent to small GPU-model errors. See the <a href="sample-analysis-opt125m.html">full sample analysis</a> for timings, coverage and limitations.</p>
+<p>To ask about a different prompt length, output length or concurrent arrival pattern, use the <a href="request-simulation.html">request model and scheduler</a>. The Request simulator UI and <code>/api/scenarios</code> build estimates from a finished sim; <code>/v1</code> estimates each request alone. Predictions outside the six-token prefill / decode-context 7–37 calibration range are <strong>unvalidated extrapolations, not measured results</strong>.</p>
 
 <h2>Where to go next</h2>
 <div class="cards">

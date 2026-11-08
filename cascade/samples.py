@@ -330,6 +330,17 @@ def write_replays(bundle: Bundle, trace_dir: Path) -> None:
     uids = sorted({int(r["uid"]) for b in bundles for r in _simulated(b)})
     for b in bundles:
         out = trace_dir / REPLAY_DIR / b.manifest["gpu_config"]
+        timing = out / "outputs" / "step-timeline.json"
+        if not timing.is_file():
+            _write(
+                timing,
+                json.dumps(
+                    {
+                        "simulated": b.read_json("sim/simulated_timeline.json"),
+                        "compare": b.read_json("sim/compare.json"),
+                    }
+                ).encode(),
+            )
         if (out / "replay.json").is_file():
             continue
         text, kernels = _replay_log(b, uids)

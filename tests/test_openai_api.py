@@ -18,12 +18,43 @@ from tests.test_openai_tokens import vocabulary
 PROMPT = "Hello, my name is"
 BODY = {"model": "facebook/opt-125m", "prompt": PROMPT}
 TIMELINE = {
-    "meta": {"prompt": PROMPT, "max_tokens": 4},
-    "steps": [],
+    "meta": {
+        "prompt": PROMPT,
+        "max_tokens": 4,
+        "model_config": {
+            "architecture": "OPTForCausalLM",
+            "hidden_size": 768,
+            "num_layers": 12,
+            "num_heads": 12,
+            "dtype": "float16",
+        },
+    },
+    "steps": [
+        {
+            "step": i,
+            "repeat": 1,
+            "warmup": False,
+            "kind": "prefill" if i == 0 else "decode",
+            "num_scheduled_tokens": 6 if i == 0 else 1,
+            "context_length": 6 + i,
+            "baseline_wall_ns": 1_000_000,
+            "gpu_busy_ns": 200_000,
+            "baseline_gap_before_ns": 0,
+            "kernels": [{"name": "gemm", "duration_ns": 200_000, "grid": [1, 1, 1]}],
+        }
+        for i in range(4)
+    ],
     "summary": {},
     "requests": [
         {"repeat": 0, "warmup": True, "e2e_ms": 999},
-        {"repeat": 1, "warmup": False, "ttft_ms": 1, "itl_ms_mean": 2, "e2e_ms": 7},
+        {
+            "repeat": 1,
+            "warmup": False,
+            "ttft_ms": 1,
+            "itl_ms_mean": 2,
+            "e2e_ms": 7,
+            "num_output_tokens": 4,
+        },
     ],
 }
 
@@ -31,6 +62,7 @@ TIMELINE = {
 @pytest.fixture
 def endpoint(tmp_path, monkeypatch):
     monkeypatch.setattr(Tokenizers, "get", lambda self, model: None)
+    monkeypatch.setattr(Tokenizers, "_chat_config", lambda self, model: {})
     settings = make_settings(tmp_path)
     root = write_processed_trace(settings, "trace-opt", arch="sm_90")
     (root / "corrected_timeline.json").write_text(json.dumps(TIMELINE))
@@ -101,11 +133,14 @@ def test_cache_hit_trace_id_and_model_alias_default_count(endpoint):
     assert body["object"] == "text_completion"
     assert body["choices"][0]["finish_reason"] == "length"
     assert len(body["choices"][0]["text"].split()) == 4
-    assert body["usage"] == {"completion_tokens": 4, "prompt_tokens": None, "total_tokens": None}
+    assert body["usage"] == {"completion_tokens": 4, "prompt_tokens": 5, "total_tokens": 9}
     extra = body["cascade"]
     assert extra["cached"] and extra["run_id"] == sim.run_id and extra["sim_id"] == sim.id
-    assert extra["profile_match"] and len(extra["real"]) == len(extra["simulated"]) == 1
-    assert extra["compare"] == {"wall_ns": {"count": 1}}
+    assert (
+        extra["profile_match"]
+        and len(extra["profiled"]["real"]) == len(extra["profiled"]["simulated"]) == 1
+    )
+    assert extra["profiled"]["compare"] == {"wall_ns": {"count": 1}}
     assert not launcher.launched
     alias = client.post("/v1/completions", json={**BODY, "model": "trace-opt"}).json()
     assert alias["cascade"]["sim_id"] == sim.id
@@ -116,6 +151,7 @@ def test_model_alias_selects_newest_ready_trace(endpoint):
     root = hub.settings.trace_dir("newer")
     root.mkdir()
     (root / "workload.json").write_text(json.dumps({"max_tokens": 2}))
+    (root / "corrected_timeline.json").write_text(json.dumps(TIMELINE))
     hub.store.register_trace("newer", 6, 0)
     hub.store.update_trace("newer", state=TraceState.processing)
     hub.store.update_trace(
@@ -198,7 +234,7 @@ def test_exact_token_count_seed_and_profile_mismatch(endpoint, chat):
     assert first["choices"] == second["choices"]
     assert first["cascade"]["tokens_source"] == "placeholder"
     assert first["cascade"]["profile_match"] is False
-    assert first["cascade"]["simulated"][0]["e2e_ms"] == 7
+    assert first["cascade"]["profiled"]["simulated"][0]["e2e_ms"] == 7
     assert "profiled workload" in first["cascade"]["note"]
 
 

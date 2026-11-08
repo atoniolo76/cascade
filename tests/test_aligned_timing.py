@@ -127,3 +127,25 @@ def test_worker_posts_aligned_timeline(aligned, tmp_path):
     step_timing(main, env, log, messages.append)
     assert len(posts) == 1
     assert "kernel UID/name mapping mismatch" in messages[-1]
+
+
+def test_worker_posts_recorded_timeline_without_reimporting(tmp_path):
+    recorded = tmp_path / "step-timeline.json"
+    payload = {"simulated": {"steps": [{"kind": "prefill"}], "summary": {}}, "compare": None}
+    recorded.write_text(json.dumps(payload))
+    posts, messages = [], []
+    main = SimpleNamespace(post=lambda *args: posts.append(args))
+    step_timing(main, SimpleNamespace(), tmp_path / "missing.log", messages.append, recorded)
+    assert posts == [("step-timeline", payload)]
+    assert messages == ["cascade worker: recorded step timing posted"]
+
+
+@pytest.mark.parametrize("contents", ["", "{", '{"simulated": []}'])
+def test_worker_reports_invalid_recorded_timing_without_posting(tmp_path, contents):
+    recorded = tmp_path / "step-timeline.json"
+    recorded.write_text(contents)
+    posts, messages = [], []
+    main = SimpleNamespace(post=lambda *args: posts.append(args))
+    step_timing(main, SimpleNamespace(), tmp_path / "missing.log", messages.append, recorded)
+    assert not posts
+    assert messages[0].startswith("cascade worker: step timing failed:")

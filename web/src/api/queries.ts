@@ -9,6 +9,8 @@ import type {
   RunDetail,
   RunFile,
   RunSummary,
+  ScenarioCreate,
+  ScenarioResult,
   SimFile,
   SimStepTimeline,
   TraceDetail,
@@ -17,6 +19,25 @@ import type {
 
 const POLL_MS = 3000;
 const enc = encodeURIComponent;
+
+export function useScenario() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ScenarioCreate) => apiJson<ScenarioResult>("/api/scenarios", { method: "POST", body: JSON.stringify(body) }),
+    onSettled: () => { void qc.invalidateQueries({ queryKey: keys.runs }); },
+    retry: false,
+  });
+}
+
+export function useScenarioBaseRuns(body: ScenarioCreate | undefined, pending: boolean) {
+  const runs = useRuns();
+  const candidates = runs.data?.filter((r) => pending && r.state === "active" && r.trace_id === body?.trace_id && r.entries.some((e) => e.gpu_config === body.gpu_config)) ?? [];
+  return useQueries({ queries: candidates.map((r) => ({
+    queryKey: keys.run(r.id),
+    queryFn: () => apiJson<RunDetail>(`/api/runs/${enc(r.id)}`),
+    refetchInterval: pending ? POLL_MS : false,
+  })) }).flatMap((q) => q.data?.sims.filter((s) => s.gpu_config === body?.gpu_config && ["pending", "launching", "running"].includes(s.state)) ?? []);
+}
 
 export interface Health {
   ok: boolean;
@@ -58,6 +79,7 @@ export function useTraces() {
 
 export function useTrace(id: string) {
   return useQuery({
+    enabled: id.length > 0,
     queryKey: keys.trace(id),
     queryFn: () => apiJson<TraceDetail>(`/api/traces/${enc(id)}`),
     refetchInterval: (q) => {

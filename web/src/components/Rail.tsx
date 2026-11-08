@@ -18,9 +18,10 @@ const RAIL_ID = "app-rail";
 const DRAWER_ID = "app-rail-drawer";
 const GITHUB = logoByKey("github");
 
-type NavId = "traces" | "runs" | "compare" | "new";
+type NavId = "traces" | "runs" | "compare" | "new" | "requests";
 
 function activeNav(pathname: string): NavId | null {
+  if (pathname.startsWith("/request-simulator")) return "requests";
   if (pathname === "/runs/new") return "new";
   if (pathname.startsWith("/compare")) return "compare";
   if (pathname.startsWith("/runs")) return "runs";
@@ -31,6 +32,7 @@ function activeNav(pathname: string): NavId | null {
 const NAV: readonly { id: NavId; to: string; label: string; Icon: LucideIcon }[] = [
   { id: "traces", to: paths.traces, label: "Traces", Icon: Layers },
   { id: "runs", to: paths.runs, label: "Runs", Icon: Activity },
+  { id: "requests", to: paths.requestSimulator(), label: "Request simulator", Icon: Monitor },
   { id: "compare", to: paths.compare(), label: "Compare runs", Icon: GitCompareArrows },
   { id: "new", to: paths.newRun(), label: "New run", Icon: Plus },
 ];

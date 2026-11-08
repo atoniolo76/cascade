@@ -196,6 +196,13 @@ function RunView({ live, connection, onRun }: { live: Live; connection: Connecti
               </a>
             </p>
           )}
+          <div className="flex flex-wrap gap-2">
+            {(selected ? [selected] : sims).filter((s) => s.state === "succeeded").filter((s, i, all) => all.findIndex((other) => other.gpu_config === s.gpu_config) === i).map((s) => (
+              <Link key={s.id} to={paths.requestSimulator(run.trace_id, s.gpu_config)} className={buttonClass({})}>
+                Request simulator · {s.gpu_config}
+              </Link>
+            ))}
+          </div>
           {run.replay && <p className="text-[13px] text-muted">{REPLAY_RUN_LINE}</p>}
         </PageHeader>
 

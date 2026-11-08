@@ -44,6 +44,7 @@ NAV: tuple[tuple[str, tuple[str, ...]], ...] = (
             "deploy",
             "trace-a-workload",
             "sample-analysis-opt125m",
+            "request-simulation",
             "traces",
             "runs",
             "reading-results",

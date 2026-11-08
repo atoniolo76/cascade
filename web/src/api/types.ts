@@ -66,6 +66,70 @@ export interface RunCreate {
   entries: RunEntry[];
 }
 
+export interface ScenarioCreate {
+  trace_id: string;
+  gpu_config: string;
+  num_requests: number;
+  prompt_tokens: number;
+  output_tokens: number;
+  arrival_rate_rps: number;
+  scheduler: {
+    max_num_seqs: number;
+    max_num_batched_tokens: number;
+    block_size: number;
+    enable_chunked_prefill: boolean;
+    num_kv_blocks?: number;
+  };
+}
+
+export interface ScenarioRequestMetrics {
+  id: string;
+  arrival_s: number;
+  ttft_ms: number | null;
+  itl_ms_mean: number | null;
+  itl_ms_p50: number | null;
+  e2e_ms: number;
+  queue_time_ms: number;
+  preemptions: number;
+  output_tokens: number;
+}
+
+export interface ScenarioStep {
+  step_index: number;
+  t_start_s: number;
+  t_end_s: number;
+  wall_s: number;
+  num_seqs: number;
+  num_tokens: number;
+}
+
+export interface ScenarioResult {
+  trace_id: string;
+  gpu_config: string;
+  run_id: string;
+  sim_id: string;
+  cached: boolean;
+  requests: ScenarioRequestMetrics[];
+  aggregate: {
+    p50_ttft_ms: number | null;
+    p99_ttft_ms: number | null;
+    p50_itl_ms: number | null;
+    p50_e2e_ms: number | null;
+    p99_e2e_ms: number | null;
+    throughput_output_tokens_s: number;
+    idle_time_s: number;
+  };
+  steps: ScenarioStep[];
+  steps_total: number;
+  steps_returned: number;
+  steps_downsampled: boolean;
+  steps_sampling: string;
+  provenance_counts: Record<string, number>;
+  calibration_range: { prefill_tokens: [number, number]; decode_context: [number, number] };
+  assumptions: string[];
+  scheduler: ScenarioCreate["scheduler"] & { gpu_memory_utilization: number; num_kv_blocks: number };
+}
+
 export interface SimMetrics {
   gpu_tot_sim_cycle: number | null;
   gpu_tot_sim_insn: number | null;

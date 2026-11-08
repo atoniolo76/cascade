@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import asyncio
 import json
-import threading
 import time
 import uuid
 from collections.abc import Callable
@@ -15,9 +13,10 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, Field, StrictBool
 
-from cascade.ingest import read_json
-from cascade.models import TERMINAL_SIM_STATES, RunEntry, SimState, TraceState
+from cascade.models import TraceState
 from cascade.openai_tokens import Tokenizers, sample_tokens
+from cascade.scenario import Scenarios, error
+from cascade.sim.request_model import simulate_request
 
 if TYPE_CHECKING:
     from cascade.api import Cascade
@@ -25,22 +24,11 @@ if TYPE_CHECKING:
 POLL_S = 0.25
 PROGRESS_S = 5.0
 NOTE = (
-    "Timings simulate the profiled workload, not the requested prompt or output size. "
+    "Timing estimates the requested shape; profiled workload metrics are separate. "
+    "Each /v1 request is simulated alone, without cross-request batching. "
     "Content is uniformly sampled vocabulary tokens, not model inference. "
     "Token counts count sampled IDs; decoded text can re-tokenize differently."
 )
-
-
-def error(status: int, message: str, code: str, **extra) -> HTTPException:
-    return HTTPException(
-        status,
-        {
-            "message": message,
-            "type": "invalid_request_error" if status < 500 else "server_error",
-            "code": code,
-            **extra,
-        },
-    )
 
 
 class OpenAIRoute(APIRoute):
@@ -104,58 +92,16 @@ class ChatCompletion(Completion):
 
 
 class OpenAI:
-    def __init__(self, cascade: Cascade):
+    def __init__(self, cascade: Cascade, scenarios: Scenarios):
         self.cascade = cascade
         self.store = cascade.store
         self.tokenizers = Tokenizers(cascade.settings.data_dir)
-        self._lock = threading.Lock()
-
-    def trace(self, model: str):
-        ready = [t for t in self.store.list_traces() if t.state == TraceState.ready]
-        trace = next((t for t in ready if t.id == model), None)
-        trace = trace or next((t for t in ready if t.model == model), None)
-        if trace is None:
-            raise error(404, f"No ready trace for model {model!r}", "model_not_found")
-        return trace
-
-    def timeline(self, sim):
-        return next(
-            (t for t in self.store.step_timelines_for_run(sim.run_id) if t.sim_id == sim.id), None
-        )
-
-    def select(self, trace, gpu_config: str | None, fresh: bool):
-        config = gpu_config or trace.suggested_sim_config
-        cfg = self.cascade.configs.get(config) if config else None
-        if cfg is None:
-            raise error(422, f"unknown gpu_config {config!r}", "invalid_gpu_config")
-        if cfg.arch != trace.trace_gpu_arch:
-            raise error(
-                422,
-                f"{cfg.name} is {cfg.arch} but trace {trace.id} is {trace.trace_gpu_arch}",
-                "architecture_mismatch",
-            )
-        with self._lock:
-            if not fresh:
-                sims = self.store.sims_for_trace_config(trace.id, cfg.name)
-                for sim in sims:
-                    if sim.state == SimState.succeeded and self.timeline(sim) is not None:
-                        return sim, True
-                for sim in sims:
-                    if sim.state in (SimState.pending, SimState.launching, SimState.running):
-                        return sim, False
-            run_id = self.store.create_run(
-                trace.id, [RunEntry(gpu_config=cfg.name, count=1)], {cfg.name: trace.kernel_count}
-            )
-            self.cascade.launch_run(run_id)
-            return self.store.sims_for_run(run_id)[0], False
+        self.scenarios = scenarios
 
     def inputs(self, body: Completion, chat: bool):
-        trace = self.trace(body.model)
-        root = self.cascade.settings.trace_dir(trace.id)
-        real = read_json(root / "corrected_timeline.json")
-        real = real if isinstance(real, dict) else {}
-        workload = read_json(root / "workload.json")
-        workload = workload if isinstance(workload, dict) else {}
+        trace = self.scenarios.trace(body.model)
+        real = self.scenarios.metadata(trace)
+        workload = real["meta"]["workload"]
         meta = real.get("meta", {})
         profiled_max = workload.get("max_tokens", meta.get("max_tokens"))
         requested = body.max_tokens
@@ -181,6 +127,14 @@ class OpenAI:
                 if len(body.messages) == 1 and body.messages[0].role == "user"
                 else None
             )
+        prompt, prompt_tokens, source, loaded = self.tokenizers.prepare_prompt(
+            trace.model,
+            prompt,
+            [m.model_dump() for m in body.messages] if chat else None,
+        )
+        self.scenarios.validate_shape(real, prompt_tokens, count)
+        if source == "tokenizer:chat_template":
+            match_prompt = prompt
         return (
             trace,
             real,
@@ -191,10 +145,19 @@ class OpenAI:
                 "max_tokens_matches": count == profiled_max,
                 "profiled_max_tokens": profiled_max,
             },
+            prompt_tokens,
+            source,
+            loaded,
         )
 
-    def result(self, body, chat, trace, real, count, prompt, match, sim, cached, timing):
-        sampled = sample_tokens(self.tokenizers.get(trace.model), count, body.seed, prompt)
+    def result(
+        self, body, chat, trace, real, count, prompt, match, prompt_tokens, source, loaded, base
+    ):
+        sampled = sample_tokens(loaded, count, body.seed, prompt)
+        try:
+            timing = simulate_request(base.profile, prompt_tokens, count)
+        except ValueError as exc:
+            raise error(422, str(exc), "invalid_request") from exc
         fields = ("repeat", "ttft_ms", "itl_ms_mean", "e2e_ms")
 
         def metrics(data):
@@ -205,11 +168,9 @@ class OpenAI:
             ]
 
         usage = {
-            "prompt_tokens": sampled["prompt_tokens"],
+            "prompt_tokens": prompt_tokens,
             "completion_tokens": count,
-            "total_tokens": (
-                sampled["prompt_tokens"] + count if sampled["prompt_tokens"] is not None else None
-            ),
+            "total_tokens": prompt_tokens + count,
         }
         payload = {
             "id": f"{'chatcmpl' if chat else 'cmpl'}-{uuid.uuid4().hex}",
@@ -229,16 +190,29 @@ class OpenAI:
             ],
             "usage": usage,
             "cascade": {
-                "trace_id": trace.id,
-                "gpu_config": sim.gpu_config,
-                "run_id": sim.run_id,
-                "sim_id": sim.id,
-                "cached": cached,
+                **base.identifiers(),
                 "tokens_source": sampled["source"],
+                "prompt_tokens_source": source,
                 "output_token_ids": sampled["ids"],
-                "simulated": metrics(timing.simulated),
-                "real": metrics(real),
-                "compare": timing.compare.get("summary") if timing.compare else None,
+                "timing": {
+                    k: getattr(timing, k)
+                    for k in (
+                        "prompt_tokens",
+                        "output_tokens",
+                        "ttft_ms",
+                        "itl_ms_mean",
+                        "itl_ms_p50",
+                        "e2e_ms",
+                        "provenance_counts",
+                        "calibration_range",
+                        "assumptions",
+                    )
+                },
+                "profiled": {
+                    "simulated": metrics(base.simulated),
+                    "real": metrics(real),
+                    "compare": base.compare.get("summary") if base.compare else None,
+                },
                 "profile_match": match["prompt_matches"] and match["max_tokens_matches"],
                 "profile_match_details": match,
                 "note": NOTE,
@@ -249,53 +223,30 @@ class OpenAI:
     async def complete(self, body: Completion, request: Request, chat: bool):
         inputs = await run_in_threadpool(self.inputs, body, chat)
         trace = inputs[0]
-        sim, cached = await run_in_threadpool(self.select, trace, body.gpu_config, body.fresh)
-        deadline = time.monotonic() + self.cascade.settings.openai_wait_s
+        sim, cached = await run_in_threadpool(
+            self.scenarios.select, trace, body.gpu_config, body.fresh
+        )
 
         async def wait():
-            last_progress = float("-inf")
-            while True:
-                current = await run_in_threadpool(self.store.get_sim, sim.id)
-                if current.state in TERMINAL_SIM_STATES:
-                    if current.state != SimState.succeeded:
-                        raise error(
-                            502,
-                            current.error or f"sim {current.state}",
-                            "simulation_failed",
-                            run_id=sim.run_id,
-                            sim_id=sim.id,
-                        )
-                    timing = await run_in_threadpool(self.timeline, current)
-                    if timing is None:
-                        raise error(
-                            502,
-                            "Sim succeeded without a step timeline",
-                            "missing_timeline",
-                            run_id=sim.run_id,
-                            sim_id=sim.id,
-                        )
-                    result = await run_in_threadpool(
-                        self.result, body, chat, *inputs, current, cached, timing
+            async for event in self.scenarios.events(
+                trace,
+                sim,
+                cached,
+                request,
+                poll_s=POLL_S,
+                progress_s=PROGRESS_S,
+            ):
+                yield (
+                    event
+                    if isinstance(event, str)
+                    else await run_in_threadpool(
+                        self.result,
+                        body,
+                        chat,
+                        *inputs,
+                        event,
                     )
-                    yield result
-                    return
-                if time.monotonic() >= deadline:
-                    raise error(
-                        504,
-                        f"Timed out waiting for run {sim.run_id}",
-                        "simulation_timeout",
-                        run_id=sim.run_id,
-                        sim_id=sim.id,
-                    )
-                if await request.is_disconnected():
-                    return
-                if time.monotonic() - last_progress >= PROGRESS_S:
-                    yield (
-                        f": progress {current.kernels_done}/{current.kernels_total} "
-                        f"{current.state}\n\n"
-                    )
-                    last_progress = time.monotonic()
-                await asyncio.sleep(POLL_S)
+                )
 
         if not body.stream:
             async for event in wait():
@@ -356,8 +307,10 @@ class OpenAI:
         )
 
 
-def install_openai_routes(app: FastAPI, cascade: Cascade, bearer: Callable) -> None:
-    service = OpenAI(cascade)
+def install_openai_routes(
+    app: FastAPI, cascade: Cascade, bearer: Callable, scenarios: Scenarios
+) -> None:
+    service = OpenAI(cascade, scenarios)
     router = APIRouter(prefix="/v1", route_class=OpenAIRoute, dependencies=[Depends(bearer)])
 
     @router.get("/models")

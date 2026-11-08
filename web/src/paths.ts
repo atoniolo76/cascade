@@ -4,6 +4,7 @@ export const paths = {
   traces: "/",
   trace: (id: string) => `/traces/${enc(id)}`,
   runs: "/runs",
+  requestSimulator: (trace?: string, gpu?: string) => `/request-simulator${trace === undefined ? "" : `?trace=${enc(trace)}${gpu === undefined ? "" : `&gpu=${enc(gpu)}`}`}`,
   runsForTrace: (traceId: string) => `/runs?trace=${enc(traceId)}`,
   run: (id: string) => `/runs/${enc(id)}`,
   sim: (runId: string, simId: string) => `/runs/${enc(runId)}?sim=${enc(simId)}`,
