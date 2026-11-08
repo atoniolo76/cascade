@@ -102,7 +102,8 @@ def profile_e2e(workload_dict: dict, run_name: str | None, trace_steps: list[int
 @app.local_entrypoint()
 def e2e_main(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is", max_tokens: int = 32,
              repeats: int = 4, trace_steps: str = "0,5", trace_repeat: int = 1,
-             gpu_config: str = "", run_name: str = "", timing_only: bool = False):
+             gpu_config: str = "", run_name: str = "", timing_only: bool = False,
+             verify_dedup: int = 2, propagate: str = "none"):
     selection = None if timing_only else "plan" if trace_steps == "plan" else [int(i.strip()) for i in trace_steps.split(",") if i.strip()]
     result = profile_e2e.remote(Workload(model, [prompt], max_tokens=max_tokens, repeats=repeats).to_dict(),
                                 run_name or None, selection, trace_repeat)
@@ -110,7 +111,8 @@ def e2e_main(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is"
     if timing_only:
         print("Timing-only run:", result["run_name"], "(NVBit and simulation skipped)")
         return
-    summary = simulate.remote(result["run_name"], gpu_config=gpu_config or None)
+    summary = simulate.remote(result["run_name"], gpu_config=gpu_config or None,
+                              propagate=propagate, verify_dedup=verify_dedup)
     print("Simulation wall seconds:", summary["wall_s"], "coverage:", summary["coverage"])
     print("Simulation counts:", summary["counts"], "provenance labels:", summary["provenance_labels"])
     print("Dedup verification:", {k: v for k, v in summary["dedup_verification"].items() if k != "groups"})
