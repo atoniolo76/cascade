@@ -223,7 +223,13 @@ def run_to_healthy(fake, workspace="acme", **kw):
 
 def test_first_deploy_creates_one_app_and_sailbox_then_starts_cascade(fake):
     info, phases = run_to_healthy(fake)
-    assert phases == [Phase.starting, Phase.starting, Phase.starting, Phase.healthy]
+    assert phases == [
+        Phase.creating_sandbox,
+        Phase.starting,
+        Phase.starting,
+        Phase.starting,
+        Phase.healthy,
+    ]
     assert info.app == "cascade-acme" and info.sailbox_id == "sb-0"
     assert info.app_url == "https://sb-0-8000.sail.box"
     assert info.s3_url == "https://sb-0-9000.sail.box"
@@ -270,6 +276,7 @@ def test_cold_resume_restarts_cascade_with_the_existing_env(fake):
 
 def test_build_timeout_returns_and_the_next_call_creates(fake):
     fake.build_times_out = True
+    assert deploy.advance(KEY, "acme", sail_module=fake).phase is Phase.creating_sandbox
     info = deploy.advance(KEY, "acme", sail_module=fake, budget_s=7)
     assert info.phase is Phase.creating_sandbox and info.sailbox_id is None
     assert ("build", deploy.DEFAULT_IMAGE, 7) in fake.calls
@@ -280,6 +287,7 @@ def test_build_timeout_returns_and_the_next_call_creates(fake):
 
 def test_from_source_builds_the_dockerfile(fake, tmp_path):
     image = deploy.FromSource(tmp_path, "my/base:1")
+    deploy.advance(KEY, "acme", image, sail_module=fake)
     deploy.advance(KEY, "acme", image, sail_module=fake)
     [(_, source, _)] = [c for c in fake.calls if c[0] == "build"]
     assert source == ("dockerfile", tmp_path / "Dockerfile", "my/base:1")
@@ -309,6 +317,7 @@ def test_quota_errors_are_verbatim_and_scrubbed(fake):
     fake.create_error = sail.SailboxCreationError(
         f"quota exceeded: 10 sailboxes for key {KEY}", status_code=429
     )
+    deploy.advance(KEY, "acme", sail_module=fake)
     with pytest.raises(deploy.SailRefused) as caught:
         deploy.advance(KEY, "acme", sail_module=fake)
     assert str(caught.value) == "quota exceeded: 10 sailboxes for key [redacted]"
@@ -320,7 +329,8 @@ def test_token_never_appears_in_errors(fake, monkeypatch):
         raise sail.ApiError(f"write failed: {values['CASCADE_TOKEN']} {values['SAIL_API_KEY']}")
 
     monkeypatch.setattr(deploy, "_write_env_once", leaky)
-    deploy.advance(KEY, "acme", sail_module=fake, token="tok_abcdefghijklmnop")
+    for _ in range(2):
+        deploy.advance(KEY, "acme", sail_module=fake, token="tok_abcdefghijklmnop")
     with pytest.raises(deploy.SailRefused) as caught:
         deploy.advance(KEY, "acme", sail_module=fake, token="tok_abcdefghijklmnop")
     assert str(caught.value) == "write failed: [redacted] [redacted]"

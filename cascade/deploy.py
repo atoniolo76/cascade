@@ -255,13 +255,17 @@ def advance(
 ) -> WorkspaceInfo:
     """Does the next step toward a healthy workspace and returns where it got to.
 
-    Each step that waits on Sail is bounded: an image build gives up after `budget_s` and the
-    next call picks it up again. `Sailbox.create` blocks until the sandbox runs, so the call that
+    The call that creates the app returns right after, so a caller can show each step. Each
+    step that waits on Sail is bounded: an image build gives up after `budget_s` and the next
+    call picks it up again. `Sailbox.create` blocks until the sandbox runs, so the call that
     creates it returns right after.
     """
     name = app_name(workspace)
     with _session(api_key, sail_module) as (sail, hidden):
-        app = _find_app(sail, name, create=True)
+        app = _find_app(sail, name, create=False)
+        if app is None:
+            _find_app(sail, name, create=True)
+            return _info(workspace, Phase.creating_sandbox)
         box = _find_box(sail, app)
         if box is None:
             try:
