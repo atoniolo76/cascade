@@ -1279,7 +1279,7 @@ def sidebar(pages: list[Page], current: Page) -> str:
         groups.append(f'<div class="nav-group"><h2>{esc(group)}</h2><ul>{links}</ul></div>')
     groups.append(
         '<div class="nav-group site-links"><h2>Cascade</h2><ul>'
-        '<li><a href="../index.html">Home</a></li><li><a href="../writeup.html">Writeup</a></li>'
+        '<li><a href="../index.html">Home</a></li>'
         f'<li><a href="{GITHUB}" target="_blank" rel="noopener">GitHub</a></li></ul></div>'
     )
     return "".join(groups)
@@ -1334,7 +1334,6 @@ def shell(page: Page, body: str, headings: list[Heading], pages: list[Page], i: 
   <button class="search-btn" type="button" aria-label="Search docs">{ICONS["search"]}<span>Search docs</span><kbd>/</kbd></button>
   <nav class="top-links" aria-label="Site">
     <a href="../index.html">Home</a>
-    <a href="../writeup.html">Writeup</a>
     <a href="{GITHUB}" target="_blank" rel="noopener">GitHub</a>
   </nav>
   <button class="icon-btn theme-btn" type="button" aria-label="Toggle dark mode">{ICONS["theme"]}</button>
