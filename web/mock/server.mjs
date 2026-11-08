@@ -1,6 +1,7 @@
 // Throwaway dev backend for the web UI. Not part of the app.
 // Serves fixtures shaped like web/src/api/types.ts and an SSE stream that advances sims.
 // Usage: npm run mock   (listens on :8000, token "cascade-dev")
+//        MOCK_SCENARIO=empty npm run mock   (no traces or runs; an upload starts after 30s)
 
 import http from "node:http";
 import { URL } from "node:url";
@@ -8,6 +9,7 @@ import { URL } from "node:url";
 const PORT = Number(process.env.PORT ?? 8000);
 const TOKEN = process.env.CASCADE_TOKEN ?? "cascade-dev";
 const BOOT = Date.now();
+const SCENARIO = process.env.MOCK_SCENARIO ?? "default";
 
 function rng(seed) {
   let a = seed >>> 0;
@@ -28,10 +30,11 @@ const HOUR = 60 * MIN;
 const CONFIGS = [
   { name: "SM90_H100", arch: "sm_90", core_clock_mhz: 1755 },
   { name: "SM90_H200", arch: "sm_90", core_clock_mhz: 1980 },
+  { name: "SM90_GH200", arch: "sm_90", core_clock_mhz: 1980 },
   { name: "SM80_A100", arch: "sm_80", core_clock_mhz: 1410 },
   { name: "SM86_RTX3070", arch: "sm_86", core_clock_mhz: 1132 },
 ];
-const IPC_SCALE = { SM90_H100: 1, SM90_H200: 1.08, SM80_A100: 0.74, SM86_RTX3070: 0.41 };
+const IPC_SCALE = { SM90_H100: 1, SM90_H200: 1.08, SM90_GH200: 1.12, SM80_A100: 0.74, SM86_RTX3070: 0.41 };
 
 const KERNEL_KINDS = [
   { kind: "norm", ipc: 38, name: "_ZN4vllm15rms_norm_kernelIN3c104HalfELi8ELi1EEEvPT_PKS3_S6_fii", grid: [16, 1, 1], block: [256, 1, 1], insn: 98_304 },
@@ -178,13 +181,20 @@ const traces = [
   }),
 ];
 for (const t of traces) t._metadata = t.state === "uploading" ? null : t._meta;
-const traceById = (id) => traces.find((t) => t.id === id);
+const traceById = (id) => allTraces.find((t) => t.id === id);
 const traceSummary = ({ _kernels, _real, _metadata, _meta, _processingAt, ...t }) => t;
 const traceDetail = (t) => ({ ...traceSummary(t), metadata: t._metadata, kernels: t.state === "uploading" ? t._kernels.slice(0, t.kernel_count).map(publicKernel) : t._kernels.map(publicKernel) });
 
 const uploading = traces[0];
+uploading._uploadStart = SCENARIO === "empty" ? BOOT + 30_000 : BOOT;
+const allTraces = traces.splice(0, traces.length, ...(SCENARIO === "empty" ? [] : traces));
 function advanceUpload(now) {
-  const t = now - BOOT;
+  if (SCENARIO === "empty" && traces.length === 0) {
+    if (now < uploading._uploadStart) return;
+    uploading.created_at = iso(now);
+    traces.push(uploading);
+  }
+  const t = now - uploading._uploadStart;
   if (uploading.state === "uploading") {
     uploading.kernel_count = Math.min(uploading._kernels.length, Math.floor(t / 3000));
     uploading.bytes = Math.round(uploading.kernel_count * 41_300_000 + (t % 3000) * 4_000);
@@ -295,7 +305,7 @@ function finish(sim, state, now, extra = {}) {
   Object.assign(sim, { state, finished_at: iso(now), current_kernel: null, ...extra });
 }
 
-function createRun({ trace_id, entries, createdAt, live, settle }) {
+function createRun({ trace_id, entries, createdAt, live, settle, pace = 1, launchSpread = 1600, trouble = {} }) {
   const run = { id: `run-${hex(6)}`, trace_id, created_at: iso(createdAt), entries };
   runs.unshift(run);
   for (const { gpu_config, count } of entries) {
@@ -303,9 +313,9 @@ function createRun({ trace_id, entries, createdAt, live, settle }) {
       const sim = newSim(run, gpu_config, r, createdAt);
       sim._traceId = trace_id;
       const trace = traceById(trace_id);
-      const speed = gpu_config === "SM90_H200" ? 0.85 : 1;
+      const speed = (gpu_config === "SM90_H100" ? 1 : 0.85) * pace;
       sim._plan = {
-        pendingMs: 600 + rand() * 1600,
+        pendingMs: 600 + rand() * launchSpread,
         launchMs: 1800 + rand() * 1200,
         kernelMs: trace._kernels.map((k) => (900 + (k.instructions / 2_400_000) * 2600) * speed * (0.85 + rand() * 0.3)),
       };
@@ -314,6 +324,8 @@ function createRun({ trace_id, entries, createdAt, live, settle }) {
       if (live) {
         sim._live = { startAt: createdAt, progress: 0, lastHb: 0, lastProgressLog: 0 };
         if (r === 2 && gpu_config === entries[0].gpu_config) sim._plan.lost = { atKernel: 4, ms: 9000 };
+        const fail = trouble[`${gpu_config}#${r}`];
+        if (fail) sim._plan.fail = fail;
       } else {
         settle(sim, createdAt);
       }
@@ -333,6 +345,14 @@ function settleSucceeded(sim, createdAt) {
   finish(sim, "succeeded", started + 11 * MIN, { exit_code: 0, last_heartbeat_at: iso(started + 11 * MIN) });
 }
 
+const OOM = {
+  atKernel: 6,
+  exit: 134,
+  error: "simulator exited 134 (SIGABRT)",
+  log: ["GPGPU-Sim PTX: ERROR ** out of memory while allocating 4194304 bytes for shader core L1D", "Aborted (core dumped)"],
+};
+
+if (SCENARIO !== "empty") {
 createRun({
   trace_id: traces[3].id,
   entries: [{ gpu_config: "SM90_H100", count: 2 }, { gpu_config: "SM90_H200", count: 1 }],
@@ -372,6 +392,20 @@ createRun({
   createdAt: BOOT,
   live: true,
 });
+createRun({
+  trace_id: traces[3].id,
+  entries: [
+    { gpu_config: "SM90_H100", count: 16 },
+    { gpu_config: "SM90_H200", count: 16 },
+    { gpu_config: "SM90_GH200", count: 16 },
+  ],
+  createdAt: BOOT,
+  live: true,
+  pace: 2.6,
+  launchSpread: 9000,
+  trouble: { "SM90_H200#7": OOM, "SM90_GH200#12": { ...OOM, atKernel: 11 } },
+});
+}
 
 const TERMINAL = new Set(["succeeded", "failed", "cancelled"]);
 function runState(states) {
@@ -423,6 +457,12 @@ function tick() {
     if (sim.state === "lost" && now >= L.lostUntil) {
       sim.state = "running";
       changed = true;
+    }
+    if (sim.state === "running" && p.fail && sim.kernels_done >= p.fail.atKernel) {
+      pushLog(sim, p.fail.log, true);
+      finish(sim, "failed", now, { exit_code: p.fail.exit, error: p.fail.error });
+      emit(sim.run_id, { type: "sim", sim: publicSim(sim) });
+      continue;
     }
     if (sim.state === "running") {
       L.progress += 250;
