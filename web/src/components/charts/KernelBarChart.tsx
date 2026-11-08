@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatNs } from "../../domain/format";
 import type { KernelRow, Series } from "../../domain/stats";
@@ -33,45 +33,64 @@ export function KernelBarChart({
   const minWidth = rows.length * groupPx + 72;
   const data = rows.map((r) => ({ index: r.index, ...r.values }));
   const byIndex = new Map(rows.map((r) => [r.index, r]));
+  const scroller = useRef<HTMLDivElement>(null);
+  const [visibleWidth, setVisibleWidth] = useState(Infinity);
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      setVisibleWidth(el.clientWidth);
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+    };
+  }, []);
 
   return (
-    <div className="overflow-x-auto overscroll-x-contain">
-      <div style={{ minWidth, height: PLOT_HEIGHT + 28 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2} barCategoryGap="22%">
-            <CartesianGrid vertical={false} stroke="var(--grid)" />
-            <XAxis
-              dataKey="index"
-              tickLine={false}
-              axisLine={{ stroke: "var(--axis)" }}
-              tick={{ fill: "var(--muted)", fontSize: 11 }}
-              tickFormatter={(v: number) => `#${v}`}
-              interval="preserveStartEnd"
-              minTickGap={8}
-              height={28}
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tick={{ fill: "var(--muted)", fontSize: 11 }}
-              tickFormatter={(v: number) => (v === 0 ? "0" : formatNs(v))}
-              width={64}
-            />
-            <Tooltip
-              cursor={{ fill: "var(--surface-2)", opacity: 0.7 }}
-              isAnimationActive={false}
-              wrapperStyle={{ outline: "none", zIndex: 20 }}
-              content={({ active, label }) => {
-                const row = active && typeof label === "number" ? byIndex.get(label) : undefined;
-                return row ? <ChartTooltip row={row} series={series} detail={detail} /> : null;
-              }}
-            />
-            {series.map((s) => (
-              <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false} />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
+    <div>
+      <div ref={scroller} className="overflow-x-auto overscroll-x-contain">
+        <div style={{ minWidth, height: PLOT_HEIGHT + 28 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2} barCategoryGap="22%">
+              <CartesianGrid vertical={false} stroke="var(--grid)" />
+              <XAxis
+                dataKey="index"
+                tickLine={false}
+                axisLine={{ stroke: "var(--axis)" }}
+                tick={{ fill: "var(--muted)", fontSize: 11 }}
+                tickFormatter={(v: number) => `#${v}`}
+                interval="preserveStartEnd"
+                minTickGap={8}
+                height={28}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: "var(--muted)", fontSize: 11 }}
+                tickFormatter={(v: number) => (v === 0 ? "0" : formatNs(v))}
+                width={64}
+              />
+              <Tooltip
+                cursor={{ fill: "var(--surface-2)", opacity: 0.7 }}
+                isAnimationActive={false}
+                wrapperStyle={{ outline: "none", zIndex: 20 }}
+                content={({ active, label }) => {
+                  const row = active && typeof label === "number" ? byIndex.get(label) : undefined;
+                  return row ? <ChartTooltip row={row} series={series} detail={detail} /> : null;
+                }}
+              />
+              {series.map((s) => (
+                <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
+      <p className={`mt-1 h-4 text-right text-[11px] leading-4 text-muted transition-opacity duration-150 ${minWidth > visibleWidth ? "opacity-100" : "opacity-0"}`}>
+        Scroll sideways for all {rows.length} kernels
+      </p>
     </div>
   );
 }
@@ -106,4 +125,4 @@ function ChartTooltip({
   );
 }
 
-export const CHART_BLOCK_HEIGHT = PLOT_HEIGHT + 28;
+export const CHART_BLOCK_HEIGHT = PLOT_HEIGHT + 28 + 20;

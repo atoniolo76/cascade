@@ -104,7 +104,7 @@ function RunView({
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="font-mono text-[18px] whitespace-nowrap">{run.id}</span>
             <StatusPill tone={RUN_STATE[runState].tone} live={RUN_STATE[runState].live} label={RUN_STATE[runState].label} />
-            <ConnectionBadge connection={connection} />
+            {(runState === "active" || connection !== "live") && <ConnectionBadge connection={connection} />}
           </span>
         }
         subtitle={

@@ -46,7 +46,7 @@ function TraceTable({ traces }: { traces: TraceSummary[] }) {
       <table className="hidden w-full table-fixed border-collapse lg:table">
         <colgroup>
           <col />
-          <col className="w-[236px]" />
+          <col className="w-[272px]" />
           <col className="w-[16%]" />
           <col className="w-[13%]" />
           <col className="w-[148px]" />
