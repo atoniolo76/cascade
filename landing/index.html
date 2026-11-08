@@ -54,8 +54,16 @@
     -moz-osx-font-smoothing: grayscale;
   }
   .page { display: flex; flex-direction: column; min-height: 100dvh; padding: 0 20px; }
-  main { width: 100%; max-width: 460px; margin: 0 auto; flex: 1; padding: 80px 0 64px; }
-  @media (min-width: 640px) { main { padding-top: 112px; } }
+  @media (min-width: 640px) { .page { padding: 0 40px; } }
+  main { width: 100%; max-width: 1040px; margin: 0 auto; flex: 1; padding: 80px 0 64px; }
+  @media (min-width: 640px) { main { padding-top: 120px; } }
+  .lede { max-width: 520px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 96px; }
+  .grid > :first-child { max-width: 560px; }
+  @media (min-width: 900px) {
+    .grid { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+    .aside { position: sticky; top: 48px; align-self: start; }
+  }
 
   h1 {
     display: flex; align-items: center; gap: 12px; margin: 0;
@@ -63,9 +71,13 @@
     letter-spacing: -0.01em;
   }
   @media (min-width: 640px) { h1 { font-size: 36px; } }
-  .mark { height: 0.78em; width: auto; flex-shrink: 0; overflow: visible; }
-  .mark rect { opacity: 0; transform: translateY(-6px); animation: drop 0.5s cubic-bezier(.3,.7,.2,1) forwards; }
-  @keyframes drop { to { opacity: 1; transform: none; } }
+  .mark { height: 0.98em; width: auto; flex-shrink: 0; overflow: visible; }
+  .mark rect {
+    transform-box: fill-box; transform-origin: left center;
+    transform: scaleX(0); opacity: 0;
+    animation: grow 0.55s cubic-bezier(.3,.7,.2,1) forwards;
+  }
+  @keyframes grow { to { transform: none; opacity: 1; } }
 
   .lede { margin: 16px 0 0; color: var(--ink-70); line-height: 1.6; }
 
@@ -117,9 +129,10 @@
   .links a:hover .arrow { transform: translate(2px, -2px); color: var(--ink); }
 
   .team { margin-top: 20px; color: var(--ink-80); }
+  @media (min-width: 900px) { .aside section + section { margin-top: 56px; } }
 
   footer {
-    width: 100%; max-width: 460px; margin: 0 auto;
+    width: 100%; max-width: 1040px; margin: 0 auto;
     display: flex; justify-content: space-between; align-items: center;
     border-top: 1px solid var(--rule); padding: 8px 0;
     font-size: 12px; color: var(--ink-45);
@@ -127,6 +140,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .mark rect { animation: none; opacity: 1; transform: none; }
+    .aside { position: static; }
     .hl { transition: none; }
   }
 </style>
@@ -135,19 +149,18 @@
 <div class="page">
   <main>
     <h1>
-      <svg class="mark" viewBox="0 0 44.5 33" aria-hidden="true">
-        <rect x="17.25" y="0" width="10" height="10" rx="1.6" fill="currentColor" style="animation-delay:.05s"/>
-        <rect x="5.75" y="11.5" width="10" height="10" rx="1.6" fill="currentColor" style="animation-delay:.18s"/>
-        <rect x="28.75" y="11.5" width="10" height="10" rx="1.6" fill="currentColor" style="animation-delay:.24s"/>
-        <rect x="0" y="23" width="10" height="10" rx="1.6" fill="currentColor" style="animation-delay:.36s"/>
-        <rect x="11.5" y="23" width="10" height="10" rx="1.6" fill="currentColor" style="animation-delay:.42s"/>
-        <rect x="23" y="23" width="10" height="10" rx="1.6" fill="#2F7FE0" style="animation-delay:.48s"/>
-        <rect x="34.5" y="23" width="10" height="10" rx="1.6" fill="#1F9D6B" style="animation-delay:.54s"/>
+      <svg class="mark" viewBox="0 0 48 39.5" aria-hidden="true">
+        <rect x="0" y="0" width="16" height="6.5" rx="1.6" fill="currentColor" style="animation-delay:0.05s"/>
+        <rect x="9" y="8.25" width="14" height="6.5" rx="1.6" fill="currentColor" style="animation-delay:0.20s"/>
+        <rect x="17" y="16.5" width="12" height="6.5" rx="1.6" fill="currentColor" style="animation-delay:0.35s"/>
+        <rect x="23" y="24.75" width="16" height="6.5" rx="1.6" fill="#2F7FE0" style="animation-delay:0.50s"/>
+        <rect x="33" y="33" width="15" height="6.5" rx="1.6" fill="#1F9D6B" style="animation-delay:0.65s"/>
       </svg>
       Cascade
     </h1>
     <p class="lede">Trace an ML workload once on a real GPU. Cascade replays it on simulated hardware, across as many GPUs as you want.</p>
 
+    <div class="grid">
     <section aria-labelledby="how">
       <h2 id="how">how it works</h2>
       <div class="prose">
@@ -159,6 +172,7 @@
       </div>
     </section>
 
+    <div class="aside">
     <section aria-labelledby="links">
       <h2 id="links">links</h2>
       <ul class="links">
@@ -201,6 +215,8 @@
       <h2 id="team">team</h2>
       <p class="team">Amani Bobo and Alessio Toniolo, built at the Neo Hackathon.</p>
     </section>
+    </div>
+    </div>
   </main>
   <footer>
     <span>Cascade, 2026</span>
