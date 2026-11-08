@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Get started · Cascade</title>
-<meta name="description" content="Create your own Cascade app on Sail with a workspace name and a Sail API key. No clone.">
+<meta name="description" content="Create your own Cascade app on Sail with a workspace name and a Sail API key. Nothing to clone.">
 <meta name="theme-color" content="#fafaf8">
 <meta name="referrer" content="no-referrer">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -12,125 +12,409 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="site.css">
+<style>
+/* One 480px card per step on an 8px grid, anchored to the top so steps of different heights never move the header or the step bar. */
+:root {
+  --card: #ffffff;
+  --line: rgb(11 11 10 / 0.1);
+  --field: #ffffff;
+  --muted: rgb(11 11 10 / 0.55);
+  --accent: #5b3fd6;
+  --on-accent: #ffffff;
+  --radius: 8px;
+  --sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --display: "EB Garamond", ui-serif, Georgia, serif;
+  --mono: "Geist Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --card: #181817;
+    --line: rgb(242 241 236 / 0.12);
+    --field: #121211;
+    --muted: rgb(242 241 236 / 0.58);
+    --accent: #8f7bff;
+    --on-accent: #0f0d1c;
+  }
+}
+
+.wizard { width: 100%; max-width: 1040px; margin: 0 auto; flex: 1; padding: 40px 0 80px; }
+.wizard .masthead h1 { font-size: 24px; gap: 10px; }
+.stage { display: grid; justify-items: center; gap: 16px; margin-top: 64px; }
+@media (max-width: 640px) { .stage { margin-top: 40px; } }
+
+.meter { width: 100%; max-width: 480px; display: flex; align-items: center; gap: 16px; height: 16px; }
+.meter[data-off] { visibility: hidden; }
+.meter-bar { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.meter-bar span { height: 2px; border-radius: 1px; background: var(--line); }
+.meter-bar span.done { background: var(--ink-45); }
+.meter-bar span.on { background: var(--accent); }
+.meter-label { font: 400 13px var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.card {
+  width: 100%; max-width: 480px; padding: 32px; border-radius: 12px;
+  background: var(--card); border: 1px solid var(--line); box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+@media (max-width: 480px) { .card { padding: 24px; } }
+.card .step { display: grid; gap: 24px; margin: 0; font-family: var(--sans); }
+.card .step > * { min-width: 0; }
+.step.enter { animation: step-in 0.24s cubic-bezier(.3,.7,.2,1) both; }
+.step.enter.back { animation-name: step-back; }
+@keyframes step-in { from { opacity: 0; transform: translateX(16px); } }
+@keyframes step-back { from { opacity: 0; transform: translateX(-16px); } }
+
+.head { display: grid; gap: 8px; }
+.step .title { margin: 0; font: 400 30px/1.15 var(--display); letter-spacing: -0.01em; color: var(--ink); text-wrap: balance; }
+.step .title:focus { outline: none; }
+.sub { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; text-wrap: pretty; }
+.small, .hint, .quiet, .label { font-size: 13px; line-height: 1.5; }
+
+.field { display: grid; gap: 8px; }
+.label { font-weight: 500; color: var(--ink); }
+.control { position: relative; display: flex; align-items: center; gap: 8px; }
+.input {
+  width: 100%; height: 40px; padding: 0 12px; border-radius: var(--radius);
+  border: 1px solid var(--line); background: var(--field); color: var(--ink);
+  font: 400 15px var(--sans); outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input::placeholder { color: var(--ink-45); }
+.input:hover { border-color: var(--ink-45); }
+.input:focus { border-color: var(--ink); box-shadow: 0 0 0 3px var(--hover); }
+.input:focus-visible { outline: none; }
+.input[aria-invalid="true"] { border-color: var(--bad); }
+.input.has-eye { padding-right: 40px; }
+.input.secret { font-family: var(--mono); font-size: 14px; }
+.hint { margin: 0; min-height: 24px; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hint.bad { color: var(--bad); }
+#s-line:empty { display: none; }
+.chip { padding: 0 8px; border-radius: 6px; line-height: 22px; background: var(--hover); border: 1px solid var(--line); color: var(--ink); font: 400 12px var(--mono); overflow-wrap: anywhere; }
+
+.ico { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.eye {
+  position: absolute; right: 4px; width: 32px; height: 32px; display: grid; place-items: center;
+  border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer;
+}
+.eye:hover { color: var(--ink); background: var(--hover); }
+
+.card a.text, .link { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-45); text-underline-offset: 3px; }
+.card a.text:hover, .link:hover { text-decoration-color: var(--ink); }
+.ext { display: inline-flex; align-items: center; gap: 4px; }
+.ext .ico { width: 12px; height: 12px; }
+
+.lock { display: flex; gap: 8px; align-items: center; margin: 0; color: var(--muted); }
+.disclosures { display: grid; border-top: 1px solid var(--line); }
+details.more { border-bottom: 1px solid var(--line); }
+details.more summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
+  height: 40px; font-size: 13px; color: var(--ink); border-radius: var(--radius);
+}
+details.more summary::-webkit-details-marker { display: none; }
+details.more summary::after { content: "+"; color: var(--muted); font-size: 15px; }
+details.more[open] summary::after { content: "−"; }
+details.more .body { padding-bottom: 16px; font-size: 13px; line-height: 1.6; color: var(--muted); display: grid; gap: 8px; }
+details.more .body p, details.more ul { margin: 0; }
+details.more ul { padding-left: 16px; }
+
+.nav { display: flex; align-items: center; gap: 8px; }
+.nav .grow, .actions .grow { flex: 1; }
+.card .btn { height: 40px; padding: 0 16px; border-radius: var(--radius); font: 500 14px var(--sans); border-color: var(--line); background: var(--card); }
+.card .btn:hover { background: var(--hover); border-color: var(--ink-45); }
+.card .btn-primary, .card .btn-primary:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.card .btn-primary:hover { opacity: 0.92; }
+.card .btn-primary:disabled { opacity: 0.4; }
+.card .btn-lg { height: 48px; font-size: 15px; }
+.btn-block { width: 100%; }
+.card .btn-ghost { border-color: transparent; background: transparent; color: var(--muted); padding: 0 8px; }
+.card .btn-ghost:hover { background: var(--hover); border-color: transparent; color: var(--ink); }
+.card .btn-danger { color: var(--bad); }
+.card .btn-danger-solid, .card .btn-danger-solid:hover { background: var(--bad); border-color: var(--bad); color: var(--card); }
+.quiet { margin: 0; text-align: center; color: var(--muted); }
+.beats { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; counter-reset: beat; }
+.beats li { display: flex; gap: 12px; align-items: center; font-size: 15px; color: var(--ink); counter-increment: beat; }
+.beats li::before { content: counter(beat); width: 24px; height: 24px; border-radius: var(--radius); border: 1px solid var(--line); display: grid; place-items: center; font-size: 13px; color: var(--muted); }
+
+.stepper { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.stepper li { display: grid; grid-template-columns: 16px 1fr auto; column-gap: 12px; align-items: start; }
+.state { width: 16px; height: 16px; margin-top: 2px; display: grid; place-items: center; color: var(--ink-45); }
+.state .ico { width: 16px; height: 16px; display: none; }
+.state::before { content: ""; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--line); box-sizing: border-box; }
+.stepper li.active .state::before { border-color: var(--line); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+.stepper li.done .state::before, .stepper li.failed .state::before { display: none; }
+.stepper li.done .state .ok { display: block; color: var(--ink); }
+.stepper li.failed .state .x { display: block; color: var(--bad); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.stepper .what { display: grid; gap: 0; }
+.stepper .what strong { font-weight: 500; font-size: 15px; line-height: 20px; color: var(--muted); }
+.stepper li.active strong, .stepper li.done strong, .stepper li.failed strong { color: var(--ink); }
+.stepper .what span { font-size: 13px; line-height: 20px; color: var(--muted); }
+.stepper li:not(.active) .what span { display: none; }
+.stepper .t { font-size: 13px; line-height: 20px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.total { display: flex; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.alert { margin: 0; padding: 8px 12px; border-radius: var(--radius); font-size: 13px; line-height: 1.5; color: var(--bad); border: 1px solid var(--bad); }
+.resume { display: grid; gap: 8px; }
+.resume p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+.kv { margin: 0; display: grid; border-top: 1px solid var(--line); }
+.kv > div { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; gap: 8px; align-items: center; min-height: 40px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.kv dt { font-size: 13px; color: var(--muted); }
+.kv dd { margin: 0; min-width: 0; font: 400 13px/1.5 var(--mono); color: var(--ink); overflow-wrap: anywhere; }
+.kv .acts { display: flex; }
+@media (max-width: 480px) {
+  .kv > div { grid-template-columns: minmax(0, 1fr) auto; row-gap: 0; padding: 8px 0; }
+  .kv dt { grid-column: 1 / -1; }
+}
+.icon-btn {
+  height: 32px; min-width: 32px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: 400 13px var(--sans); cursor: pointer;
+}
+.icon-btn:hover { background: var(--hover); color: var(--ink); }
+
+.tabs { display: grid; gap: 8px; }
+.tabs > * { min-width: 0; }
+.tablist { display: flex; gap: 20px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.tablist button {
+  height: 32px; padding: 0; border: 0; border-bottom: 1.5px solid transparent; margin-bottom: -1px; background: transparent;
+  color: var(--muted); font: 400 13px var(--sans); cursor: pointer; white-space: nowrap;
+}
+.tablist button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.panel { display: grid; gap: 8px; padding-top: 8px; }
+.panel > * { min-width: 0; }
+.panel p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.card .code { margin: 0; border-radius: var(--radius); border-color: var(--line); display: flex; align-items: flex-start; }
+.card .code pre { flex: 1; min-width: 0; padding: 12px; font-size: 12.5px; }
+.card .code pre.prose-pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.card .code .copy { position: static; order: 2; flex-shrink: 0; margin: 6px 6px 0 0; opacity: 1; padding: 0; width: 32px; height: 32px; display: grid; place-items: center; border: 0; background: transparent; color: var(--muted); }
+.card .code .copy:hover { background: var(--hover); color: var(--ink); }
+.fine { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+
+.status-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-45); }
+.pill[data-phase="healthy"]::before { background: var(--ink); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.danger-zone { display: grid; gap: 8px; }
+.danger-zone p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+.card button:focus-visible, .card a:focus-visible, .card summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .step.enter { animation: none; }
+  .stepper li.active .state::before { animation: none; border-color: var(--accent); }
+}
+</style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-lock" viewBox="0 0 16 16"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7"/></symbol>
+  <symbol id="i-x" viewBox="0 0 16 16"><path d="m4.5 4.5 7 7M11.5 4.5l-7 7"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5A1.5 1.5 0 0 0 9 1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 16 16"><path d="M6 3.5H3.5v9h9V10M9 3.5h3.5V7M12.5 3.5 7 9"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 16 16"><path d="m2 2 12 12M6.6 3.7A6 6 0 0 1 8 3.5c4 0 6.5 4.5 6.5 4.5a11 11 0 0 1-2 2.6M4.3 4.3A11 11 0 0 0 1.5 8S4 12.5 8 12.5a6 6 0 0 0 3.3-1"/><path d="M6.6 6.6a2 2 0 0 0 2.8 2.8"/></symbol>
+</svg>
 <div class="page">
-  <main>
+  <div class="wizard">
     <header class="masthead">
       <h1><a href="index.html"><svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><defs><clipPath id="sm0"><path d="M-6.00 -4.00 L-3.50 -4.00 L-1.00 -4.00 L1.50 -4.00 L4.00 -4.00 L6.50 -4.00 L9.00 -4.00 L11.50 -4.00 L14.00 -4.00 L16.50 -4.00 L19.00 -4.00 L21.50 -4.00 L24.00 -4.00 L26.50 -4.00 L29.00 -4.00 L31.50 -4.00 L34.00 -4.00 L36.50 -4.00 L39.00 -4.00 L41.50 -4.00 L44.00 -4.00 L46.50 -4.00 L49.00 -4.00 L51.50 -4.00 L54.00 -4.00 L54.00 18.39 L51.50 17.02 L49.00 15.77 L46.50 14.63 L44.00 13.62 L41.50 12.72 L39.00 11.95 L36.50 11.29 L34.00 10.75 L31.50 10.34 L29.00 10.04 L26.50 9.86 L24.00 9.80 L21.50 9.86 L19.00 10.04 L16.50 10.34 L14.00 10.75 L11.50 11.29 L9.00 11.95 L6.50 12.72 L4.00 13.62 L1.50 14.63 L-1.00 15.77 L-3.50 17.02 L-6.00 18.39Z"/></clipPath><clipPath id="sm1"><path d="M-6.00 21.79 L-3.50 20.42 L-1.00 19.17 L1.50 18.03 L4.00 17.02 L6.50 16.12 L9.00 15.35 L11.50 14.69 L14.00 14.15 L16.50 13.74 L19.00 13.44 L21.50 13.26 L24.00 13.20 L26.50 13.26 L29.00 13.44 L31.50 13.74 L34.00 14.15 L36.50 14.69 L39.00 15.35 L41.50 16.12 L44.00 17.02 L46.50 18.03 L49.00 19.17 L51.50 20.42 L54.00 21.79 L54.00 32.39 L51.50 31.02 L49.00 29.77 L46.50 28.63 L44.00 27.62 L41.50 26.72 L39.00 25.95 L36.50 25.29 L34.00 24.75 L31.50 24.34 L29.00 24.04 L26.50 23.86 L24.00 23.80 L21.50 23.86 L19.00 24.04 L16.50 24.34 L14.00 24.75 L11.50 25.29 L9.00 25.95 L6.50 26.72 L4.00 27.62 L1.50 28.63 L-1.00 29.77 L-3.50 31.02 L-6.00 32.39Z"/></clipPath><clipPath id="sm2"><path d="M-6.00 35.79 L-3.50 34.42 L-1.00 33.17 L1.50 32.03 L4.00 31.02 L6.50 30.12 L9.00 29.35 L11.50 28.69 L14.00 28.15 L16.50 27.74 L19.00 27.44 L21.50 27.26 L24.00 27.20 L26.50 27.26 L29.00 27.44 L31.50 27.74 L34.00 28.15 L36.50 28.69 L39.00 29.35 L41.50 30.12 L44.00 31.02 L46.50 32.03 L49.00 33.17 L51.50 34.42 L54.00 35.79 L54.00 52.00 L51.50 52.00 L49.00 52.00 L46.50 52.00 L44.00 52.00 L41.50 52.00 L39.00 52.00 L36.50 52.00 L34.00 52.00 L31.50 52.00 L29.00 52.00 L26.50 52.00 L24.00 52.00 L21.50 52.00 L19.00 52.00 L16.50 52.00 L14.00 52.00 L11.50 52.00 L9.00 52.00 L6.50 52.00 L4.00 52.00 L1.50 52.00 L-1.00 52.00 L-3.50 52.00 L-6.00 52.00Z"/></clipPath></defs><g class="tier"><g transform="translate(-4 0)"><circle cx="24" cy="24" r="21" fill="currentColor" clip-path="url(#sm0)"/></g></g><g class="tier"><g transform="translate(0 0)"><circle cx="24" cy="24" r="21" fill="#6D4AE0" clip-path="url(#sm1)"/></g></g><g class="tier"><g transform="translate(4 0)"><circle cx="24" cy="24" r="21" fill="#A35CE8" clip-path="url(#sm2)"/></g></g></svg>
         Cascade</a></h1>
-      <nav class="sitenav" aria-label="Site"><a href="start.html" aria-current="page">get started</a><a href="docs/index.html">docs</a><a href="writeup.html">writeup</a></nav>
+      <nav class="sitenav" aria-label="Site"><a href="docs/deploy.html">docs</a><a href="writeup.html">writeup</a></nav>
     </header>
 
-    <div class="start">
-    <p class="lede">Your own Cascade app, running in your Sail account. Name a workspace, paste a Sail API key, and it is up in a few minutes. Nothing to clone.</p>
-
-    <section id="create" aria-labelledby="create-h">
-      <h2 id="create-h">1 · create a workspace</h2>
-      <form class="form" id="create-form" novalidate>
-        <label class="field">
-          <span>Workspace name</span>
-          <input class="input" id="workspace" name="workspace" required autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="acme-lab" pattern="[a-z0-9-]{3,32}" maxlength="32" aria-describedby="workspace-hint">
-          <span class="hint" id="workspace-hint">3 to 32 lowercase letters, digits and hyphens. It becomes the Sail app <code>cascade-<span data-slug>name</span></code>.</span>
-        </label>
-        <label class="field">
-          <span>Sail API key</span>
-          <input class="input" id="api-key" type="password" required autocomplete="off" spellcheck="false" placeholder="sk_..." aria-describedby="key-hint">
-          <span class="hint" id="key-hint">Create one on the <a href="https://app.sailresearch.com" target="_blank" rel="noopener">Sail dashboard</a> (<a href="https://docs.sailresearch.com/quickstart" target="_blank" rel="noopener">how</a>).</span>
-        </label>
-        <div class="why">
-          <strong>What the key is used for.</strong>
-          <ul>
-            <li>Used once to create your workspace in your Sail account.</li>
-            <li>Not stored by Cascade. This page keeps it in memory only, and our server forgets it after each request.</li>
-            <li>Placed in your workspace so it can fork simulators.</li>
-          </ul>
-          <p>The workspace runs on your Sail bill. Sail charges for the CPU, memory and disk it actually uses (<a href="https://docs.sailresearch.com/sailboxes-pricing" target="_blank" rel="noopener">Sail pricing</a>). Auto-sleep is off for now, so it keeps running until you pause it under <a href="#manage">Manage</a>.</p>
-        </div>
-        <details class="advanced">
-          <summary>advanced</summary>
-          <label class="field">
-            <span>App image</span>
-            <input class="input" id="image" autocomplete="off" spellcheck="false" placeholder="ghcr.io/atoniolo76/cascade:latest">
-            <span class="hint">A public image built from Cascade's Dockerfile. Leave empty for the published one.</span>
-          </label>
-        </details>
-        <p class="error" id="create-error" role="alert" hidden></p>
-        <div class="actions"><button class="btn btn-primary" id="create-btn" type="submit">Create workspace</button></div>
-      </form>
-    </section>
-
-    <section id="progress" aria-labelledby="progress-h" hidden>
-      <h2 id="progress-h">2 · setting up <span data-ws></span></h2>
-      <ol class="progress" aria-live="polite">
-        <li data-step="0"><span class="dot"></span><span>Creating the Sail app</span><span class="when"></span></li>
-        <li data-step="1"><span class="dot"></span><span>Creating the sandbox</span><span class="when"></span></li>
-        <li data-step="2"><span class="dot"></span><span>Starting Cascade</span><span class="when"></span></li>
-        <li data-step="3"><span class="dot"></span><span>Healthy</span><span class="when"></span></li>
-      </ol>
-      <p class="status-line" id="progress-line"></p>
-      <p class="error" id="progress-error" role="alert" hidden></p>
-      <div class="actions" id="progress-actions" hidden><button class="btn" id="retry-btn" type="button">Try again</button></div>
-    </section>
-
-    <section id="done" aria-labelledby="done-h" hidden>
-      <h2 id="done-h">3 · ready</h2>
-      <p class="prose"><span class="badge" data-ws></span> is running at <a id="app-link" target="_blank" rel="noopener"></a>.</p>
-      <div class="cta-row"><a class="btn btn-primary" id="open-link" target="_blank" rel="noopener">Open my workspace <svg class="arrow" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3.5 8.5l5-5M4.5 3.5h4v4"/></svg></a></div>
-
-      <div class="kv">
-        <span>access token · shown once, save it now</span>
-        <div class="secret"><code id="token"></code><button class="btn btn-sm" type="button" data-copy="token">Copy</button></div>
+    <div class="stage">
+      <div class="meter" id="meter" data-off>
+        <div class="meter-bar" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <span class="meter-label" id="meter-label" aria-live="polite"></span>
       </div>
-      <div class="kv">
-        <span>S3 endpoint · bucket cascade, path-style, unsigned</span>
-        <div class="secret"><code id="s3"></code><button class="btn btn-sm" type="button" data-copy="s3">Copy</button></div>
+      <div class="card" id="card">
+
+        <section class="step" data-step="welcome" hidden>
+          <div class="head">
+            <h2 class="title">Create a Cascade workspace</h2>
+            <p class="sub">Your own Cascade app in your Sail account, ready in about a minute.</p>
+          </div>
+          <ol class="beats">
+            <li>Name your workspace</li>
+            <li>Connect your Sail account</li>
+            <li>Open your app</li>
+          </ol>
+          <button class="btn btn-primary btn-lg btn-block" type="button" data-go="name">Get started</button>
+          <p class="quiet">Already have one? <a class="link" href="#manage">Manage it</a></p>
+        </section>
+
+        <form class="step" data-step="name" hidden novalidate>
+          <div class="head">
+            <h2 class="title">Name your workspace</h2>
+            <p class="sub">It names your Sail app and appears in the app's sidebar.</p>
+          </div>
+          <div class="field">
+            <label class="label" for="workspace">Workspace name</label>
+            <input class="input" id="workspace" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="acme-lab" maxlength="32" aria-describedby="workspace-hint">
+            <p class="hint" id="workspace-hint" aria-live="polite"></p>
+          </div>
+          <div class="nav">
+            <button class="btn btn-ghost" type="button" data-back>Back</button>
+            <span class="grow"></span>
+            <button class="btn btn-primary" type="submit" id="name-next" disabled>Continue</button>
+          </div>
+        </form>
+
+        <form class="step" data-step="key" hidden novalidate>
+          <div class="head">
+            <h2 class="title">Connect Sail</h2>
+            <p class="sub">Paste an API key from your <a class="text ext" href="https://app.sailresearch.com" target="_blank" rel="noopener">Sail dashboard<svg class="ico"><use href="#i-ext"/></svg></a></p>
+          </div>
+          <div class="field">
+            <label class="label" for="api-key">Sail API key</label>
+            <div class="control">
+              <input class="input secret has-eye" id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk_..." aria-describedby="key-lock">
+              <button class="eye" type="button" id="eye" aria-label="Show key" aria-controls="api-key" aria-pressed="false"><svg class="ico"><use href="#i-eye"/></svg></button>
+            </div>
+            <p class="lock small" id="key-lock"><svg class="ico"><use href="#i-lock"/></svg>Used once, never stored, lives only in your workspace.</p>
+          </div>
+          <div class="disclosures">
+            <details class="more">
+              <summary>How we handle your key</summary>
+              <div class="body">
+                <ul>
+                  <li>This page holds it in memory only. Reloading the tab clears it.</li>
+                  <li>Cascade's server uses it for one call to Sail per request and keeps nothing.</li>
+                  <li>It is copied into your workspace, which needs it to start a Sail sandbox for each simulator.</li>
+                </ul>
+                <p>The workspace bills to your Sail account for the CPU, memory and disk it uses (<a class="text" href="https://docs.sailresearch.com/sailboxes-pricing" target="_blank" rel="noopener">Sail pricing</a>). It doesn't sleep on its own yet, so pause it when you're done.</p>
+              </div>
+            </details>
+            <details class="more">
+              <summary>Advanced</summary>
+              <div class="body">
+                <div class="field">
+                  <label class="label" for="image">App image</label>
+                  <input class="input secret" id="image" autocomplete="off" spellcheck="false" placeholder="ghcr.io/atoniolo76/cascade:latest">
+                  <p class="hint">A public image built from Cascade's Dockerfile. Leave empty for the published one.</p>
+                </div>
+              </div>
+            </details>
+          </div>
+          <div class="nav">
+            <button class="btn btn-ghost" type="button" data-back>Back</button>
+            <span class="grow"></span>
+            <button class="btn btn-primary" type="submit" id="create-btn" disabled>Create workspace</button>
+          </div>
+        </form>
+
+        <section class="step" data-step="creating" hidden>
+          <div class="head">
+            <h2 class="title" id="creating-title">Creating your workspace</h2>
+          </div>
+          <ol class="stepper" id="stepper">
+            <li><span class="state"><svg class="ico ok"><use href="#i-check"/></svg><svg class="ico x"><use href="#i-x"/></svg></span><span class="what"><strong>Create the Sail app</strong><span data-sub="0"></span></span><span class="t"></span></li>
+            <li><span class="state"><svg class="ico ok"><use href="#i-check"/></svg><svg class="ico x"><use href="#i-x"/></svg></span><span class="what"><strong>Create the sandbox</strong><span>Pulling the app image and booting it</span></span><span class="t"></span></li>
+            <li><span class="state"><svg class="ico ok"><use href="#i-check"/></svg><svg class="ico x"><use href="#i-x"/></svg></span><span class="what"><strong>Start Cascade</strong><span>Starting the API and the S3 endpoint</span></span><span class="t"></span></li>
+            <li><span class="state"><svg class="ico ok"><use href="#i-check"/></svg><svg class="ico x"><use href="#i-x"/></svg></span><span class="what"><strong>Check health</strong><span>Waiting for the app to answer</span></span><span class="t"></span></li>
+          </ol>
+          <div class="total"><span>Total</span><span id="total">0s</span></div>
+          <p class="alert" id="create-error" role="alert" hidden></p>
+          <form class="resume" id="resume" hidden novalidate>
+            <p id="resume-why"></p>
+            <div class="control">
+              <input class="input secret" id="resume-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk_..." aria-label="Sail API key">
+              <button class="btn btn-primary" type="submit">Continue</button>
+            </div>
+          </form>
+          <div class="nav" id="creating-nav" hidden>
+            <button class="btn btn-ghost" type="button" data-back>Back</button>
+            <span class="grow"></span>
+            <button class="btn btn-primary" type="button" id="retry">Retry</button>
+          </div>
+        </section>
+
+        <section class="step" data-step="live" hidden>
+          <div class="head">
+            <h2 class="title">Your workspace is ready</h2>
+            <p class="sub"><span data-ws></span> is running in your Sail account.</p>
+          </div>
+          <a class="btn btn-primary btn-lg btn-block" id="open-link" target="_blank" rel="noopener">Open my workspace</a>
+          <div class="field">
+            <dl class="kv">
+              <div><dt>App</dt><dd id="v-app"></dd><span class="acts"><button class="icon-btn" type="button" data-copy="app" aria-label="Copy app URL"><svg class="ico"><use href="#i-copy"/></svg></button></span></div>
+              <div><dt>S3 endpoint</dt><dd id="v-s3"></dd><span class="acts"><button class="icon-btn" type="button" data-copy="s3" aria-label="Copy S3 endpoint"><svg class="ico"><use href="#i-copy"/></svg></button></span></div>
+              <div><dt>Token</dt><dd id="v-token"></dd><span class="acts"><button class="icon-btn" type="button" id="reveal" aria-pressed="false" aria-label="Show token"><svg class="ico"><use href="#i-eye"/></svg></button><button class="icon-btn" type="button" data-copy="token" aria-label="Copy token"><svg class="ico"><use href="#i-copy"/></svg></button></span></div>
+            </dl>
+            <p class="hint">The token is shown only here. Copy it before you leave this page.</p>
+          </div>
+          <div class="tabs">
+            <div class="tablist" role="tablist" aria-label="Next steps">
+              <button type="button" role="tab" id="tab-upload" aria-controls="panel-upload" aria-selected="true">Upload a trace</button>
+              <button type="button" role="tab" id="tab-modal" aria-controls="panel-modal" aria-selected="false" tabindex="-1">Modal profiler</button>
+              <button type="button" role="tab" id="tab-agent" aria-controls="panel-agent" aria-selected="false" tabindex="-1">Agent</button>
+            </div>
+            <div class="panel" role="tabpanel" id="panel-upload" aria-labelledby="tab-upload">
+              <p>Run this from a Cascade checkout.</p>
+              <div class="code"><button class="copy" type="button" data-copy="upload" aria-label="Copy command"><svg class="ico"><use href="#i-copy"/></svg></button><pre id="c-upload"></pre></div>
+            </div>
+            <div class="panel" role="tabpanel" id="panel-modal" aria-labelledby="tab-modal" hidden>
+              <p>Traces a model on a Modal GPU and streams it in. See <a class="text" href="docs/trace-a-workload.html">Trace a workload</a>.</p>
+              <div class="code"><button class="copy" type="button" data-copy="modal" aria-label="Copy command"><svg class="ico"><use href="#i-copy"/></svg></button><pre id="c-modal"></pre></div>
+            </div>
+            <div class="panel" role="tabpanel" id="panel-agent" aria-labelledby="tab-agent" hidden>
+              <p>Export these, then give your agent the prompt.</p>
+              <div class="code"><button class="copy" type="button" data-copy="env" aria-label="Copy exports"><svg class="ico"><use href="#i-copy"/></svg></button><pre id="c-env"></pre></div>
+              <div class="code"><button class="copy" type="button" data-copy="prompt" aria-label="Copy prompt"><svg class="ico"><use href="#i-copy"/></svg></button><pre class="prose-pre" id="c-prompt"></pre></div>
+            </div>
+          </div>
+          <p class="fine">It bills while it runs. <a class="text" href="#manage" id="to-manage">Pause it</a> when you're done.</p>
+        </section>
+
+        <form class="step" data-step="manage" hidden novalidate>
+          <div class="head">
+            <h2 class="title">Manage a workspace</h2>
+            <p class="sub">Check on a workspace, or pause, resume or delete it.</p>
+          </div>
+          <div class="field">
+            <label class="label" for="m-workspace">Workspace name</label>
+            <input class="input" id="m-workspace" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="acme-lab" maxlength="32">
+          </div>
+          <div class="field">
+            <label class="label" for="m-key">Sail API key</label>
+            <div class="control">
+              <input class="input secret has-eye" id="m-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk_...">
+              <button class="eye" type="button" id="m-eye" aria-label="Show key" aria-controls="m-key" aria-pressed="false"><svg class="ico"><use href="#i-eye"/></svg></button>
+            </div>
+          </div>
+          <p class="alert" id="manage-error" role="alert" hidden></p>
+          <div class="nav">
+            <a class="btn btn-ghost" href="#welcome">Back</a>
+            <span class="grow"></span>
+            <button class="btn btn-primary" type="submit" id="m-check" disabled>Check status</button>
+          </div>
+        </form>
+
+        <section class="step" data-step="status" hidden>
+          <div class="head">
+            <div class="status-top"><h2 class="title" data-ws></h2><span class="pill" id="pill"></span></div>
+          </div>
+          <dl class="kv" id="s-rows"></dl>
+          <a class="btn btn-primary btn-block" id="s-open" target="_blank" rel="noopener" hidden>Open my workspace</a>
+          <div class="actions">
+            <button class="btn" type="button" data-act="pause">Pause</button>
+            <button class="btn" type="button" data-act="resume">Resume</button>
+            <button class="btn" type="button" data-act="status">Refresh</button>
+            <span class="grow"></span>
+            <button class="btn btn-danger" type="button" id="del-open">Delete</button>
+          </div>
+          <form class="danger-zone" id="danger" hidden novalidate>
+            <p>This terminates the workspace and its simulators, and deletes its traces and runs. Type <strong data-ws></strong> to confirm.</p>
+            <div class="control"><input class="input" id="del-confirm" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="Type the workspace name"><button class="btn btn-danger-solid" type="submit" id="del-go" disabled>Delete</button></div>
+          </form>
+          <p class="hint" id="s-line" aria-live="polite"></p>
+          <p class="alert" id="status-error" role="alert" hidden></p>
+          <div class="nav"><a class="btn btn-ghost" href="#manage">Back</a></div>
+        </section>
       </div>
-
-      <h3>Send it a trace</h3>
-      <p>Upload a trace directory you already have, from a Cascade checkout.</p>
-      <div class="code"><button class="copy" type="button" data-copy="upload-cmd">copy</button><pre id="upload-cmd"></pre></div>
-      <p>Or stream one straight from the Modal profiler. <a href="docs/trace-a-workload.html">Trace a workload</a> explains the flags.</p>
-      <div class="code"><button class="copy" type="button" data-copy="modal-cmd">copy</button><pre id="modal-cmd"></pre></div>
-
-      <h3>Hand it to an agent</h3>
-      <p>Set these in the terminal you start your agent from.</p>
-      <div class="code"><button class="copy" type="button" data-copy="env-cmd">copy</button><pre id="env-cmd"></pre></div>
-      <p>Then paste this prompt. The full setup prompt is on <a href="docs/agents.html">Use with AI agents</a>.</p>
-      <div class="code"><button class="copy" type="button" data-copy="agent-prompt">copy</button><pre id="agent-prompt"></pre></div>
-    </section>
-
-    <section id="manage" aria-labelledby="manage-h">
-      <h2 id="manage-h">manage a workspace</h2>
-      <p class="prose">Check, pause, resume or delete a workspace you made. The key works the same way as above.</p>
-      <form class="form" id="manage-form" novalidate>
-        <label class="field">
-          <span>Workspace name</span>
-          <input class="input" id="m-workspace" required autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="acme-lab" maxlength="32">
-        </label>
-        <label class="field">
-          <span>Sail API key</span>
-          <input class="input" id="m-api-key" type="password" required autocomplete="off" spellcheck="false" placeholder="sk_...">
-        </label>
-        <div class="actions">
-          <button class="btn" type="button" data-action="status">Status</button>
-          <button class="btn" type="button" data-action="pause">Pause</button>
-          <button class="btn" type="button" data-action="resume">Resume</button>
-          <button class="btn btn-danger" type="button" data-action="delete">Delete…</button>
-        </div>
-        <div class="field" id="confirm-row" hidden>
-          <span>Type the workspace name to delete it and every sandbox in it. This can't be undone.</span>
-          <div class="secret"><input class="input" id="m-confirm" autocomplete="off" spellcheck="false" autocapitalize="off"><button class="btn btn-danger" type="button" id="confirm-delete" disabled>Delete</button></div>
-        </div>
-        <p class="error" id="manage-error" role="alert" hidden></p>
-        <div class="manage-out" id="manage-out" hidden></div>
-      </form>
-    </section>
     </div>
-  </main>
+  </div>
   <footer>
     <span>Cascade, 2026</span>
-    <span><a href="docs/deploy.html" style="color: inherit">deploy from the CLI instead</a></span>
+    <a href="docs/deploy.html" style="color: inherit; text-decoration: none">Use the CLI instead</a>
   </footer>
 </div>
 <script>
@@ -138,9 +422,21 @@
 const $ = (id) => document.getElementById(id);
 const SLUG = /^[a-z0-9-]{3,32}$/;
 const POLL_MS = 3000;
-const PHASE_STEP = { creating_sandbox: 1, starting: 2, healthy: 3 };
-const PHASE_TEXT = { absent: "not created", creating_sandbox: "creating the sandbox", starting: "starting Cascade", healthy: "healthy", paused: "paused" };
-const memory = { key: "", workspace: "", image: "" };
+const FLOW = ["name", "key", "creating", "live"];
+const STEP_LABEL = { name: "Name your workspace", key: "Connect Sail", creating: "Create", live: "Open your app" };
+const PHASE_STEP = { creating_sandbox: 1, starting: 2, healthy: 4 };
+const PHASE_TEXT = { absent: "Not created", creating_sandbox: "Creating", starting: "Starting", healthy: "Running", paused: "Paused" };
+const ICON = (name) => `<svg class="ico"><use href="#i-${name}"/></svg>`;
+
+const state = { key: "", workspace: "", image: "", info: null, run: 0, manage: null };
+const remembered = {
+  get() {
+    try { return sessionStorage.getItem("cascade.start.workspace") || ""; } catch { return ""; }
+  },
+  set(name) {
+    try { name ? sessionStorage.setItem("cascade.start.workspace", name) : sessionStorage.removeItem("cascade.start.workspace"); } catch {}
+  },
+};
 
 async function call(action, body) {
   let res;
@@ -152,265 +448,450 @@ async function call(action, body) {
       cache: "no-store",
     });
   } catch {
-    throw Object.assign(new Error("Couldn't reach the Cascade server."), { retry: true });
+    throw Object.assign(new Error("Couldn't reach Cascade. Check your connection."), { retry: true });
   }
   const data = await res.json().catch(() => null);
   if (res.ok && data) return data;
-  const message = (data && data.error) || `The server answered ${res.status}.`;
+  const message = (data && data.error) || `Cascade answered ${res.status}. Try again.`;
   throw Object.assign(new Error(message), { status: res.status, retry: res.status >= 500 || res.status === 429 });
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const fmt = (s) => (s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`);
+const openUrl = (info) => `${info.app_url}/#token=${encodeURIComponent(info.token)}`;
 
 function showError(el, message) {
   el.textContent = message;
-  el.hidden = message === "";
+  el.hidden = !message;
 }
 
-function fillSlug(value) {
-  for (const el of document.querySelectorAll("[data-slug]")) el.textContent = value || "name";
-}
-
-const progress = {
-  started: 0,
-  stepStarted: [],
-  step: -1,
-  timer: 0,
-  begin() {
-    this.started = Date.now();
-    this.stepStarted = [this.started];
-    this.step = 0;
-    for (const li of document.querySelectorAll(".progress li")) {
-      li.className = "";
-      li.querySelector(".when").textContent = "";
+let current = null;
+function show(step, { back = false } = {}) {
+  const card = $("card");
+  for (const s of document.querySelectorAll("[data-step]")) {
+    const on = s.dataset.step === step;
+    s.hidden = !on;
+    s.classList.remove("enter", "back");
+    if (on && current !== null && current !== step) {
+      void s.offsetWidth;
+      s.classList.add("enter");
+      if (back) s.classList.add("back");
     }
+  }
+  const i = FLOW.indexOf(step);
+  const meter = $("meter");
+  if (i < 0) meter.setAttribute("data-off", "");
+  else meter.removeAttribute("data-off");
+  [...meter.querySelectorAll(".meter-bar span")].forEach((bar, j) => {
+    bar.classList.toggle("done", j < i);
+    bar.classList.toggle("on", j === i);
+  });
+  $("meter-label").textContent = i < 0 ? "" : `${i + 1} / ${FLOW.length}`;
+  meter.setAttribute("aria-label", i < 0 ? "" : `Step ${i + 1} of ${FLOW.length}: ${STEP_LABEL[step]}`);
+  current = step;
+  const el = document.querySelector(`[data-step="${step}"]`);
+  const first = el.querySelector("input:not([type=hidden]):not([hidden]), [data-autofocus]");
+  requestAnimationFrame(() => (first && !first.closest("[hidden]") ? first : el.querySelector(".title")).focus({ preventScroll: true }));
+}
+for (const t of document.querySelectorAll(".title")) t.tabIndex = -1;
+
+const ORDER = ["welcome", ...FLOW, "manage", "status"];
+function go(step) {
+  if (location.hash.slice(1) === step) route();
+  else location.hash = step;
+}
+let lastIndex = 0;
+function route() {
+  let step = location.hash.slice(1) || "welcome";
+  if (!ORDER.includes(step)) step = "welcome";
+  if (step !== "creating") state.run += 1;
+  if (step === "key" && !SLUG.test(state.workspace)) step = "name";
+  if ((step === "creating" || step === "live") && !state.workspace) {
+    state.workspace = remembered.get();
+    $("workspace").value = state.workspace;
+    validateName();
+    if (!state.workspace) step = "name";
+  }
+  if (step === "live" && !state.info) step = "creating";
+  if (step === "status" && !state.manage) step = "manage";
+  if (location.hash.slice(1) !== step) history.replaceState(null, "", `#${step}`);
+  const index = ORDER.indexOf(step);
+  show(step, { back: index < lastIndex });
+  lastIndex = index;
+  if (step === "creating") enterCreating();
+  if (step === "live") renderLive();
+}
+window.addEventListener("hashchange", route);
+for (const b of document.querySelectorAll("[data-go]")) b.addEventListener("click", () => go(b.dataset.go));
+const PREVIOUS = { name: "welcome", key: "name", creating: "key" };
+for (const b of document.querySelectorAll("[data-back]")) b.addEventListener("click", () => go(PREVIOUS[current] ?? "welcome"));
+
+function validateName() {
+  const v = $("workspace").value.trim();
+  const ok = SLUG.test(v);
+  const hint = $("workspace-hint");
+  hint.classList.toggle("bad", v !== "" && !ok);
+  $("workspace").setAttribute("aria-invalid", String(v !== "" && !ok));
+  hint.replaceChildren();
+  if (v === "") hint.append("3 to 32 lowercase letters, digits and hyphens.");
+  else if (ok) hint.append("Sail app", Object.assign(document.createElement("span"), { className: "chip", textContent: `cascade-${v}` }));
+  else if (/[A-Z]/.test(v)) hint.append("Use lowercase letters.");
+  else if (/[^a-z0-9-]/.test(v)) hint.append("Only lowercase letters, digits and hyphens.");
+  else hint.append(`At least 3 characters (${v.length} so far).`);
+  $("name-next").disabled = !ok;
+  return ok;
+}
+$("workspace").addEventListener("input", validateName);
+document.querySelector('[data-step="name"]').addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!validateName()) return;
+  const name = $("workspace").value.trim();
+  if (name !== state.workspace) state.info = null;
+  state.workspace = name;
+  remembered.set(name);
+  go("key");
+});
+
+function validateKey() {
+  const v = $("api-key").value.trim();
+  $("create-btn").disabled = v === "";
+  return v !== "";
+}
+$("api-key").addEventListener("input", validateKey);
+function eye(btn, input) {
+  btn.addEventListener("click", () => {
+    const shown = input.type === "text";
+    input.type = shown ? "password" : "text";
+    btn.innerHTML = ICON(shown ? "eye" : "eye-off");
+    btn.setAttribute("aria-label", shown ? "Show key" : "Hide key");
+    btn.setAttribute("aria-pressed", String(!shown));
+    input.focus();
+  });
+}
+eye($("eye"), $("api-key"));
+eye($("m-eye"), $("m-key"));
+
+document.querySelector('[data-step="key"]').addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!validateKey()) return;
+  state.key = $("api-key").value.trim();
+  state.image = $("image").value.trim();
+  state.info = null;
+  clock.reset();
+  go("creating");
+});
+
+const clock = {
+  started: 0,
+  marks: [],
+  step: 0,
+  failed: false,
+  timer: 0,
+  reset() {
+    this.started = 0;
+  },
+  begin() {
+    if (!this.started) {
+      this.started = Date.now();
+      this.marks = [this.started];
+      this.step = 0;
+    }
+    this.failed = false;
     clearInterval(this.timer);
     this.timer = setInterval(() => this.render(), 1000);
     this.render();
   },
   to(step) {
-    while (this.step < step) {
-      this.step += 1;
-      this.stepStarted[this.step] = Date.now();
-    }
+    while (this.step < step) this.marks[++this.step] = Date.now();
+    this.render();
+  },
+  stop(failed) {
+    this.failed = failed;
+    clearInterval(this.timer);
     this.render();
   },
   render() {
     const now = Date.now();
-    for (const li of document.querySelectorAll(".progress li")) {
-      const i = Number(li.dataset.step);
-      const done = i < this.step || (i === 3 && this.step === 3);
-      li.className = done ? "done" : i === this.step ? "active" : "";
-      const start = this.stepStarted[i];
-      const end = this.stepStarted[i + 1] ?? (done ? start : now);
-      li.querySelector(".when").textContent = start && i < 3 ? fmt(Math.round((end - start) / 1000)) : "";
-    }
-    $("progress-line").textContent = `elapsed ${fmt(Math.round((now - this.started) / 1000))}`;
-    if (this.step === 3) clearInterval(this.timer);
-  },
-  stop() {
-    clearInterval(this.timer);
+    document.querySelector('[data-sub="0"]').textContent = `cascade-${state.workspace}`;
+    [...$("stepper").children].forEach((li, i) => {
+      const done = i < this.step;
+      const active = i === this.step && this.started && !this.failed;
+      li.className = done ? "done" : active ? "active" : this.failed && i === this.step ? "failed" : "";
+      const start = this.marks[i];
+      const end = this.marks[i + 1] ?? now;
+      li.querySelector(".t").textContent = start && (done || active) ? fmt(Math.round((end - start) / 1000)) : "";
+    });
+    const end = this.step >= 4 ? this.marks[4] : now;
+    $("total").textContent = this.started ? fmt(Math.round((end - this.started) / 1000)) : "0s";
   },
 };
 
-async function deployUntilHealthy(onPhase) {
+function enterCreating() {
+  const needKey = !state.key;
+  $("resume").hidden = !needKey;
+  $("creating-nav").hidden = true;
+  showError($("create-error"), "");
+  if (needKey) {
+    clock.stop(false);
+    $("resume-why").textContent = `The page reloaded, and it never stores your Sail key. Paste it again to finish ${state.workspace}. Nothing is created twice.`;
+    requestAnimationFrame(() => $("resume-key").focus());
+    return;
+  }
+  void create();
+}
+$("resume").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const key = $("resume-key").value.trim();
+  if (!key) return;
+  state.key = key;
+  $("api-key").value = key;
+  validateKey();
+  $("resume-key").value = "";
+  enterCreating();
+});
+$("retry").addEventListener("click", () => enterCreating());
+
+async function create() {
+  const run = ++state.run;
+  clock.begin();
   let failures = 0;
   for (;;) {
     let info;
     try {
-      info = await call("deploy", { api_key: memory.key, workspace: memory.workspace, image: memory.image });
+      info = await call("deploy", { api_key: state.key, workspace: state.workspace, image: state.image });
       failures = 0;
     } catch (err) {
-      if (!err.retry || ++failures > 5) throw err;
-      await sleep(POLL_MS * failures);
-      continue;
+      if (run !== state.run) return;
+      if (err.retry && ++failures <= 5) {
+        await sleep(POLL_MS * failures);
+        continue;
+      }
+      clock.stop(true);
+      showError($("create-error"), err.message + (err.status === 401 ? " Go back and check the key." : err.status === 400 ? " Go back and check the name." : ""));
+      $("creating-nav").hidden = false;
+      if (err.status === 401) state.key = "";
+      return;
     }
-    onPhase(info);
-    if (info.phase === "healthy") return info;
+    if (run !== state.run) return;
+    clock.to(PHASE_STEP[info.phase] ?? clock.step);
+    if (info.phase === "healthy") {
+      state.info = info;
+      clock.stop(false);
+      await sleep(600);
+      if (run === state.run) go("live");
+      return;
+    }
     await sleep(POLL_MS);
+    if (run !== state.run) return;
   }
 }
 
-function commandBlocks(info) {
-  const app = info.app_url;
-  const s3 = info.s3_url;
-  $("upload-cmd").textContent = `uv run python scripts/upload_trace.py ./my-run --run-name my-run \\\n  --endpoint ${s3}`;
-  $("modal-cmd").textContent = [
-    "modal run accelsim_trace.py \\",
-    "  --model facebook/opt-125m \\",
-    "  --layers model.decoder.layers.10.self_attn \\",
-    `  --s3-endpoint ${s3} \\`,
-    "  --s3-bucket cascade \\",
-    "  --s3-addressing-style path",
-  ].join("\n");
-  $("env-cmd").textContent = `export CASCADE_URL=${app}\nexport CASCADE_TOKEN=${info.token}`;
+function commands(info) {
   const docs = new URL("docs/agent-prompt.md", location.href).href;
-  $("agent-prompt").textContent = [
-    `You are working with my Cascade workspace "${info.workspace}".`,
-    `CASCADE_URL is ${app}. The bearer token is in $CASCADE_TOKEN. Never print it.`,
-    `Read ${docs} and follow it: check GET $CASCADE_URL/api/health, then list my traces.`,
-  ].join("\n");
+  return {
+    app: info.app_url,
+    s3: info.s3_url,
+    token: info.token,
+    upload: `uv run python scripts/upload_trace.py ./my-run --run-name my-run \\\n  --endpoint ${info.s3_url}`,
+    modal: [
+      "modal run accelsim_trace.py \\",
+      "  --model facebook/opt-125m \\",
+      "  --layers model.decoder.layers.10.self_attn \\",
+      `  --s3-endpoint ${info.s3_url} \\`,
+      "  --s3-bucket cascade \\",
+      "  --s3-addressing-style path",
+    ].join("\n"),
+    env: `export CASCADE_URL=${info.app_url}\nexport CASCADE_TOKEN=${info.token}`,
+    prompt: [
+      `You are working with my Cascade workspace "${info.workspace}".`,
+      `CASCADE_URL is ${info.app_url}. The bearer token is in $CASCADE_TOKEN. Never print it.`,
+      `Read ${docs} and follow it. Start with GET $CASCADE_URL/api/health, then list my traces.`,
+    ].join("\n"),
+  };
 }
-
-function showDone(info) {
-  const open = `${info.app_url}/#token=${encodeURIComponent(info.token)}`;
+let copyText = {};
+function renderLive() {
+  const info = state.info;
+  copyText = commands(info);
   for (const el of document.querySelectorAll("[data-ws]")) el.textContent = info.workspace;
-  $("app-link").href = info.app_url;
-  $("app-link").textContent = info.app_url;
-  $("open-link").href = open;
-  $("token").textContent = info.token;
-  $("s3").textContent = info.s3_url;
-  commandBlocks(info);
-  $("done").hidden = false;
-  $("done").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("open-link").href = openUrl(info);
+  $("v-app").textContent = info.app_url;
+  $("v-s3").textContent = info.s3_url;
+  $("v-token").textContent = "•".repeat(24);
+  $("reveal").innerHTML = ICON("eye");
+  $("reveal").setAttribute("aria-pressed", "false");
+  $("reveal").setAttribute("aria-label", "Show token");
+  $("c-upload").textContent = copyText.upload;
+  $("c-modal").textContent = copyText.modal;
+  $("c-env").textContent = copyText.env.replace(info.token, "<your token>");
+  $("c-prompt").textContent = copyText.prompt;
+  $("m-workspace").value = info.workspace;
+  $("m-key").value = state.key;
+  validateManage();
+  requestAnimationFrame(() => $("open-link").focus({ preventScroll: true }));
 }
+$("reveal").addEventListener("click", () => {
+  const shown = $("reveal").getAttribute("aria-pressed") === "true";
+  $("v-token").textContent = shown ? "•".repeat(24) : state.info.token;
+  $("reveal").innerHTML = ICON(shown ? "eye" : "eye-off");
+  $("reveal").setAttribute("aria-pressed", String(!shown));
+  $("reveal").setAttribute("aria-label", shown ? "Show token" : "Hide token");
+});
 
-async function runCreate() {
-  $("create-btn").disabled = true;
-  showError($("progress-error"), "");
-  $("progress-actions").hidden = true;
-  $("done").hidden = true;
-  for (const el of document.querySelectorAll("[data-ws]")) el.textContent = memory.workspace;
-  $("progress").hidden = false;
-  progress.begin();
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-copy]");
+  if (!btn) return;
+  const text = copyText[btn.dataset.copy] ?? "";
   try {
-    const info = await deployUntilHealthy((i) => progress.to(PHASE_STEP[i.phase] ?? progress.step));
-    progress.to(3);
-    showDone(info);
-  } catch (err) {
-    progress.stop();
-    showError($("progress-error"), err.message);
-    $("progress-actions").hidden = false;
-  } finally {
-    $("create-btn").disabled = false;
+    await navigator.clipboard.writeText(text);
+    btn.innerHTML = ICON("check");
+    btn.setAttribute("title", "Copied");
+  } catch {
+    const target = btn.closest(".code")?.querySelector("pre") ?? btn.closest("div")?.querySelector("dd");
+    if (target) getSelection().selectAllChildren(target);
+  }
+  setTimeout(() => {
+    btn.innerHTML = ICON("copy");
+    btn.removeAttribute("title");
+  }, 1400);
+});
+
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+function selectTab(tab) {
+  for (const t of tabs) {
+    const on = t === tab;
+    t.setAttribute("aria-selected", String(on));
+    t.tabIndex = on ? 0 : -1;
+    $(t.getAttribute("aria-controls")).hidden = !on;
   }
 }
-
-$("workspace").addEventListener("input", (e) => {
-  const v = e.target.value.trim();
-  fillSlug(SLUG.test(v) ? v : "");
-  e.target.setAttribute("aria-invalid", String(v !== "" && !SLUG.test(v)));
-});
-
-$("create-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const workspace = $("workspace").value.trim();
-  const key = $("api-key").value.trim();
-  if (!SLUG.test(workspace)) return showError($("create-error"), "Use 3 to 32 lowercase letters, digits and hyphens for the name.");
-  if (key === "") return showError($("create-error"), "Paste your Sail API key.");
-  showError($("create-error"), "");
-  Object.assign(memory, { key, workspace, image: $("image").value.trim() });
-  $("m-workspace").value = workspace;
-  $("m-api-key").value = key;
-  $("progress").scrollIntoView({ behavior: "smooth", block: "start" });
-  void runCreate();
-});
-
-$("retry-btn").addEventListener("click", () => void runCreate());
-
-for (const btn of document.querySelectorAll("[data-copy]")) {
-  btn.addEventListener("click", async () => {
-    const text = $(btn.dataset.copy).textContent;
-    try {
-      await navigator.clipboard.writeText(text);
-      const was = btn.textContent;
-      btn.textContent = "copied";
-      setTimeout(() => (btn.textContent = was), 1200);
-    } catch {
-      const range = document.createRange();
-      range.selectNodeContents($(btn.dataset.copy));
-      getSelection().removeAllRanges();
-      getSelection().addRange(range);
-    }
+for (const t of tabs) {
+  t.addEventListener("click", () => selectTab(t));
+  t.addEventListener("keydown", (e) => {
+    const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!d) return;
+    const next = tabs[(tabs.indexOf(t) + d + tabs.length) % tabs.length];
+    selectTab(next);
+    next.focus();
   });
 }
 
-function manageTarget() {
-  const workspace = $("m-workspace").value.trim();
-  const key = $("m-api-key").value.trim();
-  if (!SLUG.test(workspace)) throw new Error("Use 3 to 32 lowercase letters, digits and hyphens for the name.");
-  if (key === "") throw new Error("Paste your Sail API key.");
-  return { api_key: key, workspace };
+function validateManage() {
+  const ok = SLUG.test($("m-workspace").value.trim()) && $("m-key").value.trim() !== "";
+  $("m-check").disabled = !ok;
+  return ok;
 }
-
-function renderManage(html) {
-  const out = $("manage-out");
-  out.replaceChildren(...html);
-  out.hidden = html.length === 0;
-}
-
-function el(tag, props, ...children) {
-  const node = Object.assign(document.createElement(tag), props);
-  node.append(...children);
-  return node;
-}
-
-function describe(info) {
-  const rows = [el("p", { className: "prose" }, el("span", { className: "badge" }, info.workspace), ` ${PHASE_TEXT[info.phase] ?? info.phase}`)];
-  if (info.app_url) rows.push(el("div", { className: "kv" }, el("span", {}, "app"), el("a", { href: info.app_url, target: "_blank", rel: "noopener", textContent: info.app_url })));
-  if (info.s3_url) rows.push(el("div", { className: "kv" }, el("span", {}, "s3 endpoint"), el("code", {}, info.s3_url)));
-  if (info.phase === "healthy" && info.token) {
-    rows.push(el("div", { className: "cta-row" }, el("a", { className: "btn btn-primary", href: `${info.app_url}/#token=${encodeURIComponent(info.token)}`, target: "_blank", rel: "noopener" }, "Open my workspace")));
-  }
-  return rows;
-}
-
-async function manage(action) {
+$("m-workspace").addEventListener("input", validateManage);
+$("m-key").addEventListener("input", validateManage);
+document.querySelector('[data-step="manage"]').addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!validateManage()) return;
+  const target = { api_key: $("m-key").value.trim(), workspace: $("m-workspace").value.trim() };
   showError($("manage-error"), "");
-  let target;
+  $("m-check").disabled = true;
+  $("m-check").textContent = "Checking…";
   try {
-    target = manageTarget();
+    const info = await call("status", target);
+    state.manage = { target, info };
+    go("status");
+    renderStatus();
   } catch (err) {
-    return showError($("manage-error"), err.message);
+    showError($("manage-error"), err.message);
+  } finally {
+    $("m-check").textContent = "Check status";
+    validateManage();
   }
-  if (action === "delete") {
-    $("confirm-row").hidden = false;
-    $("m-confirm").value = "";
-    $("confirm-delete").disabled = true;
-    $("m-confirm").focus();
-    return;
-  }
-  const buttons = document.querySelectorAll("#manage-form button");
+});
+
+function row(label, value) {
+  const r = document.createElement("div");
+  r.append(Object.assign(document.createElement("dt"), { textContent: label }), Object.assign(document.createElement("dd"), { textContent: value }));
+  return r;
+}
+function renderStatus() {
+  const { info } = state.manage;
+  for (const el of document.querySelectorAll("[data-ws]")) el.textContent = info.workspace;
+  $("pill").textContent = PHASE_TEXT[info.phase] ?? info.phase;
+  $("pill").dataset.phase = info.phase;
+  const rows = [row("Sail app", info.app)];
+  if (info.app_url) rows.push(row("App", info.app_url));
+  if (info.s3_url) rows.push(row("S3 endpoint", info.s3_url));
+  $("s-rows").replaceChildren(...rows);
+  $("s-open").hidden = !(info.phase === "healthy" && info.token);
+  if (info.token) $("s-open").href = openUrl(info);
+  const exists = info.phase !== "absent";
+  document.querySelector('[data-act="pause"]').disabled = !exists || info.phase === "paused";
+  document.querySelector('[data-act="resume"]').disabled = info.phase !== "paused";
+  $("del-open").disabled = !exists;
+  if (!exists) $("danger").hidden = true;
+}
+async function act(action) {
+  const { target } = state.manage;
+  const buttons = document.querySelectorAll('[data-step="status"] button');
   buttons.forEach((b) => (b.disabled = true));
-  renderManage([el("p", { className: "status-line" }, `${action}…`)]);
+  showError($("status-error"), "");
+  $("s-line").textContent = { status: "Checking…", pause: "Pausing…", resume: "Resuming…" }[action];
   try {
     if (action === "resume") {
       await call("resume", target);
-      Object.assign(memory, { key: target.api_key, workspace: target.workspace });
-      const info = await deployUntilHealthy((i) => renderManage([el("p", { className: "status-line" }, `resuming: ${PHASE_TEXT[i.phase] ?? i.phase}`)]));
-      renderManage(describe(info));
+      for (;;) {
+        const info = await call("deploy", target);
+        state.manage.info = info;
+        renderStatus();
+        if (info.phase === "healthy") break;
+        $("s-line").textContent = `Resuming. ${PHASE_TEXT[info.phase]}…`;
+        await sleep(POLL_MS);
+      }
     } else {
-      renderManage(describe(await call(action, target)));
+      state.manage.info = await call(action, target);
     }
+    $("s-line").textContent = { status: "Up to date.", pause: "Paused. It stops billing for compute until you resume it.", resume: "Running again." }[action];
   } catch (err) {
-    renderManage([]);
-    showError($("manage-error"), err.message);
+    $("s-line").textContent = "";
+    showError($("status-error"), err.message);
   } finally {
     buttons.forEach((b) => (b.disabled = false));
-    $("confirm-delete").disabled = $("m-confirm").value.trim() !== $("m-workspace").value.trim();
+    renderStatus();
+    $("del-go").disabled = $("del-confirm").value.trim() !== state.manage.info.workspace;
   }
 }
-
-for (const btn of document.querySelectorAll("[data-action]")) btn.addEventListener("click", () => void manage(btn.dataset.action));
-
-$("m-confirm").addEventListener("input", () => {
-  $("confirm-delete").disabled = $("m-confirm").value.trim() !== $("m-workspace").value.trim();
+for (const b of document.querySelectorAll("[data-act]")) b.addEventListener("click", () => void act(b.dataset.act));
+$("del-open").addEventListener("click", () => {
+  $("danger").hidden = false;
+  $("del-confirm").value = "";
+  $("del-go").disabled = true;
+  $("del-confirm").focus();
 });
-
-$("confirm-delete").addEventListener("click", async () => {
-  showError($("manage-error"), "");
-  $("confirm-delete").disabled = true;
+$("del-confirm").addEventListener("input", () => {
+  $("del-go").disabled = $("del-confirm").value.trim() !== state.manage.info.workspace;
+});
+$("danger").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const { target } = state.manage;
+  if ($("del-confirm").value.trim() !== target.workspace) return;
+  $("del-go").disabled = true;
+  showError($("status-error"), "");
   try {
-    const target = manageTarget();
-    const out = await call("delete", { ...target, confirm: $("m-confirm").value.trim() });
-    $("confirm-row").hidden = true;
-    renderManage([el("p", { className: "prose" }, el("span", { className: "badge" }, out.workspace), ` deleted. ${out.terminated} sandbox${out.terminated === 1 ? "" : "es"} terminated.`)]);
+    const out = await call("delete", { ...target, confirm: $("del-confirm").value.trim() });
+    $("danger").hidden = true;
+    state.manage.info = { workspace: target.workspace, app: `cascade-${target.workspace}`, phase: "absent" };
+    if (state.workspace === target.workspace) {
+      state.info = null;
+      remembered.set("");
+    }
+    renderStatus();
+    $("s-line").textContent = `Deleted. ${out.terminated} sandbox${out.terminated === 1 ? "" : "es"} terminated.`;
   } catch (err) {
-    showError($("manage-error"), err.message);
-    $("confirm-delete").disabled = false;
+    showError($("status-error"), err.message);
+    $("del-go").disabled = false;
   }
 });
+
+$("workspace").value = remembered.get();
+state.workspace = SLUG.test($("workspace").value) ? $("workspace").value : "";
+validateName();
+validateKey();
+route();
 </script>
 </body>
 </html>
