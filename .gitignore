@@ -60,3 +60,7 @@ Thumbs.db
 web/node_modules/
 web/dist/
 cascade/static/
+
+# Profiler
+*.tar
+/nsys
