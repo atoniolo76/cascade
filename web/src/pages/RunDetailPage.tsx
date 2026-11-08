@@ -190,16 +190,16 @@ function RunView({ live, connection, onRun }: { live: Live; connection: Connecti
         <div className="flex flex-col gap-8">
           <RunSummaryCard run={run} runState={runState} />
 
+          <StepTimingPanel runId={run.id} trace={run.trace} live={runState === "active"} series={series} />
+
           <SimGrid sims={sims} series={series} selectedId={selected?.id ?? null} onSelect={select} />
 
           <RunTimeline run={run} kernels={live.kernels} series={series} live={runState === "active"} />
 
           <div className="grid gap-8 2xl:grid-cols-2">
-            <SimTimePanel runId={run.id} sims={run.sims} kernels={live.kernels} series={series} />
-            <ComparisonPanel runId={run.id} live={runState === "active"} series={series} />
+            <SimTimePanel runId={run.id} sims={run.sims} kernels={live.kernels} series={series} realConfig={run.trace.real_gpu_config} />
+            {run.trace.real_gpu_config && <ComparisonPanel runId={run.id} live={runState === "active"} series={series.filter((s) => s.key === run.trace.real_gpu_config)} />}
           </div>
-
-          <StepTimingPanel runId={run.id} live={runState === "active"} series={series} />
 
           <OutputsPanel runId={run.id} live={runState === "active"} hasKernels={Object.keys(live.kernels).length > 0} series={series} />
         </div>

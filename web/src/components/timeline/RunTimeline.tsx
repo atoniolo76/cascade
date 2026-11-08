@@ -41,6 +41,7 @@ export function RunTimeline({ run, kernels, series, live }: { run: RunDetail; ke
         }
       />
       <TimelineView
+        showDifferences={false}
         tracks={tracks}
         linkable
         meta={(t) => trackMeta(t, model)}

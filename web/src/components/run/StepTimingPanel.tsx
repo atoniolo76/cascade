@@ -1,85 +1,71 @@
-import type { ReactNode } from "react";
 import { Footprints } from "lucide-react";
-import { useStepTimelines } from "../../api/queries";
-import { relativeError } from "../../domain/accuracy";
-import { formatInt, formatNs, formatPercent, plural } from "../../domain/format";
+import { useRuns, useSampleStepTimelines, useStepTimelines, useTrace, useTraces } from "../../api/queries";
+import type { TraceSummary } from "../../api/types";
+import { architectureTimingRows, latestSampleRuns, TIMING_METRICS } from "../../domain/stepTiming";
 import type { Series } from "../../domain/stats";
-import { stepTimingByConfig, type ConfigStepTiming, type Predicted } from "../../domain/stepTiming";
-import { ErrorPill } from "../charts/ChartParts";
-import { Panel, PanelHeader } from "../ui";
+import { ErrorNote, Panel, PanelHeader } from "../ui";
 import { ICON } from "../styles";
 
-const KIND_LABEL = { prefill: "Prefill wall", decode: "Decode wall" } as const;
-
-/** Shown only once a sim has posted step timing, which needs the trace's corrected timeline and kernel mapping. */
-export function StepTimingPanel({ runId, live, series }: { runId: string; live: boolean; series: readonly Series[] }) {
-  const configs = stepTimingByConfig(useStepTimelines(runId, { live }).data ?? []);
-  if (configs.length === 0) return null;
+export function StepTimingPanel({ runId, trace, live, series }: { runId: string; trace: TraceSummary; live: boolean; series: readonly Series[] }) {
+  const timelines = useStepTimelines(runId, { live });
+  const traces = useTraces();
+  const runs = useRuns();
+  const detail = useTrace(trace.id);
+  const current = traces.data?.find((t) => t.id === trace.id) ?? trace;
+  const sampleRuns = latestSampleRuns(current, traces.data ?? [], runs.data ?? []);
+  const samples = useSampleStepTimelines(sampleRuns.map((r) => r.id));
+  const sources = [{ trace: current, timelines: timelines.data ?? [] }, ...sampleRuns.flatMap((run, i) => {
+    const other = traces.data?.find((t) => t.id === run.trace_id);
+    return other ? [{ trace: other, timelines: samples[i]?.data ?? [] }] : [];
+  })];
+  const pending = detail.data?.metadata?.sample_pending_configs;
+  const pendingConfigs = current.sample_set && Array.isArray(pending) ? pending.filter((c): c is string => typeof c === "string") : [];
+  const rows = architectureTimingRows(current, sources, traces.data ?? [current], pendingConfigs);
+  if (!(timelines.data?.length)) return timelines.isError ? <ErrorNote error={timelines.error} /> : null;
+  const failed = samples.find((s) => s.isError);
   return (
     <Panel className="min-w-0">
       <PanelHeader
         icon={<Footprints {...ICON} />}
-        title="Step timing"
-        subtitle="Predicted against real step wall time: simulated kernels plus the profiler's corrected host time"
+        title="Architecture timing"
+        subtitle="Mean timings in ms · full requests and per-step prefill / decode · simulated kernels + corrected host time"
       />
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-3 p-5">
-        {configs.map((c) => (
-          <StepCard key={c.config} timing={c} series={series.find((s) => s.key === c.config)} />
-        ))}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1060px] text-left text-[12px] tabular-nums">
+          <thead className="border-b border-border text-muted">
+            <tr>
+              <th className="min-w-[285px] px-5 py-3 font-medium">Hardware / simulation</th>
+              {TIMING_METRICS.map((m) => <th key={m.key} className="px-3 py-3 text-right font-medium whitespace-nowrap">{m.label}</th>)}
+              <th className="px-5 py-3 text-right font-medium whitespace-nowrap">E2E error</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.key} className={row.kind === "measured" ? "border-b border-border bg-surface-2/50" : "border-b border-border last:border-0"}>
+                <th scope="row" className="px-5 py-4 font-normal">
+                  <div className="flex items-center gap-2 font-medium text-fg">
+                    {row.kind === "simulated" && <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: series.find((s) => s.key === row.config)?.color ?? "var(--series-ref)" }} />}
+                    <span className={row.kind === "measured" ? "" : "font-mono"}>{row.label}</span>
+                  </div>
+                  <div className="mt-1 max-w-[300px] text-[11px] leading-4 text-muted">{row.note}</div>
+                </th>
+                {row.kind === "pending" ? <td colSpan={8} className="px-5 py-4 text-muted">Awaiting native capture</td> : <>
+                  {TIMING_METRICS.map((m) => <td key={m.key} className="px-3 py-4 text-right text-fg-2">{row.values[m.key]?.toFixed(2) ?? "—"}</td>)}
+                  <td className="px-5 py-4 text-right font-medium text-fg">
+                    {row.e2eError !== null ? <span className="rounded-md bg-surface-2 px-2 py-1">{row.e2eError >= 0 ? "+" : ""}{(row.e2eError * 100).toFixed(2)}%</span> : null}
+                  </td>
+                </>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="border-t border-border px-5 py-3 text-[12px] leading-5 text-muted">
+        Error is shown only for {current.real_gpu_config ?? "an explicitly identified real-hardware config (not supplied)"} on the current trace.
+        {current.sample_set && " Other native traces use their latest succeeded run; their metrics have no error comparison here."}
+        {samples.some((s) => s.isPending) && " Loading other native traces…"}
+        {failed && <ErrorNote error={failed.error} />}
       </div>
     </Panel>
-  );
-}
-
-function Row({ label, value, unit }: { label: string; value: Predicted; unit: (n: number) => string }) {
-  return (
-    <div className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-baseline gap-x-3">
-      <dt className="text-muted">{label}</dt>
-      <dd className="flex min-w-0 items-baseline gap-1.5 tabular-nums">
-        <span className="shrink-0 text-fg-2">{unit(value.predicted)}</span>
-        {value.real !== null && <span className="truncate text-muted">vs. {unit(value.real)} real</span>}
-      </dd>
-      <dd>
-        <ErrorPill error={relativeError(value.predicted, value.real)} />
-      </dd>
-    </div>
-  );
-}
-
-function StepCard({ timing, series }: { timing: ConfigStepTiming; series: Series | undefined }) {
-  const { stepError, coverage, ttft } = timing;
-  let headline: ReactNode = <p className="mt-2 text-[13px] text-muted">No real steps to compare against.</p>;
-  if (stepError !== null) {
-    headline = (
-      <div className="mt-2 flex items-baseline gap-2">
-        <span className="text-[26px] leading-8 font-medium tracking-tight text-fg">{(stepError.mape * 100).toFixed(1)}%</span>
-        <span className="text-[12px] text-muted">mean abs. step error · {plural(stepError.steps, "step")}</span>
-      </div>
-    );
-  }
-  return (
-    <div className="min-w-0 rounded-[14px] bg-card px-4 py-3.5 ring-1 ring-border">
-      <div className="flex items-center gap-2 text-[12px] text-fg-2">
-        <span aria-hidden className="h-[7px] w-3 shrink-0 rounded-[2px]" style={{ background: series?.color ?? "var(--series-ref)" }} />
-        <span className="truncate font-mono">{series?.label ?? timing.config}</span>
-        {timing.replicas > 1 && (
-          <span className="shrink-0 text-muted" title="Figures come from the lowest replica; every replica replays the same trace">
-            · {timing.replicas} replicas
-          </span>
-        )}
-      </div>
-      {headline}
-      <dl className="mt-3 flex flex-col gap-1 text-[12px] leading-5">
-        {timing.kinds.map((k) => (
-          <Row key={k.kind} label={KIND_LABEL[k.kind]} value={k} unit={formatNs} />
-        ))}
-        {ttft !== null && <Row label="TTFT" value={ttft} unit={(msValue) => formatNs(msValue * 1e6)} />}
-      </dl>
-      {coverage !== null && (
-        <p className="mt-3 border-t border-border pt-2.5 text-[12px] leading-5 text-muted tabular-nums" title="Kernels without a simulated time keep their measured duration">
-          Simulated {formatInt(coverage.simulatedKernels)} of {formatInt(coverage.kernels)} kernels ({formatPercent(coverage.kernelFraction, 1)}), {formatPercent(coverage.gpuTimeFraction, 1)} of real GPU time
-        </p>
-      )}
-    </div>
   );
 }

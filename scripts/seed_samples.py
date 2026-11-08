@@ -39,12 +39,13 @@ def stage_run(source: Path, stage: Path) -> None:
         target.symlink_to(path.resolve())
 
 
-def upload(stage: Path, entry: dict, sample_set: str, s3: str) -> None:
+def upload(stage: Path, entry: dict, sample_set: str, s3: str, pending: list[str]) -> None:
     metadata = {
         key: entry[key]
         for key in ("trace_gpu_arch", "model", "gpu", "real_gpu_config", "sample_sim_configs")
     }
     metadata.update(suggested_sim_config=entry["real_gpu_config"], sample_set=sample_set)
+    metadata["sample_pending_configs"] = pending
     command = [
         sys.executable,
         str(ROOT / "scripts/upload_trace.py"),
@@ -86,7 +87,13 @@ def seed(api: httpx.Client, manifest: dict, sources: dict[str, Path], s3: str, t
         with tempfile.TemporaryDirectory(prefix="cascade-samples-", dir=Path.home()) as tmp:
             stage = Path(tmp)
             stage_run(source, stage)
-            upload(stage, entry, manifest["id"], s3)
+            pending = [
+                c
+                for e in manifest["entries"]
+                if e["status"] == "pending"
+                for c in e["sample_sim_configs"]
+            ]
+            upload(stage, entry, manifest["id"], s3, pending)
         print(f"uploaded {entry['id']}; waiting for ready", flush=True)
         wait_ready(api, entry["id"], timeout)
         response = api.post(

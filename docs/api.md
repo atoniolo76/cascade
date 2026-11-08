@@ -81,6 +81,13 @@ Uploads use `upload_trace.py`, with `metadata.json` last. Metadata includes `tra
 and details; the full original metadata is also on details. Launch defaults select all compatible
 sample configs, falling back to the suggested compatible config for non-sample traces.
 
+The seed also writes `sample_pending_configs` in detail metadata. Architecture timing hides a
+pending entry once a trace in the same set identifies that config as its `real_gpu_config`.
+It includes the latest succeeded run for each other native trace in the set, with its measured
+reference and simulated metrics. Signed E2E error is shown **only** for the current trace's
+`real_gpu_config` on that trace; other traces and counterfactual configs are metrics-only.
+Without an explicit `real_gpu_config`, no error is inferred from the suggested launch config.
+
 For local development, build the web app (`cd web && npm ci && npm run build`), install `rclone`,
 and start `cascade serve --port 8030 --s3-port 9030` with `CASCADE_DATA_DIR`, `CASCADE_TOKEN`,
 `CASCADE_PUBLIC_URL=http://127.0.0.1:8030`, and `CASCADE_ACCELSIM_DIR` pointing at your setup.

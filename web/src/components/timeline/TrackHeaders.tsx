@@ -29,6 +29,7 @@ const ICON_BTN =
 
 export function TrackHeaders({
   rows,
+  showDifferences,
   meta,
   compact,
   focusId,
@@ -43,6 +44,7 @@ export function TrackHeaders({
   onToggleExpand,
 }: {
   rows: readonly Row[];
+  showDifferences: boolean;
   meta: (track: Track) => TrackMeta;
   compact: boolean;
   focusId: string | null;
@@ -115,7 +117,7 @@ export function TrackHeaders({
                 <span className="flex min-w-0 items-center gap-1.5 text-[11px] leading-4 tabular-nums">
                   <span className="shrink-0 text-fg-2">{formatNs(track.total)}</span>
                   <span className="shrink-0">
-                    <Delta track={track} reference={ref} />
+                    {showDifferences && <Delta track={track} reference={ref} />}
                   </span>
                   {sub !== undefined && <span className="min-w-0 truncate text-faint">· {sub}</span>}
                 </span>

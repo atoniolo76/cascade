@@ -56,6 +56,7 @@ def test_seed_uploads_metadata_launches_all_configs_and_skips_pending(source, ca
         "sample_set=cascade-samples",
         "real_gpu_config=SM90_H100",
         'sample_sim_configs=["SM90_H100", "SM90_H200"]',
+        'sample_pending_configs=["SM80_A100"]',
         "trace_gpu_arch=sm_90",
         "model=facebook/opt-125m",
         "gpu=NVIDIA H100 80GB HBM3",

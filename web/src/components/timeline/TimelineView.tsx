@@ -26,6 +26,7 @@ export function TimelineView({
   meta,
   maxTrackHeight,
   autoFocus = false,
+  showDifferences = true,
 }: {
   tracks: readonly Track[];
   linkable: boolean;
@@ -33,6 +34,7 @@ export function TimelineView({
   meta: (track: Track) => TrackMeta;
   maxTrackHeight: string;
   autoFocus?: boolean;
+  showDifferences?: boolean;
 }) {
   const [mode, setMode] = useState<Mode>("time");
   const [compact, setCompact] = useState(false);
@@ -201,6 +203,7 @@ export function TimelineView({
 
         <div data-tl="scroller" className="col-span-2 grid grid-cols-[var(--hdr)_minmax(0,1fr)] overflow-x-hidden overflow-y-auto overscroll-y-contain" style={{ maxHeight: maxTrackHeight }}>
           <TrackHeaders
+            showDifferences={showDifferences}
             rows={rows}
             meta={meta}
             compact={compact}
@@ -255,7 +258,7 @@ export function TimelineView({
         </div>
       </div>
 
-      <Inspector ctl={ctl} meta={meta} linkable={linkable} />
+      <Inspector ctl={ctl} meta={meta} linkable={linkable} showDifferences={showDifferences} />
 
       <div data-tl="hover-card" className="pointer-events-none absolute top-0 left-0 z-20 will-change-transform" style={{ visibility: coarse.hover ? "visible" : "hidden" } satisfies CSSProperties}>
         {coarse.hover && <HoverCard hover={coarse.hover} />}
@@ -263,4 +266,3 @@ export function TimelineView({
     </div>
   );
 }
-
