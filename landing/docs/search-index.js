@@ -205,6 +205,11 @@ window.DOCS_INDEX = [
 "g": "Trace a workload"
 },
 {
+"t": "Profile, trace and simulate in your own Modal app",
+"u": "trace-a-workload.html#profile-trace-and-simulate-in-your-own-modal-app",
+"g": "Trace a workload"
+},
+{
 "t": "Traces",
 "u": "traces.html",
 "g": "Guides"
