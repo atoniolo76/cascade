@@ -22,7 +22,7 @@ export function StepTimingPanel({ runId, live, series }: { runId: string; live: 
         title="Step timing"
         subtitle="Predicted against real step wall time: simulated kernels plus the profiler's corrected host time"
       />
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-3 p-5">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-3 p-5">
         {configs.map((c) => (
           <StepCard key={c.config} timing={c} series={series.find((s) => s.key === c.config)} />
         ))}
