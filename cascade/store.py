@@ -305,11 +305,9 @@ class Store:
         )
         return [_sim_summary(r) for r in rows]
 
-    def sim_ids_in(self, states: set[SimState]) -> list[str]:
-        marks = ", ".join("?" for _ in states)
-        return [
-            r["id"] for r in self._all(f"SELECT id FROM sims WHERE state IN ({marks})", *states)
-        ]
+    def run_ids_with_pending_sims(self) -> list[str]:
+        rows = self._all("SELECT DISTINCT run_id FROM sims WHERE state = ?", SimState.pending)
+        return [r["run_id"] for r in rows]
 
     def transition_sim(
         self,
