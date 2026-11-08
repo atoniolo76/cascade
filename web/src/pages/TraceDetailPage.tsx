@@ -1,13 +1,15 @@
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
-import { Play } from "lucide-react";
-import { useTrace } from "../api/queries";
+import { Activity, Braces, Hash, Layers, Settings2 } from "lucide-react";
+import { useRuns, useTrace, useTraces } from "../api/queries";
 import type { KernelLaunch, TraceDetail } from "../api/types";
 import { PageHeader } from "../components/AppShell";
+import { QuickLaunch } from "../components/QuickLaunch";
+import { RunsTable } from "../components/RunsTable";
 import { TraceState } from "../components/TraceState";
-import { Button, Card, CardHeader, EmptyState, ErrorNote, Mono, Skeleton, Stat } from "../components/ui";
-import { formatAge, formatBytes, formatDims, formatInt, ms } from "../domain/format";
-import { useNow } from "../hooks/useNow";
+import { Card, CopyButton, EmptyState, ErrorNote, Mono, Panel, PanelHeader, RelTime, Skeleton, Stat, Th, Button } from "../components/ui";
+import { ICON, THEAD, buttonClass } from "../components/styles";
+import { formatBytes, formatDims, formatInt } from "../domain/format";
 import { paths } from "../paths";
 
 const PAGE = 100;
@@ -17,19 +19,37 @@ const HIDDEN_METADATA = new Set(["files", "model", "layers", "gpu", "trace_gpu_a
 export function TraceDetailPage() {
   const { traceId = "" } = useParams();
   const trace = useTrace(traceId);
+  const traces = useTraces();
+  const order = traces.data?.map((t) => t.id) ?? [];
+  const at = order.indexOf(traceId);
+  const neighbor = (i: number) => {
+    const id = at === -1 ? undefined : order[i];
+    return id === undefined ? undefined : paths.trace(id);
+  };
 
   return (
     <>
       <PageHeader
-        eyebrow={
-          <Link to={paths.traces} className="transition-colors duration-150 hover:text-fg">
-            Traces
-          </Link>
+        crumbs={[{ label: "Traces", to: paths.traces }, { label: <span className="block truncate">{trace.data?.model ?? traceId}</span> }]}
+        status={trace.data ? <TraceState trace={trace.data} detail={false} /> : <Skeleton className="h-5 w-20" />}
+        actions={
+          trace.data && (
+            <>
+              <Link to={paths.newRun(trace.data.id)} aria-disabled={trace.data.state !== "ready"} className={buttonClass({})}>
+                <Settings2 className="size-4" {...ICON} />
+                Configure run
+              </Link>
+              <QuickLaunch trace={trace.data} />
+            </>
+          )
         }
-        title={<span className="font-mono text-[16px] leading-6 font-medium break-all">{traceId}</span>}
-        subtitle={trace.data ? <TraceState trace={trace.data} /> : <Skeleton className="h-5 w-24 rounded-full" />}
-        actions={<NewRunAction trace={trace.data} />}
-      />
+        neighbors={{ prev: neighbor(at - 1), next: neighbor(at + 1), noun: "trace" }}
+      >
+        <div className="flex min-w-0 items-center gap-1">
+          <Mono className="text-[13px] text-muted">{traceId}</Mono>
+          <CopyButton value={traceId} label="trace id" />
+        </div>
+      </PageHeader>
       {trace.isError && trace.data === undefined ? (
         <ErrorNote error={trace.error} />
       ) : trace.data === undefined ? (
@@ -41,56 +61,61 @@ export function TraceDetailPage() {
   );
 }
 
-function NewRunAction({ trace }: { trace: TraceDetail | undefined }) {
-  const ready = trace?.state === "ready";
-  if (!ready) {
-    return (
-      <span title={trace ? `Trace is ${trace.state}; runs need a ready trace` : undefined}>
-        <Button variant="primary" disabled>
-          <Play className="size-3.5" />
-          New run
-        </Button>
-      </span>
-    );
-  }
-  return (
-    <Link
-      to={paths.newRun(trace.id)}
-      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-[13px] font-medium text-accent-fg shadow-card transition-colors duration-150 hover:bg-accent-hover"
-    >
-      <Play className="size-3.5" />
-      New run
-    </Link>
-  );
-}
-
 function TraceBody({ trace }: { trace: TraceDetail }) {
-  const now = useNow();
+  const runs = useRuns();
+  const mine = runs.data?.filter((r) => r.trace_id === trace.id);
   return (
-    <div className="flex flex-col gap-6">
-      <Card className="grid grid-cols-2 gap-x-6 gap-y-4 p-4 sm:grid-cols-3 lg:grid-cols-6">
-        <Stat label="Model" value={trace.model ?? "—"} />
+    <div className="flex flex-col gap-8">
+      <Card className="grid grid-cols-2 gap-x-8 gap-y-5 p-5 sm:grid-cols-3 sm:p-6 lg:grid-cols-6">
         <Stat label="Source GPU" value={trace.source_gpu ?? "—"} />
-        <Stat label="Arch" value={<span className="font-mono text-[12px]">{trace.trace_gpu_arch}</span>} />
-        <Stat label="Suggested config" value={<span className="font-mono text-[12px]">{trace.suggested_sim_config ?? "—"}</span>} />
-        <Stat label="Kernels · size" value={`${formatInt(trace.kernel_count)} · ${formatBytes(trace.bytes)}`} />
-        <Stat label="Real timing · age" value={`${trace.has_real_timing ? "Captured" : "Not captured"} · ${formatAge(now - ms(trace.created_at))}`} />
+        <Stat label="Arch" value={<span className="font-mono text-[14px]">{trace.trace_gpu_arch}</span>} />
+        <Stat label="Suggested config" value={<span className="font-mono text-[14px]">{trace.suggested_sim_config ?? "—"}</span>} />
+        <Stat label="Kernels" value={formatInt(trace.kernel_count)} />
+        <Stat label="Size" value={formatBytes(trace.bytes)} />
+        <Stat label="Created" value={<RelTime iso={trace.created_at} />} />
         <Stat
           className="col-span-2 sm:col-span-3 lg:col-span-6"
           label="Layers"
-          value={trace.layers.length > 0 ? <Mono className="text-fg-2">{trace.layers.join(", ")}</Mono> : "—"}
+          value={trace.layers.length > 0 ? <Mono className="text-[13px] text-fg-2">{trace.layers.join(", ")}</Mono> : "—"}
         />
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <Card className="min-w-0 self-start">
-          <CardHeader title="Metadata" subtitle="From the profiler's metadata.json" />
+      <Panel className="overflow-hidden">
+        <PanelHeader
+          icon={<Activity {...ICON} />}
+          title="Runs of this trace"
+          subtitle={trace.has_real_timing ? "Real hardware timing captured, so each run compares against it" : "No real hardware timing for this trace yet"}
+          actions={
+            mine !== undefined && mine.length > 0 ? (
+              <Link to={paths.runsForTrace(trace.id)} className="text-[14px] font-medium text-link hover:underline">
+                Open in Runs
+              </Link>
+            ) : undefined
+          }
+        />
+        {mine === undefined ? (
+          <div className="p-5">
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : mine.length === 0 ? (
+          <EmptyState
+            title="No runs yet"
+            body={trace.state === "ready" ? "Run it on the suggested config, or configure several GPUs and replicas." : "Runs can start once the trace is ready."}
+          />
+        ) : (
+          <RunsTable runs={mine} showTrace={false} />
+        )}
+      </Panel>
+
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <Panel className="min-w-0 self-start overflow-hidden">
+          <PanelHeader icon={<Braces {...ICON} />} title="Metadata" subtitle="From the profiler's metadata.json" />
           {trace.metadata === null ? (
             <EmptyState title="No metadata yet" body="metadata.json is uploaded last, once tracing finishes." />
           ) : (
             <MetadataList metadata={trace.metadata} />
           )}
-        </Card>
+        </Panel>
         <KernelTable kernels={trace.kernels} />
       </div>
     </div>
@@ -160,31 +185,29 @@ function MetadataList({ metadata }: { metadata: Record<string, unknown> }) {
   return (
     <dl className="divide-y divide-border">
       {entries.map(([key, value]) => (
-        <div key={key} className="grid grid-cols-1 gap-1 px-4 py-2.5 sm:grid-cols-[148px_minmax(0,1fr)] sm:gap-4">
-          <dt className="text-[12px] leading-5 text-muted">{humanize(key)}</dt>
-          <dd className="min-w-0 text-[13px] leading-5">
+        <div key={key} className="grid grid-cols-1 gap-1 px-5 py-3 sm:grid-cols-[148px_minmax(0,1fr)] sm:gap-4">
+          <dt className="text-[13px] leading-5 text-muted">{humanize(key)}</dt>
+          <dd className="min-w-0 text-[14px] leading-5 text-fg-2">
             <MetadataValue value={value} />
           </dd>
         </div>
       ))}
       {Array.isArray(files) && (
-        <div className="grid grid-cols-1 gap-1 px-4 py-2.5 sm:grid-cols-[148px_minmax(0,1fr)] sm:gap-4">
-          <dt className="text-[12px] leading-5 text-muted">Files</dt>
-          <dd className="text-[13px] leading-5 tabular-nums">{formatInt(files.length)} listed</dd>
+        <div className="grid grid-cols-1 gap-1 px-5 py-3 sm:grid-cols-[148px_minmax(0,1fr)] sm:gap-4">
+          <dt className="text-[13px] leading-5 text-muted">Files</dt>
+          <dd className="text-[14px] leading-5 text-fg-2 tabular-nums">{formatInt(files.length)} listed</dd>
         </div>
       )}
     </dl>
   );
 }
 
-const TH = "px-3 py-2.5 text-[11px] font-medium tracking-wide text-muted uppercase whitespace-nowrap";
-
 function KernelTable({ kernels }: { kernels: KernelLaunch[] }) {
   const [shown, setShown] = useState(PAGE);
   const sorted = kernels.toSorted((a, b) => a.kernel_id - b.kernel_id);
   return (
-    <Card className="min-w-0 self-start overflow-hidden">
-      <CardHeader title="Kernel launches" subtitle={`${formatInt(kernels.length)} launches on the original hardware`} />
+    <Panel className="min-w-0 self-start overflow-hidden">
+      <PanelHeader icon={<Layers {...ICON} />} title="Kernel launches" subtitle={`${formatInt(kernels.length)} launches on the original hardware`} />
       {kernels.length === 0 ? (
         <EmptyState title="No kernels yet" body="Launch dimensions appear once the stats file is uploaded." />
       ) : (
@@ -197,28 +220,30 @@ function KernelTable({ kernels }: { kernels: KernelLaunch[] }) {
               <col className="hidden w-[108px] sm:table-column" />
               <col className="w-[96px] sm:w-[112px]" />
             </colgroup>
-            <thead className="border-b border-border bg-surface-2/50">
+            <thead className={THEAD}>
               <tr>
-                <th className={`${TH} text-right`}>ID</th>
-                <th className={`${TH} text-left`}>Kernel</th>
-                <th className={`${TH} hidden text-left sm:table-cell`}>Grid</th>
-                <th className={`${TH} hidden text-left sm:table-cell`}>Block</th>
-                <th className={`${TH} text-right`}>Instructions</th>
+                <Th icon={<Hash {...ICON} />} className="text-right">
+                  ID
+                </Th>
+                <Th>Kernel</Th>
+                <Th className="hidden sm:table-cell">Grid</Th>
+                <Th className="hidden sm:table-cell">Block</Th>
+                <Th className="text-right">Instructions</Th>
               </tr>
             </thead>
             <tbody className="text-[13px]">
               {sorted.slice(0, shown).map((k) => (
-                <tr key={k.kernel_id} className="h-10 border-b border-border last:border-b-0">
-                  <td className="px-3 text-right text-muted tabular-nums">{k.kernel_id}</td>
-                  <td className="px-3 py-2 sm:py-0">
+                <tr key={k.kernel_id} className="h-11 border-b border-border last:border-b-0">
+                  <td className="px-4 text-right text-muted tabular-nums">{k.kernel_id}</td>
+                  <td className="px-4 py-2 sm:py-0">
                     <Mono>{k.name}</Mono>
                     <span className="block font-mono text-[11px] text-muted sm:hidden">
                       {formatDims(k.grid)} · {formatDims(k.block)}
                     </span>
                   </td>
-                  <td className="hidden px-3 font-mono text-[12px] whitespace-nowrap text-fg-2 sm:table-cell">{formatDims(k.grid)}</td>
-                  <td className="hidden px-3 font-mono text-[12px] whitespace-nowrap text-fg-2 sm:table-cell">{formatDims(k.block)}</td>
-                  <td className="px-3 text-right tabular-nums">{k.instructions === null ? <span className="text-faint">—</span> : formatInt(k.instructions)}</td>
+                  <td className="hidden px-4 font-mono text-[12px] whitespace-nowrap text-fg-2 sm:table-cell">{formatDims(k.grid)}</td>
+                  <td className="hidden px-4 font-mono text-[12px] whitespace-nowrap text-fg-2 sm:table-cell">{formatDims(k.block)}</td>
+                  <td className="px-4 text-right tabular-nums">{k.instructions === null ? <span className="text-faint">—</span> : formatInt(k.instructions)}</td>
                 </tr>
               ))}
             </tbody>
@@ -238,7 +263,7 @@ function KernelTable({ kernels }: { kernels: KernelLaunch[] }) {
           )}
         </div>
       )}
-    </Card>
+    </Panel>
   );
 }
 
@@ -253,9 +278,9 @@ function DetailSkeleton() {
           </div>
         ))}
       </Card>
-      <Card className="h-80">
+      <Panel className="h-80">
         <span />
-      </Card>
+      </Panel>
     </div>
   );
 }

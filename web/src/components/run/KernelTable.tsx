@@ -3,7 +3,7 @@ import { formatNs } from "../../domain/format";
 import { REAL_SERIES, type KernelRow, type Series } from "../../domain/stats";
 import { Mono } from "../ui";
 
-const TH = "px-3 py-2 text-[11px] font-medium tracking-wide text-muted uppercase whitespace-nowrap";
+const TH = "h-10 px-3 text-[12px] font-normal text-muted whitespace-nowrap";
 
 export function KernelValueTable({
   rows,
@@ -18,7 +18,7 @@ export function KernelValueTable({
 }) {
   return (
     <div className="overflow-auto overscroll-contain" style={{ maxHeight }}>
-      <table className="w-full table-fixed border-collapse text-[12px]" style={{ minWidth: 300 + series.length * (extra ? 150 : 112) }}>
+      <table className="w-full table-fixed border-collapse text-[13px]" style={{ minWidth: 300 + series.length * (extra ? 150 : 112) }}>
         <colgroup>
           <col className="w-12" />
           <col />
@@ -26,14 +26,14 @@ export function KernelValueTable({
             <col key={s.key} style={{ width: s.key === REAL_SERIES.key ? 128 : extra ? 150 : 112 }} />
           ))}
         </colgroup>
-        <thead className="sticky top-0 z-10 bg-surface">
+        <thead className="sticky top-0 z-10 bg-surface-2">
           <tr className="border-b border-border">
             <th className={`${TH} text-right`}>#</th>
             <th className={`${TH} text-left`}>Kernel</th>
             {series.map((s) => (
               <th key={s.key} className={`${TH} text-right`}>
                 <span className="inline-flex max-w-full items-center gap-1.5">
-                  <span className="size-2 shrink-0 rounded-[2px]" style={{ background: s.color }} />
+                  <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: s.color }} />
                   <span className="truncate font-mono normal-case">{s.label}</span>
                 </span>
               </th>
@@ -42,15 +42,15 @@ export function KernelValueTable({
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.index} className="h-9 border-b border-border last:border-b-0">
+            <tr key={r.index} className="h-10 border-b border-border last:border-b-0">
               <td className="px-3 text-right text-muted tabular-nums">{r.index}</td>
               <td className="max-w-0 px-3">
-                <Mono className="text-[11px] text-fg-2">{r.name}</Mono>
+                <Mono className="text-[12px] text-fg-2">{r.name}</Mono>
               </td>
               {series.map((s) => {
                 const v = r.values[s.key];
                 return (
-                  <td key={s.key} className="px-3 text-right whitespace-nowrap tabular-nums">
+                  <td key={s.key} className="px-3 text-right whitespace-nowrap text-fg tabular-nums">
                     {v === null || v === undefined ? <span className="text-faint">—</span> : formatNs(v)}
                     {extra?.(r, s)}
                   </td>

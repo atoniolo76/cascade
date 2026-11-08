@@ -1,71 +1,115 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Check, Inbox } from "lucide-react";
+import { Check, CircleDot, Clock, Cpu, HardDrive, Hash, Layers, Send, Timer } from "lucide-react";
 import { useTraces } from "../api/queries";
 import type { TraceSummary } from "../api/types";
 import { PageHeader } from "../components/AppShell";
-import { TraceState } from "../components/TraceState";
-import { Card, EmptyState, ErrorNote, Mono, Skeleton } from "../components/ui";
-import { formatAge, formatBytes, ms } from "../domain/format";
-import { useNow } from "../hooks/useNow";
+import { QuickLaunch } from "../components/QuickLaunch";
+import { SendTraceGuide } from "../components/SendTraceGuide";
+import { TraceIcon, TraceState } from "../components/TraceState";
+import { Button, Card, Dash, ErrorNote, Panel, RelTime, SectionTitle, Skeleton, Th } from "../components/ui";
+import { ICON, ROW, THEAD } from "../components/styles";
+import { formatBytes, formatInt } from "../domain/format";
 import { paths } from "../paths";
 
-const HEAD = "px-3 py-2.5 text-left text-[11px] font-medium tracking-wide text-muted uppercase whitespace-nowrap";
-const CELL = "px-3 h-12 align-middle";
+const CELL = "h-[60px] px-4 align-middle";
 
 export function TracesPage() {
   const traces = useTraces();
+  const [guideOpen, setGuideOpen] = useState(false);
+  const empty = traces.data?.length === 0;
+
   return (
     <>
-      <PageHeader title="Traces" subtitle="Kernel traces captured on real hardware, ready to replay in Accel-Sim." />
-      {traces.isError && traces.data === undefined ? (
-        <ErrorNote error={traces.error} />
-      ) : (
-        <Card className="overflow-hidden">
-          {traces.data === undefined ? (
-            <SkeletonRows />
-          ) : traces.data.length === 0 ? (
-            <EmptyState
-              icon={<Inbox className="size-5" />}
-              title="No traces yet"
-              body="Point the profiler at this app's S3 endpoint. A trace shows up here as soon as its first file lands."
-            />
-          ) : (
-            <TraceTable traces={traces.data} />
-          )}
+      <PageHeader
+        crumbs={[{ label: "Traces" }]}
+        status={traces.data !== undefined && traces.data.length > 0 ? <span className="text-[15px] text-muted tabular-nums">{formatInt(traces.data.length)}</span> : undefined}
+        actions={
+          !empty && (
+            <Button
+              aria-expanded={guideOpen}
+              onClick={() => {
+                setGuideOpen((o) => !o);
+              }}
+            >
+              <Send className="size-4" {...ICON} />
+              Send a trace
+            </Button>
+          )
+        }
+      >
+        <p className="max-w-2xl text-[15px] text-muted">Kernel traces captured on real hardware. Replay any ready trace in Accel-Sim on other GPU configs.</p>
+      </PageHeader>
+
+      {(empty || guideOpen) && (
+        <Card className="mb-8 p-5 sm:p-7">
+          <div className="mb-6">
+            <SectionTitle title={empty ? "Send your first trace" : "Send a trace"} subtitle="The profiler streams kernel files into this app's bucket while it traces." />
+          </div>
+          <SendTraceGuide waiting={empty} />
         </Card>
       )}
+
+      {traces.isError && traces.data === undefined ? (
+        <ErrorNote error={traces.error} />
+      ) : traces.data === undefined ? (
+        <Panel className="overflow-hidden">
+          <SkeletonRows />
+        </Panel>
+      ) : traces.data.length > 0 ? (
+        <Panel className="overflow-hidden">
+          <TraceTable traces={traces.data} />
+        </Panel>
+      ) : null}
     </>
   );
 }
 
+function TraceName({ t }: { t: TraceSummary }) {
+  return (
+    <span className="flex min-w-0 items-center gap-3">
+      <TraceIcon />
+      <span className="min-w-0">
+        <span className="block truncate text-[14px] font-medium text-fg" title={t.id}>
+          {t.model ?? t.id}
+        </span>
+        <span className="block truncate font-mono text-[12px] leading-4 text-muted" title={t.layers.join(", ")}>
+          {t.layers.length > 0 ? t.layers.join(", ") : "layers pending"}
+        </span>
+      </span>
+    </span>
+  );
+}
+
 function TraceTable({ traces }: { traces: TraceSummary[] }) {
-  const now = useNow();
   const navigate = useNavigate();
   return (
     <>
       <table className="hidden w-full table-fixed border-collapse lg:table">
         <colgroup>
           <col />
-          <col className="w-[272px]" />
-          <col className="w-[16%]" />
-          <col className="w-[13%]" />
-          <col className="w-[148px]" />
-          <col className="w-[64px]" />
-          <col className="w-[84px]" />
-          <col className="w-[64px]" />
-          <col className="w-[60px]" />
+          <col className="w-[200px]" />
+          <col className="w-[200px]" />
+          <col className="w-[96px]" />
+          <col className="w-[104px]" />
+          <col className="w-[104px]" />
+          <col className="w-[108px]" />
+          <col className="w-[88px]" />
         </colgroup>
-        <thead className="border-b border-border bg-surface-2/50">
+        <thead className={THEAD}>
           <tr>
-            <th className={HEAD}>Trace</th>
-            <th className={HEAD}>State</th>
-            <th className={HEAD}>Model</th>
-            <th className={HEAD}>Layers</th>
-            <th className={HEAD}>Source GPU</th>
-            <th className={HEAD}>Arch</th>
-            <th className={`${HEAD} text-right`}>Size</th>
-            <th className={HEAD}>Real</th>
-            <th className={`${HEAD} text-right`}>Age</th>
+            <Th icon={<Layers {...ICON} />}>Trace</Th>
+            <Th icon={<CircleDot {...ICON} />}>State</Th>
+            <Th icon={<Cpu {...ICON} />}>Source GPU</Th>
+            <Th icon={<Hash {...ICON} />} className="text-right">
+              Kernels
+            </Th>
+            <Th icon={<HardDrive {...ICON} />} className="text-right">
+              Size
+            </Th>
+            <Th icon={<Timer {...ICON} />}>Real time</Th>
+            <Th icon={<Clock {...ICON} />}>Created</Th>
+            <Th />
           </tr>
         </thead>
         <tbody>
@@ -75,37 +119,37 @@ function TraceTable({ traces }: { traces: TraceSummary[] }) {
               onClick={() => {
                 void navigate(paths.trace(t.id));
               }}
-              className="cursor-pointer border-b border-border transition-colors duration-150 last:border-b-0 hover:bg-surface-2/60"
+              className={`${ROW} cursor-pointer hover:bg-surface-2/50`}
             >
               <td className={CELL}>
-                <Link to={paths.trace(t.id)} className="block min-w-0 text-fg" onClick={(e) => { e.stopPropagation(); }}>
-                  <Mono>{t.id}</Mono>
+                <Link
+                  to={paths.trace(t.id)}
+                  className="block min-w-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <TraceName t={t} />
                 </Link>
               </td>
               <td className={CELL}>
                 <TraceState trace={t} />
               </td>
               <td className={CELL}>
-                <span className="block truncate text-[13px]" title={t.model ?? undefined}>
-                  {t.model ?? <Dash />}
-                </span>
-              </td>
-              <td className={CELL}>
-                {t.layers.length > 0 ? <Mono className="text-fg-2">{t.layers.join(", ")}</Mono> : <Dash />}
-              </td>
-              <td className={CELL}>
-                <span className="block truncate text-[13px] text-fg-2" title={t.source_gpu ?? undefined}>
+                <span className="block truncate text-[14px] text-fg-2" title={t.source_gpu ?? undefined}>
                   {t.source_gpu ?? <Dash />}
                 </span>
+                <span className="block font-mono text-[12px] leading-4 text-muted">{t.trace_gpu_arch}</span>
               </td>
-              <td className={CELL}>
-                <span className="font-mono text-[12px] text-fg-2">{t.trace_gpu_arch}</span>
-              </td>
-              <td className={`${CELL} text-right text-[13px] text-fg-2 tabular-nums`}>{formatBytes(t.bytes)}</td>
+              <td className={`${CELL} text-right text-[14px] text-fg-2 tabular-nums`}>{formatInt(t.kernel_count)}</td>
+              <td className={`${CELL} text-right text-[14px] text-fg-2 tabular-nums`}>{formatBytes(t.bytes)}</td>
               <td className={CELL}>
                 <RealTiming has={t.has_real_timing} />
               </td>
-              <td className={`${CELL} text-right text-[13px] text-muted tabular-nums`}>{formatAge(now - ms(t.created_at))}</td>
+              <td className={`${CELL} text-[14px] text-muted`}>
+                <RelTime iso={t.created_at} />
+              </td>
+              <td className={`${CELL} text-right`}>{t.state === "ready" && <QuickLaunch trace={t} size="sm" variant="secondary" />}</td>
             </tr>
           ))}
         </tbody>
@@ -113,21 +157,20 @@ function TraceTable({ traces }: { traces: TraceSummary[] }) {
 
       <ul className="divide-y divide-border lg:hidden">
         {traces.map((t) => (
-          <li key={t.id}>
-            <Link to={paths.trace(t.id)} className="flex flex-col gap-2 px-4 py-3 transition-colors duration-150 hover:bg-surface-2/60">
-              <div className="flex items-baseline gap-3">
-                <Mono className="flex-1 text-fg">{t.id}</Mono>
-                <span className="shrink-0 text-[12px] text-muted tabular-nums">{formatAge(now - ms(t.created_at))}</span>
+          <li key={t.id} className="flex items-start gap-3 px-4 py-4">
+            <Link to={paths.trace(t.id)} className="flex min-w-0 flex-1 flex-col gap-2.5">
+              <TraceName t={t} />
+              <div className="pl-9">
+                <TraceState trace={t} />
               </div>
-              <TraceState trace={t} />
-              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-muted">
-                <span className="text-fg-2">{t.model ?? "unknown model"}</span>
-                {t.source_gpu !== null && <span>{t.source_gpu}</span>}
-                <span className="font-mono">{t.trace_gpu_arch}</span>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 pl-9 text-[13px] text-muted">
+                {t.source_gpu !== null && <span className="text-fg-2">{t.source_gpu}</span>}
+                <span className="tabular-nums">{formatInt(t.kernel_count)} kernels</span>
                 <span className="tabular-nums">{formatBytes(t.bytes)}</span>
-                {t.has_real_timing && <span>real timing</span>}
+                <RelTime iso={t.created_at} />
               </div>
             </Link>
+            {t.state === "ready" && <QuickLaunch trace={t} size="sm" variant="secondary" />}
           </li>
         ))}
       </ul>
@@ -137,28 +180,24 @@ function TraceTable({ traces }: { traces: TraceSummary[] }) {
 
 function RealTiming({ has }: { has: boolean }) {
   return has ? (
-    <span className="inline-flex items-center gap-1 text-[13px] text-fg-2">
-      <Check className="size-3.5" style={{ color: "var(--st-ok-ink)" }} />
-      Yes
+    <span className="inline-flex items-center gap-1.5 text-[14px] text-fg-2">
+      <Check className="size-4" style={{ color: "var(--st-ok-dot)" }} strokeWidth={2} />
+      Captured
     </span>
   ) : (
-    <span className="text-[13px] text-faint">No</span>
+    <span className="text-[14px] text-faint">None</span>
   );
-}
-
-function Dash() {
-  return <span className="text-faint">—</span>;
 }
 
 function SkeletonRows() {
   return (
     <div className="divide-y divide-border">
-      <div className="h-10 bg-surface-2/50" />
+      <div className="h-11 bg-surface-2/60" />
       {Array.from({ length: 5 }, (_, i) => (
-        <div key={i} className="flex h-12 items-center gap-6 px-3">
-          <Skeleton className="h-3 w-[38%]" />
-          <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-3 w-[14%]" />
+        <div key={i} className="flex h-[60px] items-center gap-6 px-4">
+          <Skeleton className="size-6 rounded-[7px]" />
+          <Skeleton className="h-3 w-[30%]" />
+          <Skeleton className="h-3 w-20" />
           <Skeleton className="ml-auto h-3 w-12" />
         </div>
       ))}

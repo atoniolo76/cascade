@@ -70,3 +70,8 @@ export const ms = (iso: string) => Date.parse(iso);
 export function entriesLabel(entries: readonly RunEntry[]) {
   return entries.map((e) => `${e.gpu_config} × ${e.count}`).join(" · ");
 }
+
+const exactFmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "medium" });
+export const formatExact = (iso: string) => exactFmt.format(new Date(iso));
+
+export const plural = (n: number, one: string, many = `${one}s`) => `${formatInt(n)} ${n === 1 ? one : many}`;

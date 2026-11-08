@@ -10,7 +10,7 @@ export function Legend({ series }: { series: readonly Series[] }) {
   return (
     <ul className="flex flex-wrap gap-x-4 gap-y-1">
       {series.map((s) => (
-        <li key={s.key} className="inline-flex items-center gap-1.5 text-[12px] text-fg-2">
+        <li key={s.key} className="inline-flex items-center gap-2 text-[13px] text-fg-2">
           <span className="size-2.5 rounded-[3px]" style={{ background: s.color }} />
           <span className="font-mono">{s.label}</span>
         </li>
@@ -58,7 +58,7 @@ export function KernelBarChart({
                 dataKey="index"
                 tickLine={false}
                 axisLine={{ stroke: "var(--axis)" }}
-                tick={{ fill: "var(--muted)", fontSize: 11 }}
+                tick={{ fill: "var(--muted)", fontSize: 12 }}
                 tickFormatter={(v: number) => `#${v}`}
                 interval="preserveStartEnd"
                 minTickGap={8}
@@ -67,7 +67,7 @@ export function KernelBarChart({
               <YAxis
                 tickLine={false}
                 axisLine={false}
-                tick={{ fill: "var(--muted)", fontSize: 11 }}
+                tick={{ fill: "var(--muted)", fontSize: 12 }}
                 tickFormatter={(v: number) => (v === 0 ? "0" : formatNs(v))}
                 width={64}
               />
@@ -87,7 +87,7 @@ export function KernelBarChart({
           </ResponsiveContainer>
         </div>
       </div>
-      <p className={`mt-1 h-4 text-right text-[11px] leading-4 text-muted transition-opacity duration-150 ${minWidth > visibleWidth ? "opacity-100" : "opacity-0"}`}>
+      <p className={`mt-1 h-4 text-right text-[12px] leading-4 text-muted transition-opacity duration-150 ${minWidth > visibleWidth ? "opacity-100" : "opacity-0"}`}>
         Scroll sideways for all {rows.length} kernels
       </p>
     </div>
@@ -104,7 +104,7 @@ function ChartTooltip({
   detail: ((row: KernelRow, s: Series) => ReactNode) | undefined;
 }) {
   return (
-    <div className="w-[300px] rounded-lg border border-border bg-surface p-3 shadow-pop">
+    <div className="w-[300px] rounded-[14px] border border-border bg-surface p-3.5 shadow-pop">
       <div className="text-[11px] font-medium text-muted tabular-nums">Kernel #{row.index}</div>
       <div className="mb-2 truncate font-mono text-[11px] text-fg-2">{row.name}</div>
       <ul className="flex flex-col gap-1">

@@ -87,3 +87,38 @@ export function aggregateProgress(sims: readonly SimSummary[]): { done: number; 
   }
   return { done, total };
 }
+
+/** Sims in grid order: config in run-entry order, then replica. */
+export function orderedSims(sims: readonly SimSummary[], entries: readonly RunEntry[]): SimSummary[] {
+  const rank = new Map(configSeries(entries).map((s, i) => [s.key, i]));
+  return sims.toSorted((a, b) => (rank.get(a.gpu_config) ?? 99) - (rank.get(b.gpu_config) ?? 99) || a.replica - b.replica);
+}
+
+export type Eta = { kind: "done" } | { kind: "unknown" } | { kind: "remaining"; ms: number };
+
+/** The run ends when its slowest sim does; each running sim projects its own pace over its remaining kernels. */
+export function estimateRemaining(sims: readonly SimSummary[], now: number, isTerminal: (s: SimSummary) => boolean): Eta {
+  let worst = 0;
+  let open = 0;
+  for (const s of sims) {
+    if (isTerminal(s)) continue;
+    open++;
+    if (s.started_at === null || s.kernels_done === 0 || s.kernels_total === 0) return { kind: "unknown" };
+    const elapsed = now - Date.parse(s.started_at);
+    worst = Math.max(worst, (elapsed * (s.kernels_total - s.kernels_done)) / s.kernels_done);
+  }
+  return open === 0 ? { kind: "done" } : { kind: "remaining", ms: worst };
+}
+
+function csvCell(v: string | number | null | undefined): string {
+  if (v === null || v === undefined) return "";
+  const s = String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** Kernel rows as CSV, one column per series in nanoseconds. */
+export function kernelRowsCsv(rows: readonly KernelRow[], series: readonly Series[]): string {
+  const head = ["kernel_index", "kernel_name", ...series.map((s) => `${s.label}_ns`)];
+  const body = rows.map((r) => [r.index, r.name, ...series.map((s) => r.values[s.key])].map(csvCell).join(","));
+  return [head.map(csvCell).join(","), ...body].join("\n") + "\n";
+}

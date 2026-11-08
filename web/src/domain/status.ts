@@ -32,6 +32,9 @@ export const SIM_STATE_ORDER: readonly SimState[] = [
   "cancelled",
 ];
 
+/** Finished first, so a row of blocks reads like a progress meter. */
+export const SIM_BLOCK_ORDER: readonly SimState[] = ["succeeded", "failed", "cancelled", "lost", "running", "launching", "pending"];
+
 export const TRACE_STATE: Record<TraceState, StateMeta> = {
   uploading: { label: "Uploading", tone: "active", live: true },
   processing: { label: "Processing", tone: "active", live: true },
@@ -69,4 +72,15 @@ export function countSimStates(states: readonly SimState[]): Partial<Record<SimS
   const counts: Partial<Record<SimState, number>> = {};
   for (const s of states) counts[s] = (counts[s] ?? 0) + 1;
   return counts;
+}
+
+export function finishedSims(counts: Partial<Record<SimState, number>>): { done: number; total: number } {
+  let done = 0;
+  let total = 0;
+  for (const s of SIM_STATE_ORDER) {
+    const n = counts[s] ?? 0;
+    total += n;
+    if (SIM_STATE[s].terminal) done += n;
+  }
+  return { done, total };
 }

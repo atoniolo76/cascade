@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import "./index.css";
+import "./lib/theme";
 import { ApiError, tokenStore } from "./api/client";
 import { AppShell } from "./components/AppShell";
 import { TokenGate } from "./components/TokenGate";
@@ -27,7 +28,7 @@ tokenStore.subscribe(() => {
 const router = createBrowserRouter([
   {
     element: <AppShell />,
-    hydrateFallbackElement: <div className="min-h-dvh bg-bg" />,
+    hydrateFallbackElement: <div className="min-h-dvh bg-window" />,
     children: [
       { index: true, element: <TracesPage /> },
       { path: "traces/:traceId", element: <TraceDetailPage /> },
