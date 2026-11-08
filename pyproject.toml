@@ -12,6 +12,7 @@ dependencies = [
 
 [project.optional-dependencies]
 sail = ["sail"]
+modal = ["modal"]
 
 [project.scripts]
 cascade = "cascade.cli:main"
