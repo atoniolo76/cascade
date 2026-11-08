@@ -111,3 +111,8 @@ Superseded 2026-11-07: per-kernel real-vs-simulated comparison is now in scope (
 - State lives in SQLite at `/data/cascade.db` on main's local disk.
 - A `scripts/deploy_sail.py` creates the main sailbox from the image, sets env/secrets, and exposes ports 8000 (app) and 9000 (rclone S3).
 - The sim command is configurable (`CASCADE_SIM_CMD`). `scripts/fake_sim.py` replays a real Accel-Sim log against the API for local dev. Alessio's simulator plugs in at `CASCADE_SIM_CMD`.
+
+## Lost sims
+
+- A sim with no heartbeat for `CASCADE_HEARTBEAT_TIMEOUT_S` (60s) becomes `lost`. A later heartbeat revives it.
+- A sim still lost after 10x that timeout is marked `failed` and its sandbox is terminated, so runs always finish.
