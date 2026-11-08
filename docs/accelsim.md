@@ -1,5 +1,8 @@
 # Accel-Sim execution
 
+See the [profiler → simulator run-directory contract](run-dir-contract.md) for
+required inputs, schemas, identity/units, compatibility rules and real examples.
+
 CPU execution belongs to `cascade.sim.accelsim`; the GPU-only `cascade_profiler`
 package is not a runtime dependency. The run directory is the contract:
 `corrected_timeline.json`, `trace_alignment.json`, `run.json`, and
