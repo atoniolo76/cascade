@@ -123,8 +123,10 @@ class SimulationTest(unittest.TestCase):
             )
 
     def test_log_parser(self):
-        text = ("kernel_name = _Zfoo\nkernel_launch_uid = 1\n"
-                "gpu_sim_cycle = 12345\ngpu_tot_sim_cycle = 77777\n")
+        text = (
+            "kernel_name = _Zfoo\nkernel_launch_uid = 1\n"
+            "gpu_sim_cycle = 12345\ngpu_tot_sim_cycle = 77777\n"
+        )
         self.assertEqual(
             parse_log(text), {"name": "_Zfoo", "kernel_launch_uid": 1, "sim_cycles": 12345}
         )

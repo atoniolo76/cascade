@@ -9,8 +9,14 @@ package is not a runtime dependency. The run directory is the contract:
 ```python
 from cascade.sim.accelsim import simulate_accelsim
 
-summary = simulate_accelsim("/data/phases/my-run", gpu_config="SM90_H100",
-                            jobs=32, dedup=True, verify_dedup=2, propagate="interp")
+summary = simulate_accelsim(
+    "/data/phases/my-run",
+    gpu_config="SM90_H100",
+    jobs=32,
+    dedup=True,
+    verify_dedup=2,
+    propagate="interp",
+)
 ```
 
 The caller needs the built Accel-Sim tools. The optional Modal helper supplies
