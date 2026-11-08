@@ -1463,6 +1463,8 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
         offset = clock.get("wall_minus_monotonic_ns")
         arrival = round(m["arrival_time"] * 1e9) - offset if m.get("arrival_time") is not None and offset is not None else None
         finish = record.get("generate_return_monotonic_ns")
+        queued = round(m["queued_ts"] * 1e9) if "queued_ts" in m else None
+        last_token = round(m["last_token_ts"] * 1e9) if "last_token_ts" in m else None
         requests.append({"repeat": record["repeat"], "warmup": record["repeat"] == 0,
                          "queued_ms": elapsed("scheduled_ts", "queued_ts"),
                          "ttft_ms": elapsed("first_token_ts", "queued_ts"),
@@ -1472,11 +1474,13 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
                          "num_output_tokens": n,
                          "first_step_start_ns": first_step, "last_step_end_ns": last_step,
                          "arrival_ns": arrival,
-                         "queued_ns": round(m["queued_ts"] * 1e9) if "queued_ts" in m else None,
+                         "queued_ns": queued,
                          "first_token_ns": round(m["first_token_ts"] * 1e9) if "first_token_ts" in m else None,
-                         "last_token_ns": round(m["last_token_ts"] * 1e9) if "last_token_ts" in m else None,
-                         "pre_first_step_ns": first_step - arrival if first_step is not None and arrival is not None else None,
-                         "post_last_step_ns": finish - last_step if finish is not None and last_step is not None else None})
+                         "last_token_ns": last_token,
+                         "pre_first_step_ns": first_step - queued if first_step is not None and queued is not None else None,
+                         "post_last_step_ns": last_token - last_step if last_token is not None and last_step is not None else None,
+                         "arrival_to_first_step_ns": first_step - arrival if first_step is not None and arrival is not None else None,
+                         "last_step_end_to_return_ns": finish - last_step if finish is not None and last_step is not None else None})
     summary = {}
     for kind in sorted({s["kind"] for s in steps}):
         steady = [s for s in steps if s["kind"] == kind and not s["warmup"]]

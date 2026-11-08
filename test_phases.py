@@ -209,7 +209,8 @@ class PhasesTest(unittest.TestCase):
                                     "itl_ms_p50", "e2e_ms", "num_output_tokens",
                                     "first_step_start_ns", "last_step_end_ns", "arrival_ns",
                                     "queued_ns", "first_token_ns", "last_token_ns",
-                                    "pre_first_step_ns", "post_last_step_ns"})
+                                    "pre_first_step_ns", "post_last_step_ns",
+                                    "arrival_to_first_step_ns", "last_step_end_to_return_ns"})
         self.assertEqual((req["queued_ms"], req["ttft_ms"], req["itl_ms_mean"], req["e2e_ms"]),
                          (1000, 2000, 1000, 4000))
         self.assertIsNone(req["itl_ms_p50"])
@@ -290,10 +291,12 @@ class PhasesTest(unittest.TestCase):
         req = result["requests"][0]
         self.assertEqual({k: req[k] for k in ("first_step_start_ns", "last_step_end_ns",
                          "arrival_ns", "queued_ns", "first_token_ns", "last_token_ns",
-                         "pre_first_step_ns", "post_last_step_ns")}, {
+                         "pre_first_step_ns", "post_last_step_ns",
+                         "arrival_to_first_step_ns", "last_step_end_to_return_ns")}, {
                              "first_step_start_ns": 100, "last_step_end_ns": 230,
                              "arrival_ns": 80, "queued_ns": 90, "first_token_ns": 115,
-                             "last_token_ns": 225, "pre_first_step_ns": 20, "post_last_step_ns": 20})
+                             "last_token_ns": 225, "pre_first_step_ns": 10, "post_last_step_ns": -5,
+                             "arrival_to_first_step_ns": 20, "last_step_end_to_return_ns": 20})
         self.assertEqual(result["meta"]["clock"]["wall_minus_monotonic_ns"], 1000)
         self.assertEqual(result["meta"]["clock"]["profiled_wall_minus_monotonic_ns"], 2000)
         self.assertEqual(result["summary"]["decode"]["baseline_gap_before_ns"], {
@@ -306,6 +309,41 @@ class PhasesTest(unittest.TestCase):
         missing = a._corrected_timeline(meta, legacy, [], [], {"requests": [{"repeat": 5}]}, {}, {}, [])
         self.assertIsNone(missing["steps"][2]["baseline_wall_start_ns"])
         self.assertIsNone(missing["requests"][0]["post_last_step_ns"])
+        for field in ("pre_first_step_ns", "arrival_to_first_step_ns", "last_step_end_to_return_ns"):
+            self.assertIsNone(missing["requests"][0][field])
+
+    def test_request_endpoint_reconciliation(self):
+        baseline, requests = [], []
+        for repeat in range(2):
+            first_start = 1_000_000_000 + repeat * 100_000_000
+            for local_step in range(3):
+                start = first_start + local_step * 1_300_000
+                baseline.append({"step": len(baseline), "repeat": repeat, "warmup": repeat == 0,
+                                 "kind": "prefill" if local_step == 0 else "decode",
+                                 "wall_start_ns": start, "wall_end_ns": start + 1_000_000,
+                                 "monotonic_start_ns": start, "monotonic_end_ns": start + 1_000_000})
+            last_end = baseline[-1]["monotonic_end_ns"]
+            requests.append({"repeat": repeat, "metrics": {
+                "arrival_time": (first_start - 500_000) / 1e9,
+                "queued_ts": (first_start - 200_000) / 1e9,
+                "first_token_ts": (first_start + 1_000_000) / 1e9,
+                "last_token_ts": (last_end - 40_000) / 1e9},
+                "generate_return_monotonic_ns": last_end + 2_000_000})
+        meta = {k: None for k in ("run_name", "model", "prompt", "max_tokens", "repeats",
+                                  "exec_mode", "gpu_name", "sm_clock_mhz_median", "mem_clock_mhz",
+                                  "vllm_version", "layerwise_nvtx")}
+        timeline = a._corrected_timeline(meta, baseline, [], [], {
+            "clock": {"wall_minus_monotonic_ns": 0}, "requests": requests}, {}, {}, [])
+        for req in timeline["requests"]:
+            steps = [s for s in timeline["steps"] if s["repeat"] == req["repeat"]]
+            e2e_ns = (req["pre_first_step_ns"] + sum(s["baseline_wall_ns"] for s in steps)
+                      + sum(s["baseline_gap_before_ns"] or 0 for s in steps) + req["post_last_step_ns"])
+            self.assertAlmostEqual(e2e_ns / 1e6, req["e2e_ms"], delta=0.1)
+            self.assertAlmostEqual((req["pre_first_step_ns"] + steps[0]["baseline_wall_ns"]) / 1e6,
+                                   req["ttft_ms"], delta=0.1)
+            self.assertEqual(req["post_last_step_ns"], -40_000)
+            self.assertEqual(req["arrival_to_first_step_ns"], 500_000)
+            self.assertEqual(req["last_step_end_to_return_ns"], 2_000_000)
 
     def test_unique_run_names(self):
         with patch.object(a.time, "strftime", return_value="20261108-045308"), \

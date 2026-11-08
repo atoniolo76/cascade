@@ -115,7 +115,8 @@ steps[]: step, repeat, warmup, kind, num_reqs, num_scheduled_tokens,
 requests[]: repeat, warmup, queued_ms, ttft_ms, itl_ms_mean, itl_ms_p50,
             e2e_ms, num_output_tokens, first_step_start_ns, last_step_end_ns,
             arrival_ns, queued_ns, first_token_ns, last_token_ns,
-            pre_first_step_ns, post_last_step_ns
+            pre_first_step_ns, post_last_step_ns,
+            arrival_to_first_step_ns, last_step_end_to_return_ns
 summary[kind]: n, baseline_wall_ns: {mean, p50, p95}, gpu_busy_ns: {mean, p50},
                host_ns: {mean, p50}, profiler_overhead_pct,
                baseline_gap_before_ns: {mean, p50, p95},
@@ -172,12 +173,21 @@ Legacy records can be converted if their run offset is provided; without either 
 timestamps or an offset, the new absolute times and gaps are null rather than mixed clocks.
 
 Request step endpoints use the first/last baseline step of that repeat (a batch envelope,
-not individual request membership). `pre_first_step_ns = first_step_start_ns - arrival_ns`.
-RequestStateStats and RequestOutput have no finish timestamp; each request's raw metrics row
-now records `generate_return_monotonic_ns`, sampled immediately after that repeat's generate
-returns. `post_last_step_ns` subtracts the final step end from this return timestamp; for multiple
-requests this is the batch-return upper bound, not each request's precise completion time.
-Existing `e2e_ms` remains last-token minus queued time and is deliberately unchanged.
+not individual request membership). `pre_first_step_ns = first_step_start_ns - queued_ns` and
+`post_last_step_ns = last_token_ns - last_step_end_ns` align with reference metrics:
+`ttft_ms = (first_token_ns - queued_ns) / 1e6` and
+`e2e_ms = (last_token_ns - queued_ns) / 1e6`. Post-step time may be negative because the last
+token is stamped inside the final step; the sign is preserved. Pre-step time plus all baseline
+step walls, intervening gaps, and post-step time reconstructs e2e (subject to timestamp rounding
+and any wall-clock adjustment during steps). Pre-step time plus the first step wall approximates
+TTFT; real TTFT can differ by the first token's in-step stamp offset. The offline TTFT fixture
+places that timestamp exactly at first-step end and checks reconstruction within 0.1 ms.
+
+The previous endpoints remain available as `arrival_to_first_step_ns = first_step_start_ns -
+arrival_ns` and `last_step_end_to_return_ns = generate_return_monotonic_ns - last_step_end_ns`.
+The latter uses the monotonic timestamp immediately after generate returns; for multiple
+requests it is the batch-return upper bound, not each request's precise completion time.
+Missing timestamps yield null endpoint fields. Existing reference latency metrics are unchanged.
 
 Code-path findings in vLLM 0.21.0 (paths relative to the unpacked vLLM source):
 
