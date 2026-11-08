@@ -1,0 +1,126 @@
+{
+  "id": "run-bd2750cc461a",
+  "trace_id": "e2e-plan-v1",
+  "created_at": "2026-11-08T07:38:25.449629Z",
+  "state": "succeeded",
+  "entries": [
+    {
+      "gpu_config": "SM90_H100",
+      "count": 1
+    },
+    {
+      "gpu_config": "SM90_H200",
+      "count": 1
+    }
+  ],
+  "sim_counts": {
+    "succeeded": 2
+  },
+  "trace": {
+    "id": "e2e-plan-v1",
+    "state": "ready",
+    "error": null,
+    "created_at": "2026-11-08T07:38:15.450939Z",
+    "updated_at": "2026-11-08T07:38:21.969502Z",
+    "model": null,
+    "layers": [],
+    "source_gpu": "NVIDIA H100",
+    "trace_gpu_arch": "sm_90",
+    "suggested_sim_config": null,
+    "kernel_count": 712,
+    "bytes": 880143890,
+    "has_real_timing": false
+  },
+  "sims": [
+    {
+      "id": "sim-2525cf576b70",
+      "run_id": "run-bd2750cc461a",
+      "gpu_config": "SM90_H100",
+      "replica": 0,
+      "state": "succeeded",
+      "error": null,
+      "launcher_ref": "sb_2457431e-4da3-42d4-826b-6c8060c39450",
+      "created_at": "2026-11-08T07:38:25.449629Z",
+      "started_at": "2026-11-08T07:38:54.277169Z",
+      "finished_at": "2026-11-08T07:52:20.146233Z",
+      "last_heartbeat_at": "2026-11-08T07:52:20.146233Z",
+      "exit_code": 0,
+      "kernels_done": 31,
+      "kernels_total": 712,
+      "current_kernel": "_ZN2at6native29vectorized_elementwise_kernelILi8EZZZNS0_49_GLOBAL__N__d2ba64fb_16_TensorCompare_cu_71e06f4e19launch_clamp_scalarERNS_18TensorIteratorBaseEN3c106ScalarES6_NS0_6detail11ClampLimitsEENKUlvE_clEvENKUlvE6_clEvEUlNS5_4HalfEE_St5arrayIPcLm2EEEEviT0_T1_",
+      "latest": {
+        "gpu_tot_sim_cycle": 6276.0,
+        "gpu_tot_sim_insn": 28416.0,
+        "gpu_tot_ipc": 4.5277,
+        "sim_rate_ips": 14208.0
+      },
+      "log_tail": [
+        "\tminimum = 0 (1 samples)",
+        "\tmaximum = 0.0101992 (1 samples)",
+        "Injected flit rate average = 0.000288657 (1 samples)",
+        "\tminimum = 0 (1 samples)",
+        "\tmaximum = 0.0101992 (1 samples)",
+        "Accepted flit rate average = 0.000288657 (1 samples)",
+        "\tminimum = 0 (1 samples)",
+        "\tmaximum = 0.0101992 (1 samples)",
+        "Injected packet size average = 1 (1 samples)",
+        "Accepted packet size average = 1 (1 samples)",
+        "Hops average = 1 (1 samples)",
+        "----------------------------END-of-Interconnect-DETAILS-------------------------",
+        "",
+        "",
+        "gpgpu_simulation_time = 0 days, 0 hrs, 0 min, 2 sec (2 sec)",
+        "gpgpu_simulation_rate = 14208 (inst/sec)",
+        "gpgpu_simulation_rate = 3138 (cycle/sec)",
+        "gpgpu_silicon_slowdown = 630975x",
+        "GPGPU-Sim: *** simulation thread exiting ***",
+        "GPGPU-Sim: *** exit detected ***"
+      ]
+    },
+    {
+      "id": "sim-1af0e1666072",
+      "run_id": "run-bd2750cc461a",
+      "gpu_config": "SM90_H200",
+      "replica": 0,
+      "state": "succeeded",
+      "error": null,
+      "launcher_ref": "sb_e0aade19-0b98-417f-b8e6-9036e9554e00",
+      "created_at": "2026-11-08T07:38:25.449629Z",
+      "started_at": "2026-11-08T07:38:54.287598Z",
+      "finished_at": "2026-11-08T07:51:52.944884Z",
+      "last_heartbeat_at": "2026-11-08T07:51:52.944884Z",
+      "exit_code": 0,
+      "kernels_done": 31,
+      "kernels_total": 712,
+      "current_kernel": "_ZN2at6native29vectorized_elementwise_kernelILi8EZZZNS0_49_GLOBAL__N__d2ba64fb_16_TensorCompare_cu_71e06f4e19launch_clamp_scalarERNS_18TensorIteratorBaseEN3c106ScalarES6_NS0_6detail11ClampLimitsEENKUlvE_clEvENKUlvE6_clEvEUlNS5_4HalfEE_St5arrayIPcLm2EEEEviT0_T1_",
+      "latest": {
+        "gpu_tot_sim_cycle": 6276.0,
+        "gpu_tot_sim_insn": 28416.0,
+        "gpu_tot_ipc": 4.5277,
+        "sim_rate_ips": 14208.0
+      },
+      "log_tail": [
+        "\tminimum = 0 (1 samples)",
+        "\tmaximum = 0.0101992 (1 samples)",
+        "Injected flit rate average = 0.0002684 (1 samples)",
+        "\tminimum = 0 (1 samples)",
+        "\tmaximum = 0.0101992 (1 samples)",
+        "Accepted flit rate average = 0.0002684 (1 samples)",
+        "\tminimum = 0 (1 samples)",
+        "\tmaximum = 0.0101992 (1 samples)",
+        "Injected packet size average = 1 (1 samples)",
+        "Accepted packet size average = 1 (1 samples)",
+        "Hops average = 1 (1 samples)",
+        "----------------------------END-of-Interconnect-DETAILS-------------------------",
+        "",
+        "",
+        "gpgpu_simulation_time = 0 days, 0 hrs, 0 min, 2 sec (2 sec)",
+        "gpgpu_simulation_rate = 14208 (inst/sec)",
+        "gpgpu_simulation_rate = 3138 (cycle/sec)",
+        "gpgpu_silicon_slowdown = 630975x",
+        "GPGPU-Sim: *** simulation thread exiting ***",
+        "GPGPU-Sim: *** exit detected ***"
+      ]
+    }
+  ]
+}

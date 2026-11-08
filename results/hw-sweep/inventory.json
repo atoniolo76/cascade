@@ -1,0 +1,191 @@
+[
+  {
+    "config": "deprecated-cfgs/GTX480",
+    "sm": "2.0",
+    "sm_source": "ptx_force_max_capability",
+    "clock_domains": "700.0:700.0:700.0:924.0",
+    "clock_mhz": 700.0,
+    "sha256": "03f2f597146f6e759bc89cb56e41343cbe2bd9fdb99951500a200d82c6684db0",
+    "trace_config": false
+  },
+  {
+    "config": "deprecated-cfgs/GeForceGTX750Ti",
+    "sm": "5.2",
+    "sm_source": "ptx_force_max_capability",
+    "clock_domains": "1137.0:1137.0:1137.0:2700.0",
+    "clock_mhz": 1137.0,
+    "sha256": "eb71eec796eed7143fd0cb260d299cd7dc55e0cc75956686cb9861cc772f272e",
+    "trace_config": false
+  },
+  {
+    "config": "deprecated-cfgs/QuadroFX5600",
+    "sm": "1.2",
+    "sm_source": "ptx_force_max_capability",
+    "clock_domains": "337.5:600.0:600.0:800.0",
+    "clock_mhz": 337.5,
+    "sha256": "441c46452714eda2d473b964b89d185ab1d1a494bc154c5abb46077a416f6611",
+    "trace_config": false
+  },
+  {
+    "config": "deprecated-cfgs/QuadroFX5800",
+    "sm": "1.3",
+    "sm_source": "ptx_force_max_capability",
+    "clock_domains": "325.0:650.0:650.0:800.0",
+    "clock_mhz": 325.0,
+    "sha256": "3100ded718bac25e99a5eed16eb2cede2fb803f93b4ed85d1049b5d75b637db2",
+    "trace_config": false
+  },
+  {
+    "config": "deprecated-cfgs/SM6_GTX1080",
+    "sm": "6.0",
+    "sm_source": "ptx_force_max_capability",
+    "clock_domains": "1481.0:2962.0:1481.0:2750.0",
+    "clock_mhz": 1481.0,
+    "sha256": "af00cf217e3d5b2be5e071af7771106e783f4fce7ee3c2f19d13bc390bd2ef5b",
+    "trace_config": false
+  },
+  {
+    "config": "deprecated-cfgs/SM6_P100",
+    "sm": "6.0",
+    "sm_source": "ptx_force_max_capability",
+    "clock_domains": "1480.0:1480.0:1480.0:715.0",
+    "clock_mhz": 1480.0,
+    "sha256": "e830d7f3be1246ee4645673a12da2f4beef9b36c576cf5b95f6ccf2209eab167",
+    "trace_config": false
+  },
+  {
+    "config": "deprecated-cfgs/SM6_TITANX",
+    "sm": "6.1",
+    "sm_source": "ptx_force_max_capability",
+    "clock_domains": "1417.0:1417.0:1417.0:2500.0",
+    "clock_mhz": 1417.0,
+    "sha256": "80adb8487e4740d2dad8f419683e8790683f3c8b90a73b95fcbaa84d6dd8bba0",
+    "trace_config": true
+  },
+  {
+    "config": "deprecated-cfgs/SM7_TITANV",
+    "sm": "7.0",
+    "sm_source": "ptx_force_max_capability",
+    "clock_domains": "1200.0:1200.0:1200.0:850.0",
+    "clock_mhz": 1200.0,
+    "sha256": "2b86b98a8bc2a5b17c6fcdc5a0ed3241ae63ad20262289933eaefce227e84f48",
+    "trace_config": true
+  },
+  {
+    "config": "deprecated-cfgs/TeslaC2050",
+    "sm": "2.0",
+    "sm_source": "ptx_force_max_capability",
+    "clock_domains": "575.0:575.0:575.0:750.0",
+    "clock_mhz": 575.0,
+    "sha256": "10f309118e7079a7e33ca0395c8ad45d37534f3b1dd86896f524768ef4ec41b7",
+    "trace_config": false
+  },
+  {
+    "config": "tested-cfgs/SM2_GTX480",
+    "sm": "2.0",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "700.0:700.0:700.0:924.0",
+    "clock_mhz": 700.0,
+    "sha256": "ca53458322a9d327b356752aee7f6c090c9ccf0a78526a5bb473997f2f87b2c0",
+    "trace_config": false
+  },
+  {
+    "config": "tested-cfgs/SM3_KEPLER_TITAN",
+    "sm": "3.5",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "837.0:837.0:837.0:1502.0",
+    "clock_mhz": 837.0,
+    "sha256": "560ad2f2136e88bba39de026a3df1b604e7cc5119400abbebd5ae3402a627986",
+    "trace_config": true
+  },
+  {
+    "config": "tested-cfgs/SM6_TITANX",
+    "sm": "6.1",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "1417.0:1417.0:1417.0:2500.0",
+    "clock_mhz": 1417.0,
+    "sha256": "125c2c013186e7e0dc774edc7a008026ece855819e3f00108497f570be249dcc",
+    "trace_config": true
+  },
+  {
+    "config": "tested-cfgs/SM75_RTX2060",
+    "sm": "7.5",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "1365:1365:1365:3500.5",
+    "clock_mhz": 1365.0,
+    "sha256": "60b70b6906eec8c4fd1226e31c3c37d5b4310f3a0ffd4556ec8d9e327eaf9a94",
+    "trace_config": true
+  },
+  {
+    "config": "tested-cfgs/SM75_RTX2060_S",
+    "sm": "7.5",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "1905.0:1905.0:1905.0:3500.0",
+    "clock_mhz": 1905.0,
+    "sha256": "5d87d2091ab32add8818217eb547f6980fc63223cc593f9b5d5938e592461137",
+    "trace_config": true
+  },
+  {
+    "config": "tested-cfgs/SM7_GV100",
+    "sm": "7.0",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "1447.0:1447.0:1447.0:850.0",
+    "clock_mhz": 1447.0,
+    "sha256": "81153771ccb44c8cab857e350be1db9c27bf5e32fcc70305b7ed96e068c98416",
+    "trace_config": true
+  },
+  {
+    "config": "tested-cfgs/SM7_QV100",
+    "sm": "7.0",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "1132.0:1132.0:1132.0:850.0",
+    "clock_mhz": 1132.0,
+    "sha256": "8ccad878b6abfec8254ecd6c7e0efee2714908dc3a04f611ff8787000e277bd3",
+    "trace_config": true
+  },
+  {
+    "config": "tested-cfgs/SM7_TITANV",
+    "sm": "7.0",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "1200.0:1200.0:1200.0:850.0",
+    "clock_mhz": 1200.0,
+    "sha256": "a2401394c813703bcc87690d509b207c6cb8592ed6db256aaa880a14a40c5d6e",
+    "trace_config": true
+  },
+  {
+    "config": "tested-cfgs/SM80_A100",
+    "sm": "8.0",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "1410:1410:1410:1512",
+    "clock_mhz": 1410.0,
+    "sha256": "22db9028ce5326ba07ddd7974c9aa996a358cdff395fecaa1ddee5f7f2307ebb",
+    "trace_config": true
+  },
+  {
+    "config": "tested-cfgs/SM86_RTX3070",
+    "sm": "8.6",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "1132:1132:1132:3500.5",
+    "clock_mhz": 1132.0,
+    "sha256": "f6b480d66fb04a948c04e1a5b65527600f3959ac561dcfa2de0b6632e864fe9c",
+    "trace_config": true
+  },
+  {
+    "config": "tested-cfgs/SM90_H100",
+    "sm": "9.0",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "1980:3960:3960:3106",
+    "clock_mhz": 1980.0,
+    "sha256": "e618bece635bb587800e58285186646657b69be6523130cee7f5da801dc77a1c",
+    "trace_config": true
+  },
+  {
+    "config": "tested-cfgs/SM90_H200",
+    "sm": "9.0",
+    "sm_source": "compute_capability_major/minor",
+    "clock_domains": "1980:3960:3960:3106",
+    "clock_mhz": 1980.0,
+    "sha256": "ae8f3500438865f80c24ec216f5a665dcae367ffffc917f87affe678084d7a52",
+    "trace_config": true
+  }
+]

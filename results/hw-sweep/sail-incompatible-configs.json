@@ -1,0 +1,112 @@
+[
+  {
+    "config": {
+      "name": "SM2_GTX480",
+      "arch": "sm_20",
+      "core_clock_mhz": 700.0
+    },
+    "http_status": 422,
+    "response": {
+      "detail": "SM2_GTX480 is sm_20 but trace e2e-plan-v1 is sm_90"
+    }
+  },
+  {
+    "config": {
+      "name": "SM3_KEPLER_TITAN",
+      "arch": "sm_30",
+      "core_clock_mhz": 837.0
+    },
+    "http_status": 422,
+    "response": {
+      "detail": "SM3_KEPLER_TITAN is sm_30 but trace e2e-plan-v1 is sm_90"
+    }
+  },
+  {
+    "config": {
+      "name": "SM6_TITANX",
+      "arch": "sm_60",
+      "core_clock_mhz": 1417.0
+    },
+    "http_status": 422,
+    "response": {
+      "detail": "SM6_TITANX is sm_60 but trace e2e-plan-v1 is sm_90"
+    }
+  },
+  {
+    "config": {
+      "name": "SM75_RTX2060",
+      "arch": "sm_75",
+      "core_clock_mhz": 1365.0
+    },
+    "http_status": 422,
+    "response": {
+      "detail": "SM75_RTX2060 is sm_75 but trace e2e-plan-v1 is sm_90"
+    }
+  },
+  {
+    "config": {
+      "name": "SM75_RTX2060_S",
+      "arch": "sm_75",
+      "core_clock_mhz": 1905.0
+    },
+    "http_status": 422,
+    "response": {
+      "detail": "SM75_RTX2060_S is sm_75 but trace e2e-plan-v1 is sm_90"
+    }
+  },
+  {
+    "config": {
+      "name": "SM7_GV100",
+      "arch": "sm_70",
+      "core_clock_mhz": 1447.0
+    },
+    "http_status": 422,
+    "response": {
+      "detail": "SM7_GV100 is sm_70 but trace e2e-plan-v1 is sm_90"
+    }
+  },
+  {
+    "config": {
+      "name": "SM7_QV100",
+      "arch": "sm_70",
+      "core_clock_mhz": 1132.0
+    },
+    "http_status": 422,
+    "response": {
+      "detail": "SM7_QV100 is sm_70 but trace e2e-plan-v1 is sm_90"
+    }
+  },
+  {
+    "config": {
+      "name": "SM7_TITANV",
+      "arch": "sm_70",
+      "core_clock_mhz": 1200.0
+    },
+    "http_status": 422,
+    "response": {
+      "detail": "SM7_TITANV is sm_70 but trace e2e-plan-v1 is sm_90"
+    }
+  },
+  {
+    "config": {
+      "name": "SM80_A100",
+      "arch": "sm_80",
+      "core_clock_mhz": 1410.0
+    },
+    "http_status": 422,
+    "response": {
+      "detail": "SM80_A100 is sm_80 but trace e2e-plan-v1 is sm_90"
+    }
+  },
+  {
+    "config": {
+      "name": "SM86_RTX3070",
+      "arch": "sm_86",
+      "core_clock_mhz": 1132.0
+    },
+    "http_status": 422,
+    "response": {
+      "detail": "SM86_RTX3070 is sm_86 but trace e2e-plan-v1 is sm_90"
+    }
+  }
+]

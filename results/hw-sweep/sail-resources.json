@@ -1,0 +1,20 @@
+{
+  "app_name": "cascade-hw-sweep",
+  "created_sailboxes": [
+    "sb_cf6382a1-1608-4cef-b08a-439fb163cba8",
+    "sb_2457431e-4da3-42d4-826b-6c8060c39450",
+    "sb_e0aade19-0b98-417f-b8e6-9036e9554e00"
+  ],
+  "terminated_sailboxes": [
+    "sb_cf6382a1-1608-4cef-b08a-439fb163cba8",
+    "sb_2457431e-4da3-42d4-826b-6c8060c39450",
+    "sb_e0aade19-0b98-417f-b8e6-9036e9554e00"
+  ],
+  "deleted_checkpoints": [
+    "sbcp_34c6ed54-b25c-4ca5-bd31-1f3ebf81607b"
+  ],
+  "main_sailbox_id": "sb_cf6382a1-1608-4cef-b08a-439fb163cba8",
+  "app_id": "app_01a1ba10-7eed-7d8a-adf3-005355b2a53b",
+  "app_url": "https://sb-cf6382a1-1608-4cef-b08a-439fb163cba8-8000.sail.box",
+  "run_id": "run-bd2750cc461a"
+}
