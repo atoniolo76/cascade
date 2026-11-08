@@ -26,8 +26,9 @@ build-backend = "hatchling.build"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# Alessio's standalone Modal profiler scripts keep their own style.
+extend-exclude = ["accelsim_trace.py", "vllm_trace.py", "test_phases.py", "kernel_microbench.py"]
 # Alessio's profiler scripts keep their own style.
-extend-exclude = ["accelsim_trace.py", "vllm_trace.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
