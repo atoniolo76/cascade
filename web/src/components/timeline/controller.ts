@@ -560,7 +560,8 @@ export class TimelineController {
     for (; i0 < clips.length; i0++) {
       const c = clips[i0];
       if (!c) break;
-      const [x0, x1] = clipSpan(c, mode, align);
+      const [x0, span1] = clipSpan(c, mode, align);
+      const x1 = mode === "align" ? Math.max(span1, x0 + 1) : span1;
       if (x0 > pos + slop) break;
       const d = pos < x0 ? x0 - pos : pos > x1 ? pos - x1 : 0;
       if (d < bestDist) {
