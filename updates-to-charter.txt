@@ -1,0 +1,170 @@
+updates:
+
+need a way to save a trace from the output of the cascade simulator and compare this one-to-one to the job running
+on actual hardware
+
+
+things to get observability on from the running simulation:
+
+
+
+--------------------------------------------------------------------------------------------------------------------
+profiler -> cascade app: trace upload contract (alessio, answers to amani's questions 1-6)
+--------------------------------------------------------------------------------------------------------------------
+
+status: working end to end. tested 2026-11-07: an H100 on Modal traced vLLM (opt-125m, layer 10 attention) and
+streamed every trace file to an S3-compatible endpoint (rclone serve s3, tunneled with bore) while tracing was
+still running. all files arrived intact, and the Accel-Sim post-processor turned them into simulator input.
+
+version note: the profiler builds the tracer from accel-sim-framework dev @ 7ba54ded. the simulator VM in
+ACCELSIM_NOTES.md runs tag v2.0.1 @ 1c9cc831. the only commit between the two touches job-launcher scripts
+(util/job_launching), so the tracer, the trace format, the post-processor and the simulator are identical.
+traces from the profiler are compatible with the sim VM. i will pin the profiler to v2.0.1 so both sides
+match exactly.
+
+
+1. S3 client, and one archive per trace or raw files?
+
+   - client: boto3 (upload_file) inside the profiling container. no aws cli.
+   - files: raw files, no archive. each kernel's trace is its own object, uploaded as soon as that kernel
+     finishes tracing (the tracer closes kernel N's file before kernel N+1 starts). the run files (logs,
+     metadata, kernel list) go up when the run ends.
+   - files over 128 MiB are uploaded as multipart (128 MiB parts, 8 in parallel). the endpoint must support
+     S3 multipart upload. rclone serve s3 does.
+   - auth: none yet. requests are unsigned unless AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY are set, so the
+     endpoint has to allow anonymous writes for now.
+   - path-style addressing works (tested with --s3-addressing-style path).
+
+   important for the sim side: the uploads are RAW traces (kernel-*.trace.xz + kernelslist_ctx_*).
+   ACCELSIM_NOTES.md says the simulator needs a PROCESSED directory (kernelslist.g + kernel-*.tracez) and
+   warns not to mix raw .trace files with processed lists. so the cascade app (or each sim box) must run the
+   post-processor once per run before simulating:
+
+     ./util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing <run>/traces -j 8
+
+   that writes kernelslist.g and one kernel-*.tracez per kernel next to the raw files. it only needs a CPU,
+   g++ and libzstd, all already on the sim VM. it is not built there yet; build it with:
+
+     make -C util/tracer_nvbit/tracer_tool/traces-processing
+
+   it is a different target from the gpu-simulator make that failed in ACCELSIM_NOTES.md. i built and ran it
+   on a mac on the test traces. it is skipped on the GPU because it loads a whole kernel into RAM and needs
+   every file locally.
+
+
+2. bucket / key layout
+
+   s3://<bucket>/<prefix>/<run_name>/...
+     prefix   default "accelsim-traces"; pass --s3-prefix traces to get traces/<run_name>/...
+     run_name default YYYYMMDD-HHMMSS__<model>__<layers>, or set with --run-name
+
+   <run_name>/
+     metadata.json                                   run info + status (see 5)
+     traces/kernel-<N>-ctx_<0x..>.trace.xz           one per traced kernel, raw, xz-compressed
+     traces/kernelslist_ctx_<0x..>                   ordered list of the kernel files (post-processor input)
+     traces/stats_ctx_<0x..>                         one line per kernel launch: name, grid/block dims,
+                                                     instruction counts (untraced kernels show 0)
+     spinlock_detection/spinlock_instructions.txt    Hopper spin-wait loops found before tracing
+     spinlock_phase0.log, spinlock_phase1.log        logs of the two spinlock-detection passes
+     trace.log                                       log of the tracing pass
+
+   kernel numbers <N> are launch numbers within the whole process, so they have gaps (e.g. 656-660, then
+   833-837): only the hooked layer's kernels are traced. sort numerically, not as strings (1010 > 656).
+   there is no kernelslist.g or .tracez in the bucket until someone runs the post-processor (see 1).
+
+
+3. how do i know an upload is finished?
+
+   current behavior: metadata.json is always uploaded, even when the run fails, and has
+   "status": "ok" | "failed". but it is NOT the last object: the end-of-run files go up in alphabetical
+   order, so logs and traces/kernelslist + stats can land after it.
+
+   change i'm making: upload metadata.json last, and only after every other upload has succeeded. the
+   contract becomes:
+     - metadata.json exists        -> the run is finished and every file it lists is in the bucket
+     - metadata.json "status"      -> "ok" = complete trace, "failed" = partial (logs + whatever was traced)
+     - metadata.json "files"       -> list of every key with its byte size, so you can check completeness
+   until that ships, treat "metadata.json exists AND traces/kernelslist_ctx_* exists" as done.
+
+
+4. how big is a trace?
+
+   measured (small test run): opt-125m, 1 attention block, 6-token prompt, 4 forward passes (1 prefill +
+   3 decode) = 20 kernels:
+     raw kernel-*.trace.xz (what gets uploaded)      13.5 MiB  (about 3.4 MiB per forward pass)
+     post-processed kernel-*.tracez                  15.9 MiB  (made on the cascade side; total on disk
+                                                                after post-processing is about 30 MiB)
+     stats + logs + metadata                         about 0.4 MiB
+     uncompressed, for reference                     about 12x the .trace.xz size
+
+   estimate (not measured): size grows with instructions traced, roughly
+   layers traced x forward passes x tokens per pass; FlashAttention also grows with context length.
+     - a few layers of a 7-8B model, prompts of thousands of tokens: probably GBs to tens of GBs compressed.
+     - full model, long contexts, many decode steps: can reach hundreds of GB.
+   for reference, ACCELSIM_NOTES.md lists the official H200 ML traces at about 802 MB for the smallest and
+   about 208 GB for all of them together.
+   cascade app sizing: plan disk for raw + .tracez (about 2.2x the uploaded bytes). files trickle in over the
+   whole tracing run, not as one big upload at the end.
+
+
+5. is metadata.json the source of original-hardware info? planned fields?
+
+   yes. metadata.json is the single source for what the trace came from. current fields:
+     model, layers, prompts, max_tokens, max_model_len   workload
+     spinlock_handling                                   tracer mode ("mark_region" by default)
+     gpu                                                 e.g. "NVIDIA H100 80GB HBM3, 610.57.04" (name, driver)
+     accelsim_commit                                     tracer version
+     status, kernel_traces_uploaded, bytes_uploaded      upload result
+     post_processed (always false), post_process_cmd     reminder that the sim side must post-process
+
+   adding, partly because ACCELSIM_NOTES.md says the sim side needs "the GPU which collected the trace,
+   CUDA/tracer version":
+     schema_version                                      so the parser can evolve safely
+     run_name, started_at, finished_at                   ISO-8601 UTC
+     trace_gpu_arch                                      "sm_90"; tells the sim side which configs are valid
+     suggested_sim_config                                "SM90_H100" (matches the trace hardware)
+     cuda_version, nvbit_version, tracer_version         nvbit 1.8, tracer trace format 6
+     vllm_version, torch_version
+     files                                               [{key, bytes}] for the completeness check in 3
+     real_timing                                         pointer to the hardware-timing file once it exists
+                                                         (see 6)
+
+   compatibility rule from ACCELSIM_NOTES.md: "do not blindly replay Hopper instructions on a Volta model".
+   these traces contain Hopper-only instructions (tensor-core HGMMA, TMA bulk copies, mbarrier/SYNCS), so
+   they are valid for the sm_90 configs only: SM90_H100 (the hardware they were captured on) and probably
+   SM90_H200 (same instruction set, untested). to model a different architecture (SM80_A100, SM7_QV100, ...),
+   re-trace on that GPU.
+
+
+6. does the trace have the original timing per kernel, or only SASS?
+
+   only SASS. no timing data exists today.
+     - the trace has, per warp: instructions, active masks, memory addresses, some register values.
+     - stats_ctx_* has grid/block dims and instruction counts per kernel, but no time.
+     - timing measured while tracing would be meaningless: instrumentation slows execution by orders of
+       magnitude.
+
+   what the simulator produces (ACCELSIM_NOTES.md): simulated cycles, IPC, cache/memory stats.
+   gpu_tot_sim_cycle and gpu_tot_sim_insn are confirmed on the sim VM's V100 sample run. so the "simulated"
+   side of a real-vs-simulated chart exists. the "real" side does not yet.
+
+   plan to get real per-kernel timing (this also covers the charter item at the top: "compare one-to-one
+   to the job running on actual hardware"):
+     - add one more pass on the same GPU, with the tracer OFF. it runs the identical workload (same model,
+       prompts, max_tokens, greedy decoding with ignore_eos, so the same kernel sequence every time) and
+       records each kernel's real duration with the PyTorch profiler (CUPTI kernel timing). only the hooked
+       layer's kernels are recorded, same as the trace.
+     - upload it as <run_name>/real_timing.json:
+         [{kernel_id, kernel_name, duration_ns, grid, block}]
+       kernel_id lines up with the traced kernel-<N> files, so matching is one-to-one by launch order and
+       mangled kernel name.
+     - metadata.json "real_timing" points to it.
+     - to compare: real duration_ns vs simulated gpu_sim_cycle / core clock of the sim config. the
+       SM90_H100 config's core clock still needs to be read from its gpgpusim.config.
+   caveats:
+     - CUPTI kernel timing is untested on Modal; Modal runs containers in gVisor.
+     - Accel-Sim's own correlator wants hardware cycle counters (Nsight Compute), which sandboxes often
+       block. kernel durations are the reliable option.
+     - until real_timing.json exists, the ui should show simulated metrics only, plus original-hardware
+       context from metadata.json and the stats_ctx_* launch dimensions.
+
