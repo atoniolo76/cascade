@@ -2,7 +2,6 @@ import { ArrowDown } from "lucide-react";
 import { useStickToBottom } from "../../hooks/useStickToBottom";
 import { cx } from "../cx";
 
-/** Monospace log view that follows new lines unless the reader has scrolled up. */
 export function LogLines({
   lines,
   className,

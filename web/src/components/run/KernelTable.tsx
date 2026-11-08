@@ -5,7 +5,6 @@ import { Mono } from "../ui";
 
 const TH = "px-3 py-2 text-[11px] font-medium tracking-wide text-muted uppercase whitespace-nowrap";
 
-/** Table twin of KernelBarChart: every plotted value, readable without hovering. */
 export function KernelValueTable({
   rows,
   series,

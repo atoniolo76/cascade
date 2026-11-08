@@ -19,7 +19,6 @@ export function Legend({ series }: { series: readonly Series[] }) {
   );
 }
 
-/** Grouped columns, one group per kernel; scrolls sideways once groups would get thinner than their bars. */
 export function KernelBarChart({
   rows,
   series,

@@ -3,7 +3,6 @@ import { formatBytes, formatInt } from "../domain/format";
 import { TRACE_STATE } from "../domain/status";
 import { StatusPill } from "./ui";
 
-/** State pill plus the one live fact for that state: upload progress, or the failure reason. */
 export function TraceState({ trace }: { trace: TraceSummary }) {
   const meta = TRACE_STATE[trace.state];
   return (

@@ -2,7 +2,6 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 const SLACK_PX = 12;
 
-/** Keeps a scroll box pinned to its bottom as content grows, until the user scrolls up. */
 export function useStickToBottom<T extends HTMLElement>(content: unknown) {
   const ref = useRef<T>(null);
   const pinnedRef = useRef(true);

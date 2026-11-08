@@ -22,7 +22,6 @@ function subscribe(fn: () => void) {
   };
 }
 
-/** Wall clock that ticks once a second, shared by every subscriber. */
 export function useNow(): number {
   return useSyncExternalStore(subscribe, () => now);
 }

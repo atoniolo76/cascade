@@ -76,7 +76,6 @@ export function CardHeader({ title, subtitle, actions }: { title: ReactNode; sub
   );
 }
 
-/** Long identifiers (mangled kernel names, trace ids): one line, ellipsis, full text on hover. */
 export function Mono({ children, className }: { children: string; className?: string }) {
   return (
     <span title={children} className={cx("block min-w-0 truncate font-mono text-[12px]", className)}>
