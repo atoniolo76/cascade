@@ -121,3 +121,39 @@ Optional real comparison trace was imported with TraceProcessor:
 The last row is nonzero `stats` with name containing overlap/spill. UI layout is visually
 unverified. Full simulator usage, schema conventions, fitting and offline tests are documented
 in [`docs/corrected-timeline-simulation.md`](../../docs/corrected-timeline-simulation.md).
+
+## Configured launch-latency subtraction experiment
+
+The same mapping and clock were replayed with **5,000 cycles subtracted per covered kernel**.
+Both additional outputs are committed under `accelsim-nolat/`:
+
+```bash
+uv run cascade simulate "$INPUT" --durations "$OUT/sim_durations.json" \
+  --launch-latency-cycles 5000 --output "$OUT/accelsim-nolat/simulated_timeline.json"
+uv run cascade compare "$INPUT" "$OUT/accelsim-nolat/simulated_timeline.json" \
+  --output "$OUT/accelsim-nolat/compare.json"
+```
+
+Coverage remains 5,856/17,088 kernels (34.27%) and 36.62% of measured GPU time. No new
+Accel-Sim execution is implied; the option removes latency from the existing simulated cycles.
+
+| Subtracted cycles | Step-wall mean absolute error ns | Step-wall mean absolute % | GPU-busy mean absolute error ns | GPU-busy mean absolute % |
+|---:|---:|---:|---:|---:|
+| 0 | 41544.253 | 0.539 | 41544.253 | 7.215 |
+| 5000 | 112496.152 | 1.460 | 112496.152 | 19.535 |
+
+```text
+Metric       N    mean abs error ns    p50 abs ns    p95 abs ns    mean abs %
+Step wall   96   112496.152    112539.727    113531.409    1.460
+GPU busy    96   112496.152    112539.727    113531.409    19.535
+Repeat    TTFT error ms    ITL mean error ms    ITL p50 error ms    e2e error ms
+1         0.014411    -1.228308    n/a    -38.063133
+2         0.030607    -1.648850    n/a    -51.083729
+3         0.015063    -1.959672    n/a    -60.734777
+```
+
+Subtraction worsens this capture-conditioned timing transfer: GPU busy changes from an
+overestimate to an underestimate. This experiment exposes the configured latency contribution;
+it does not prove a physically separable 5,000-cycle overhead should always be removed.
+This old input lacks inter-step gaps, so these request errors retain the old missing-time issue.
+Simulator work now lives on branch `simulator`; profiler code lives on `profiler`.

@@ -52,7 +52,8 @@ matches `(repeat, step, seq)`. An unscoped entry matches a globally unique kerne
 seqs require scoping. Missing entries fall back to measured durations; unused or duplicate keys
 are errors so a wrong mapping cannot silently imply useful coverage.
 
-`--subtract-launch-cycles N` defaults to zero and converts cycles as
+`--launch-latency-cycles N` (`--subtract-launch-cycles` remains an alias) defaults to zero and
+converts cycles as
 `(sim_cycles - N) / clock_mhz * 1000` nanoseconds. It requires cycle-based entries and rejects
 negative resulting cycles. This exposes calibration uncertainty: the H100 experiments found
 that removing all 5,000 configured cycles systematically underestimates GPU execution, while
@@ -119,7 +120,7 @@ included in step wall/busy totals; event placement is unavailable, so optional P
 shows kernel slices and full steps, not invented transfer slices. Inputs with kernel sums larger
 than GPU busy need a real concurrency model and are rejected.
 
-### Request metrics (derivation only)
+### Request metrics for legacy files (derivation only)
 
 Supports one non-warm-up request per repeat and `num_reqs=1`. Steps are taken in input order;
 all prefill walls for that repeat are summed, as are decode walls:
@@ -133,6 +134,71 @@ a scheduler. No CPU sampling/token-delivery delay outside step walls is predicte
 errors may therefore remain even with measured-only durations; this indicates those boundaries
 do not fully explain observed request timing. Comparison uses supplied unprofiled request metrics,
 not re-derived real values, so that discrepancy is visible.
+
+### Inter-step host gaps and arrival-referenced requests
+
+Simulator work lives on branch **`simulator`**. Profiler code lives on **`profiler`**; merge that
+branch only if code is needed. The corrected JSON remains the interface.
+
+New files may include `baseline_wall_start_ns`, `baseline_wall_end_ns`,
+`baseline_gap_before_ns`, and their `profiled_*` counterparts. Gaps are time outside the step
+wall, separate from the intra-step corrected host budget. Only **baseline** gaps drive the
+reconstruction; profiled gaps are not substituted for missing baseline gaps.
+
+`--gap-model measured|mean|linear` defaults to **measured**. Activation is per repeat: if no
+baseline gap fields exist, legacy request derivation and output are unchanged. If any baseline
+gap field exists in a captured repeat, every captured step in that repeat must supply it:
+first step null, subsequent gaps finite/nonnegative. Step order is input order. Provided
+start/end pairs must match their step wall; baseline adjacent timestamps must match the gap.
+Warm-up rows, including null fields, are copied unchanged.
+
+- `measured`: preserve each measured `baseline_gap_before_ns` exactly.
+- `mean`: replace each non-first gap with the mean observed gap for its destination step kind.
+- `linear`: fit `gap = a + b*num_reqs` per destination kind using non-first gaps. With constant
+  request count, use b=0 and a=mean; report the unidentifiable slope. Clamp negative predictions
+  to zero. These are in-sample host-gap fits, not a scheduler or a prediction of batching.
+
+Fits are in `summary.simulation.gap_fit`; simulated gap n/mean/p50/p95 statistics are under
+`summary.per_kind.<kind>.gap_before_ns`. First-step null gaps are excluded from both.
+
+For gap-aware repeats, start the timeline at **arrival_ns + pre_first_step_ns**, then place
+each subsequent step after its preceding simulated wall and selected gap. Output baseline
+start/end/gap fields are reconstructed; existing profiled start/end/gap fields are normalized
+to the synthesized timeline, consistently with the synthesized `profiled_wall_ns`.
+
+Request boundaries and metrics are reconstructed as follows (ns converted to ms for metrics):
+
+- First-step start = arrival + pre-first-step. Pre-first-step already includes queue/dispatch
+  time; **do not add queued_ms again**.
+- TTFT = pre-first-step + all prefill walls and gaps through the final prefill end. Prefill
+  must precede decode. First-token timestamp is that final prefill end.
+- Each ITL sample = decode wall + that decode step's gap-before; mean/p50 summarize samples.
+- e2e = pre-first-step + all step walls + gaps between steps + post-last-step.
+- Last-token timestamp = last-step end + post-last-step. Post-last-step contributes to e2e,
+  not the wall-plus-gap ITL samples defined above.
+
+The first-step gap is null, never an additional pre-first-step budget. If optional request
+boundaries are absent, arrival defaults to 0, pre-first-step defaults to queued_ms (or 0), and
+post-last-step to 0. Provided pre/post/arrival values must be finite/nonnegative. No request
+timing fields are required for legacy files without baseline gaps. No multi-request scheduler
+is introduced: request derivation still requires one active request per repeat and num_reqs=1.
+
+The extended offline fixture uses baseline decode gaps 0.8/1.0/1.2 ms, pre-first-step 0.2 ms,
+and post-last-step 0. Measured-only + measured gaps reproduces its TTFT/ITL/e2e exactly, including
+ITL mean 5.78 ms and e2e 24.04 ms. Mean/linear (constant num_reqs) preserve total gaps but can
+change ITL p50. This synthetic fixture is not a replacement for the forthcoming real artifact.
+
+```bash
+uv run cascade simulate tests/fixtures/timeline/corrected_timeline.json \
+  --measured-only --gap-model measured --output /data/gap-sanity.json
+uv run cascade compare tests/fixtures/timeline/corrected_timeline.json \
+  /data/gap-sanity.json --output /data/gap-sanity-compare.json
+# Substitute --gap-model mean or linear to exercise fitted gaps.
+```
+
+The prior real artifact lacks the new fields, so its measured-only and unsubtracted Accel-Sim
+outputs remain byte-identical. The new real gap-aware file must still be supplied before the
+request-level ≤1% sanity criterion can be checked on actual data.
 
 ## Commands and offline fixture
 
