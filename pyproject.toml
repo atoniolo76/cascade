@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cascade-profiler"
-version = "0.1.0"
+version = "0.1.1"
 description = "GPU workload tracing and baseline/profiled timeline reconciliation"
 readme = "README.md"
 requires-python = ">=3.10"

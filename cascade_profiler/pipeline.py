@@ -110,7 +110,7 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
     stage_wall_s = {}
     manifest = {"workload": workload.to_dict(), "run_name": run_name, "phases": selected,
                 "trace_steps": trace_steps, "trace_repeat": trace_repeat,
-                "stage_wall_s": stage_wall_s, "package_version": _version("cascade-profiler") or "0.1.0",
+                "stage_wall_s": stage_wall_s, "package_version": _version("cascade-profiler") or "0.1.1",
                 "git_sha": _git_sha(), "traced_timing_used": False, "status": "running"}
     manifest["effective_llm_kwargs"] = {name: workload.merged_llm_kwargs({
         "enable_logging_iteration_details": True, "disable_log_stats": False,
