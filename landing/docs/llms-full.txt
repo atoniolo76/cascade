@@ -955,6 +955,7 @@ The sandbox has auto-sleep turned off, so the app keeps running while sims repor
 | `CASCADE_WORKSPACE` | none | The workspace's name. `/api/health` returns it and the web UI shows it in the rail. `cascade deploy` and the Get started page set it. |
 | `CASCADE_PUBLIC_URL` | `http://127.0.0.1:8000` | The URL sims use to reach the app. Each sim gets it as `CASCADE_MAIN_URL`. |
 | `CASCADE_S3_PREFIX` | `accelsim-traces` | The key prefix traces live under. Each trace is `<prefix>/<run_name>/`. |
+| `CASCADE_S3_PUBLIC_URL` | none | The S3 endpoint the profiler uploads to. `/api/health` returns it as `s3_endpoint` and the UI fills it into the send-a-trace command. `cascade deploy` sets it; a local `cascade serve` derives it from `CASCADE_PUBLIC_URL`'s host and `--s3-port`. |
 
 `cascade serve` takes `--host` (default `0.0.0.0`), `--port` (default 8000), `--s3-port` (default 9000) and `--sims`. `--sims local`, the default, runs each sim as a subprocess of the app. `--sims sail` forks a Sail sandbox per sim.
 

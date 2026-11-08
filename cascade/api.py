@@ -406,7 +406,12 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
 
     @app.get("/api/health")
     def health() -> dict:
-        return {"ok": True, "auth": not settings.no_auth, "workspace": settings.workspace}
+        return {
+            "ok": True,
+            "auth": not settings.no_auth,
+            "workspace": settings.workspace,
+            "s3_endpoint": settings.s3_public_url,
+        }
 
     @app.get("/api/gpu-configs", dependencies=auth)
     def gpu_configs() -> list[GpuConfig]:

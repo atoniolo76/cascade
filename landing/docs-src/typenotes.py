@@ -205,6 +205,10 @@ SETTINGS_NOTES: dict[str, tuple[str | None, str]] = {
         None,
         "The workspace's name. `/api/health` returns it and the web UI shows it in the rail. `cascade deploy` and the Get started page set it.",
     ),
+    "CASCADE_S3_PUBLIC_URL": (
+        None,
+        "The S3 endpoint the profiler uploads to. `/api/health` returns it as `s3_endpoint` and the UI fills it into the send-a-trace command. `cascade deploy` sets it; a local `cascade serve` derives it from `CASCADE_PUBLIC_URL`'s host and `--s3-port`.",
+    ),
     "CASCADE_RUN_S3": (
         None,
         "Whether `cascade serve` starts `rclone serve s3` next to the app. Set `false` to run the S3 endpoint yourself.",

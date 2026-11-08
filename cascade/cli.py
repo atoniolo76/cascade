@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import logging
 import os
 import shutil
@@ -9,6 +10,7 @@ import sys
 import threading
 from pathlib import Path
 from typing import get_args
+from urllib.parse import urlsplit
 
 import uvicorn
 
@@ -75,8 +77,20 @@ class RcloneSupervisor:
                 self._proc.kill()
 
 
+def same_host_on_port(url: str, port: int) -> str | None:
+    """The S3 endpoint next to a public URL that names its port, as in local runs."""
+    parts = urlsplit(url)
+    if parts.port is None or parts.hostname is None:
+        return None
+    return f"{parts.scheme}://{parts.hostname}:{port}"
+
+
 def serve(args: argparse.Namespace) -> None:
     settings = Settings.from_env(launcher=args.sims)
+    if settings.s3_public_url is None and settings.run_s3:
+        settings = dataclasses.replace(
+            settings, s3_public_url=same_host_on_port(settings.public_url, args.s3_port)
+        )
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     rclone = RcloneSupervisor(settings, f":{args.s3_port}") if settings.run_s3 else None
     if rclone:

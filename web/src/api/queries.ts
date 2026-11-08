@@ -22,6 +22,7 @@ export interface Health {
   ok: boolean;
   auth: boolean;
   workspace: string | null;
+  s3_endpoint: string | null;
 }
 
 export const keys = {

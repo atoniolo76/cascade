@@ -39,6 +39,7 @@ class Settings:
     heartbeat_timeout_s: float
     run_s3: bool
     workspace: str | None
+    s3_public_url: str | None = None
 
     @classmethod
     def from_env(
@@ -65,6 +66,7 @@ class Settings:
             heartbeat_timeout_s=float(env.get("CASCADE_HEARTBEAT_TIMEOUT_S", "60")),
             run_s3=_bool(env.get("CASCADE_RUN_S3", "true")),
             workspace=env.get("CASCADE_WORKSPACE") or None,
+            s3_public_url=(env.get("CASCADE_S3_PUBLIC_URL") or "").rstrip("/") or None,
         )
 
     @property

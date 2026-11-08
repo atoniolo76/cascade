@@ -8,7 +8,7 @@ All `/api` routes require `Authorization: Bearer $CASCADE_TOKEN`, except `GET /a
 
 | Method | Path | Returns |
 | --- | --- | --- |
-| GET | `/api/health` | `{"ok": true, "auth": bool}`. `auth` is false when the app runs with `CASCADE_NO_AUTH=1` (local dev only), and the UI then skips the token screen. |
+| GET | `/api/health` | `{"ok": true, "auth": bool, "workspace": str | null, "s3_endpoint": str | null}`. `s3_endpoint` is the S3 endpoint the profiler should upload to, when the app knows it. `auth` is false when the app runs with `CASCADE_NO_AUTH=1` (local dev only), and the UI then skips the token screen. |
 | GET | `/api/gpu-configs` | `GpuConfig[]` |
 | GET | `/api/traces` | `TraceSummary[]`, newest first |
 | GET | `/api/traces/{id}` | `TraceDetail` |

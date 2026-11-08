@@ -242,6 +242,7 @@ def test_first_deploy_creates_one_app_and_sailbox_then_starts_cascade(fake):
     assert "export CASCADE_WORKSPACE=acme\n" in env
     assert f"export SAIL_API_KEY={KEY}\n" in env
     assert "export CASCADE_PUBLIC_URL=https://sb-0-8000.sail.box\n" in env
+    assert "export CASCADE_S3_PUBLIC_URL=https://sb-0-9000.sail.box\n" in env
     [serve] = [c for c in fake.calls if c[0] == "exec"]
     assert serve[2] == {"background": True}, "a second start while warming up would race it"
     assert KEY not in serve[1] and "env" not in serve[2]

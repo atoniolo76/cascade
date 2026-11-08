@@ -300,6 +300,7 @@ def advance(
                     "CASCADE_TOKEN": fresh,
                     "CASCADE_WORKSPACE": workspace,
                     "CASCADE_PUBLIC_URL": app_url,
+                    **({"CASCADE_S3_PUBLIC_URL": s3_url} if s3_url else {}),
                     "CASCADE_DATA_DIR": "/data",
                     "CASCADE_ACCELSIM_DIR": simulator.accelsim_dir,
                     "CASCADE_SIM_CMD": simulator.sim_cmd,

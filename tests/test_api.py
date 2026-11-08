@@ -53,7 +53,12 @@ def setup(tmp_path):
 
 def test_auth(setup):
     client, _, _ = setup
-    assert client.get("/api/health").json() == {"ok": True, "auth": True, "workspace": None}
+    assert client.get("/api/health").json() == {
+        "ok": True,
+        "auth": True,
+        "workspace": None,
+        "s3_endpoint": None,
+    }
     assert client.get("/api/traces").status_code == 401
     assert client.get("/api/traces", headers={"Authorization": "Bearer nope"}).status_code == 401
     assert client.get("/api/runs/x/events?token=nope").status_code == 401
@@ -66,10 +71,21 @@ def test_health_names_the_workspace(tmp_path):
         assert client.get("/api/health").json()["workspace"] == "acme-lab"
 
 
+def test_health_reports_the_public_s3_endpoint(tmp_path):
+    settings = make_settings(tmp_path, CASCADE_S3_PUBLIC_URL="https://sb-1-9000.sail.box/")
+    with TestClient(create_app(settings, RecordingLauncher())) as client:
+        assert client.get("/api/health").json()["s3_endpoint"] == "https://sb-1-9000.sail.box"
+
+
 def test_no_auth_dev_mode_skips_tokens(tmp_path):
     settings = make_settings(tmp_path, CASCADE_TOKEN="", CASCADE_NO_AUTH="1")
     with TestClient(create_app(settings, RecordingLauncher())) as client:
-        assert client.get("/api/health").json() == {"ok": True, "auth": False, "workspace": None}
+        assert client.get("/api/health").json() == {
+            "ok": True,
+            "auth": False,
+            "workspace": None,
+            "s3_endpoint": None,
+        }
         assert client.get("/api/traces").status_code == 200
         assert (
             client.get("/api/traces", headers={"Authorization": "Bearer nope"}).status_code == 200
