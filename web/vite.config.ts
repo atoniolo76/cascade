@@ -10,7 +10,18 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api": { target: process.env.CASCADE_API ?? "http://localhost:8000", changeOrigin: true },
+      "/api": {
+        target: process.env.CASCADE_API ?? "http://localhost:8000",
+        changeOrigin: true,
+        configure: (proxy) => {
+          // Without this the dev proxy holds an SSE response open after the backend dies, unlike production.
+          proxy.on("proxyRes", (proxyRes, _req, res) => {
+            proxyRes.on("close", () => {
+              res.destroy();
+            });
+          });
+        },
+      },
     },
   },
 });

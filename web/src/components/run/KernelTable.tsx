@@ -19,12 +19,12 @@ export function KernelValueTable({
 }) {
   return (
     <div className="overflow-auto overscroll-contain" style={{ maxHeight }}>
-      <table className="w-full table-fixed border-collapse text-[12px]" style={{ minWidth: 300 + series.length * (extra ? 150 : 104) }}>
+      <table className="w-full table-fixed border-collapse text-[12px]" style={{ minWidth: 300 + series.length * (extra ? 150 : 112) }}>
         <colgroup>
           <col className="w-12" />
           <col />
           {series.map((s) => (
-            <col key={s.key} style={{ width: s.key === REAL_SERIES.key || !extra ? 104 : 150 }} />
+            <col key={s.key} style={{ width: s.key === REAL_SERIES.key ? 128 : extra ? 150 : 112 }} />
           ))}
         </colgroup>
         <thead className="sticky top-0 z-10 bg-surface">

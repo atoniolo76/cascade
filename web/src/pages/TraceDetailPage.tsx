@@ -189,20 +189,20 @@ function KernelTable({ kernels }: { kernels: KernelLaunch[] }) {
         <EmptyState title="No kernels yet" body="Launch dimensions appear once the stats file is uploaded." />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] table-fixed border-collapse">
+          <table className="w-full table-fixed border-collapse sm:min-w-[640px]">
             <colgroup>
-              <col className="w-[64px]" />
+              <col className="w-[52px] sm:w-[64px]" />
               <col />
-              <col className="w-[108px]" />
-              <col className="w-[108px]" />
-              <col className="w-[112px]" />
+              <col className="hidden w-[108px] sm:table-column" />
+              <col className="hidden w-[108px] sm:table-column" />
+              <col className="w-[96px] sm:w-[112px]" />
             </colgroup>
             <thead className="border-b border-border bg-surface-2/50">
               <tr>
                 <th className={`${TH} text-right`}>ID</th>
                 <th className={`${TH} text-left`}>Kernel</th>
-                <th className={`${TH} text-left`}>Grid</th>
-                <th className={`${TH} text-left`}>Block</th>
+                <th className={`${TH} hidden text-left sm:table-cell`}>Grid</th>
+                <th className={`${TH} hidden text-left sm:table-cell`}>Block</th>
                 <th className={`${TH} text-right`}>Instructions</th>
               </tr>
             </thead>
@@ -210,11 +210,14 @@ function KernelTable({ kernels }: { kernels: KernelLaunch[] }) {
               {sorted.slice(0, shown).map((k) => (
                 <tr key={k.kernel_id} className="h-10 border-b border-border last:border-b-0">
                   <td className="px-3 text-right text-muted tabular-nums">{k.kernel_id}</td>
-                  <td className="px-3">
+                  <td className="px-3 py-2 sm:py-0">
                     <Mono>{k.name}</Mono>
+                    <span className="block font-mono text-[11px] text-muted sm:hidden">
+                      {formatDims(k.grid)} · {formatDims(k.block)}
+                    </span>
                   </td>
-                  <td className="px-3 font-mono text-[12px] whitespace-nowrap text-fg-2">{formatDims(k.grid)}</td>
-                  <td className="px-3 font-mono text-[12px] whitespace-nowrap text-fg-2">{formatDims(k.block)}</td>
+                  <td className="hidden px-3 font-mono text-[12px] whitespace-nowrap text-fg-2 sm:table-cell">{formatDims(k.grid)}</td>
+                  <td className="hidden px-3 font-mono text-[12px] whitespace-nowrap text-fg-2 sm:table-cell">{formatDims(k.block)}</td>
                   <td className="px-3 text-right tabular-nums">{k.instructions === null ? <span className="text-faint">—</span> : formatInt(k.instructions)}</td>
                 </tr>
               ))}

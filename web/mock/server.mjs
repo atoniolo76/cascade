@@ -186,8 +186,8 @@ const uploading = traces[0];
 function advanceUpload(now) {
   const t = now - BOOT;
   if (uploading.state === "uploading") {
-    uploading.kernel_count = Math.min(uploading._kernels.length, Math.floor(t / 1400));
-    uploading.bytes = Math.round(uploading.kernel_count * 41_300_000 + (t % 1400) * 9_000);
+    uploading.kernel_count = Math.min(uploading._kernels.length, Math.floor(t / 3000));
+    uploading.bytes = Math.round(uploading.kernel_count * 41_300_000 + (t % 3000) * 4_000);
     uploading.updated_at = iso(now);
     if (uploading.kernel_count >= uploading._kernels.length) {
       uploading.state = "processing";

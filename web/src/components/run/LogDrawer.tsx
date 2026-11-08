@@ -58,36 +58,38 @@ export function LogDrawer({ sim, log, onClose }: { sim: SimSummary; log: SimLog 
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={`Log for ${sim.id}`}>
       <button type="button" aria-label="Close log" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-black/30 backdrop-blur-[2px] dark:bg-black/50" />
       <div className="relative flex h-full w-full max-w-[880px] flex-col border-l border-border bg-surface shadow-pop">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-3">
+        <div className="flex items-start gap-3 border-b border-border px-4 py-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="font-mono text-[13px] font-medium">{sim.gpu_config}</span>
-              <span className="text-[13px] text-muted">Replica {sim.replica}</span>
+              <span className="text-[13px] whitespace-nowrap text-muted">Replica {sim.replica}</span>
               <StatusPill tone={meta.tone} live={meta.live} label={meta.label} />
             </div>
             <div className="truncate font-mono text-[11px] text-faint">{sim.id}</div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
+              title="Reload the full log"
               onClick={() => {
                 setFetched({ kind: "loading" });
                 setReloads((n) => n + 1);
               }}
             >
               <RefreshCw className="size-3.5" />
-              Reload
+              <span className="hidden sm:inline">Reload</span>
             </Button>
             <Button
               variant="ghost"
               size="sm"
+              title="Download the raw log"
               onClick={() => {
                 void downloadFile({ path: `/api/sims/${encodeURIComponent(sim.id)}/log`, filename: `${sim.id}.log` });
               }}
             >
               <Download className="size-3.5" />
-              Download
+              <span className="hidden sm:inline">Download</span>
             </Button>
             <button
               ref={closeRef}
