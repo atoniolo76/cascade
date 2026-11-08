@@ -18,6 +18,8 @@ import {
 } from "../../domain/timeline";
 import { formatInt, formatNs } from "../../domain/format";
 import { kernelLabel } from "../../domain/kernelLabel";
+
+const clipLabel = (name: string) => kernelLabel(name).split("::").at(-1) ?? name;
 import { ColorResolver, inkOn, withAlpha } from "./colors";
 
 export interface Row {
@@ -862,10 +864,10 @@ export class TimelineController {
     const tx = Math.max(left, 0) + 6;
     if (compact || cw < 64) {
       ctx.font = LABEL_FONT;
-      ctx.fillText(kernelLabel(c.name), tx, y + h / 2 + 0.5);
+      ctx.fillText(clipLabel(c.name), tx, y + h / 2 + 0.5);
     } else {
       ctx.font = LABEL_FONT;
-      ctx.fillText(kernelLabel(c.name), tx, y + h / 2 - 6);
+      ctx.fillText(clipLabel(c.name), tx, y + h / 2 - 6);
       ctx.font = SUB_FONT;
       ctx.globalAlpha = Math.min(1, alpha) * 0.78;
       ctx.fillText(`#${c.kernelIndex} · ${formatNs(c.end - c.start)}`, tx, y + h / 2 + 7.5);

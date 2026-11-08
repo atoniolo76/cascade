@@ -104,7 +104,7 @@ export function TimelineView({
   }, [ctl, scene.end, scene.mode]);
 
   useEffect(() => {
-    if (autoFocus) root.current?.focus({ preventScroll: true });
+    if (autoFocus) root.current?.focus({ preventScroll: true, focusVisible: false });
   }, [autoFocus]);
 
   const coarse = useSyncExternalStore(ctl.subscribe, ctl.getCoarse);
@@ -186,7 +186,7 @@ export function TimelineView({
       tabIndex={0}
       onKeyDown={onKeyDown}
       aria-label="Timeline. Space plays, J K L shuttle, arrows step kernels, question mark lists shortcuts."
-      className="relative min-w-0 rounded-b-[18px] outline-none [--hdr:60px] focus-visible:ring-2 focus-visible:ring-[var(--ring)] sm:[--hdr:264px]"
+      className="relative min-w-0 rounded-b-[18px] outline-none [--hdr:60px] focus-visible:shadow-[inset_0_0_0_2px_var(--ring)] sm:[--hdr:264px]"
     >
       <span ref={probe} aria-hidden className="pointer-events-none absolute size-0 opacity-0" />
       <Transport

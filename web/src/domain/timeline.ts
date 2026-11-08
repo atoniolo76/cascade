@@ -58,7 +58,7 @@ interface Sample {
 function layOut(samples: readonly Sample[], pending: { kernelIndex: number; name: string; ns: number } | null): { clips: Clip[]; total: number } {
   const clips: Clip[] = [];
   let t = 0;
-  for (const s of samples.toSorted((a, b) => a.kernelIndex - b.kernelIndex)) {
+  for (const s of samples) {
     clips.push({ kernelIndex: s.kernelIndex, name: s.name, start: t, end: t + s.ns, cycles: s.cycles, ipc: s.ipc });
     t += s.ns;
   }
@@ -67,12 +67,20 @@ function layOut(samples: readonly Sample[], pending: { kernelIndex: number; name
   return { clips, total };
 }
 
+const sampleCache = new WeakMap<Record<number, KernelStat>, Sample[]>();
+
+/** Cached per kernel map: the run reducer replaces only the map of the sim that changed. */
 function samplesOf(stats: Record<number, KernelStat> | undefined): Sample[] {
+  if (!stats) return [];
+  const hit = sampleCache.get(stats);
+  if (hit) return hit;
   const out: Sample[] = [];
-  for (const s of Object.values(stats ?? {})) {
+  for (const s of Object.values(stats)) {
     if (s.sim_time_ns === null) continue;
     out.push({ kernelIndex: s.kernel_index, name: s.kernel_name, ns: s.sim_time_ns, cycles: s.gpu_sim_cycle, ipc: s.gpu_ipc });
   }
+  out.sort((a, b) => a.kernelIndex - b.kernelIndex);
+  sampleCache.set(stats, out);
   return out;
 }
 
@@ -87,6 +95,43 @@ function estimate(k: number, known: ReadonlyMap<number, number>, own: readonly S
   return own.length > 0 ? own.reduce((a, s) => a + s.ns, 0) / own.length : FALLBACK_NS;
 }
 
+const settled = new WeakMap<readonly Sample[], { clips: Clip[]; total: number }>();
+
+function settledLayout(samples: readonly Sample[]): { clips: Clip[]; total: number } {
+  const hit = settled.get(samples);
+  if (hit) return hit;
+  const out = layOut(samples, null);
+  settled.set(samples, out);
+  return out;
+}
+
+let lastMedians: { inputs: readonly (readonly Sample[])[]; out: Sample[] }[] = [];
+
+/** Per-kernel medians across replicas, reused while every replica's samples are unchanged. */
+function medianSamples(replicas: readonly (readonly Sample[])[]): Sample[] {
+  const hit = lastMedians.find((m) => m.inputs.length === replicas.length && m.inputs.every((x, i) => x === replicas[i]));
+  if (hit) return hit.out;
+  const pooled = new Map<number, Sample[]>();
+  for (const samples of replicas) {
+    for (const s of samples) {
+      const list = pooled.get(s.kernelIndex);
+      if (list) list.push(s);
+      else pooled.set(s.kernelIndex, [s]);
+    }
+  }
+  const out = [...pooled]
+    .sort(([a], [b]) => a - b)
+    .map(([kernelIndex, list]) => ({
+      kernelIndex,
+      name: list[0]?.name ?? "",
+      ns: median(list.map((s) => s.ns)) ?? 0,
+      cycles: median(list.flatMap((s) => (s.cycles === null ? [] : [s.cycles]))),
+      ipc: median(list.flatMap((s) => (s.ipc === null ? [] : [s.ipc]))),
+    }));
+  lastMedians = [{ inputs: replicas, out }, ...lastMedians].slice(0, 32);
+  return out;
+}
+
 function pendingName(names: ReadonlyMap<number, string>, k: number): string {
   return names.get(k) ?? "Simulating…";
 }
@@ -96,20 +141,22 @@ export function buildRunTracks(input: RunTimelineInput): Track[] {
   const configs = [...new Set(run.entries.map((e) => e.gpu_config))];
   const known = new Map<number, number>();
   const names = new Map<number, string>();
-  const byIndex = new Map<number, number[]>();
-  for (const sim of run.sims) {
-    for (const s of samplesOf(kernels[sim.id])) {
-      names.set(s.kernelIndex, s.name);
-      const list = byIndex.get(s.kernelIndex) ?? [];
-      list.push(s.ns);
-      byIndex.set(s.kernelIndex, list);
+  if (run.sims.some((s) => ACTIVE.has(s.state))) {
+    const byIndex = new Map<number, number[]>();
+    for (const sim of run.sims) {
+      for (const s of samplesOf(kernels[sim.id])) {
+        names.set(s.kernelIndex, s.name);
+        const list = byIndex.get(s.kernelIndex);
+        if (list) list.push(s.ns);
+        else byIndex.set(s.kernelIndex, [s.ns]);
+      }
     }
+    for (const r of real ?? []) {
+      if (r.kernel_name !== "") names.set(r.kernel_index, r.kernel_name);
+      if (r.real_ns !== null && !byIndex.has(r.kernel_index)) byIndex.set(r.kernel_index, [r.real_ns]);
+    }
+    for (const [k, list] of byIndex) known.set(k, median(list) ?? FALLBACK_NS);
   }
-  for (const r of real ?? []) {
-    if (r.kernel_name !== "") names.set(r.kernel_index, r.kernel_name);
-    if (r.real_ns !== null && !byIndex.has(r.kernel_index)) byIndex.set(r.kernel_index, [r.real_ns]);
-  }
-  for (const [k, list] of byIndex) known.set(k, median(list) ?? FALLBACK_NS);
 
   const tracks: Track[] = [];
   const realRows = (real ?? []).filter((r): r is ComparisonRow & { real_ns: number } => r.real_ns !== null);
@@ -133,17 +180,7 @@ export function buildRunTracks(input: RunTimelineInput): Track[] {
     const color = colorOf(gpuConfig);
     const perSim = sims.map((sim) => ({ sim, samples: samplesOf(kernels[sim.id]) }));
 
-    const pooled = new Map<number, Sample[]>();
-    for (const { samples } of perSim) {
-      for (const s of samples) pooled.set(s.kernelIndex, [...(pooled.get(s.kernelIndex) ?? []), s]);
-    }
-    const medians: Sample[] = [...pooled].map(([kernelIndex, list]) => ({
-      kernelIndex,
-      name: list[0]?.name ?? "",
-      ns: median(list.map((s) => s.ns)) ?? 0,
-      cycles: median(list.flatMap((s) => (s.cycles === null ? [] : [s.cycles]))),
-      ipc: median(list.flatMap((s) => (s.ipc === null ? [] : [s.ipc]))),
-    }));
+    const medians = medianSamples(perSim.map((p) => p.samples));
     const growing = sims.some((s) => ACTIVE.has(s.state));
     const k = nextIndex(medians);
     tracks.push({
@@ -151,7 +188,7 @@ export function buildRunTracks(input: RunTimelineInput): Track[] {
       label: gpuConfig,
       source: { kind: "config", runId: run.id, gpuConfig },
       color,
-      ...layOut(medians, growing ? { kernelIndex: k, name: pendingName(names, k), ns: estimate(k, known, medians) } : null),
+      ...(growing ? layOut(medians, { kernelIndex: k, name: pendingName(names, k), ns: estimate(k, known, medians) }) : settledLayout(medians)),
     });
 
     for (const { sim, samples } of perSim) {
@@ -162,7 +199,7 @@ export function buildRunTracks(input: RunTimelineInput): Track[] {
         label: `${gpuConfig} #${sim.replica}`,
         source: { kind: "sim", runId: run.id, simId: sim.id, gpuConfig, replica: sim.replica, state: sim.state },
         color,
-        ...layOut(samples, growingSim ? { kernelIndex: ks, name: pendingName(names, ks), ns: estimate(ks, known, samples) } : null),
+        ...(growingSim ? layOut(samples, { kernelIndex: ks, name: pendingName(names, ks), ns: estimate(ks, known, samples) }) : settledLayout(samples)),
       });
     }
   }
@@ -187,9 +224,14 @@ export function timelineDuration(tracks: readonly Track[]): number {
   return tracks.reduce((m, t) => Math.max(m, t.clips.at(-1)?.end ?? 0), 0);
 }
 
+const groupCache = new WeakMap<readonly KernelStat[], KernelsBySim>();
+
 export function groupKernels(stats: readonly KernelStat[]): KernelsBySim {
+  const hit = groupCache.get(stats);
+  if (hit) return hit;
   const out: KernelsBySim = {};
   for (const s of stats) (out[s.sim_id] ??= {})[s.kernel_index] = s;
+  groupCache.set(stats, out);
   return out;
 }
 

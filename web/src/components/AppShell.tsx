@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link, Outlet, useLocation } from "react-router";
-import { Activity, BookOpen, ChevronLeft, ChevronRight, Layers, LogOut, Monitor, Moon, Plus, Sun, X } from "lucide-react";
+import { Activity, BookOpen, ChevronLeft, ChevronRight, GitCompareArrows, Layers, LogOut, Monitor, Moon, Plus, Sun, X } from "lucide-react";
 import { tokenStore } from "../api/client";
 import { useRuns, useTraces } from "../api/queries";
 import { DOCS_URL } from "../config";
@@ -18,10 +18,11 @@ import { cx } from "./cx";
 
 const DOCS_ON_GITHUB = new URL(DOCS_URL).hostname === "github.com" ? logoByKey("github") : undefined;
 
-type NavId = "traces" | "runs" | "new";
+type NavId = "traces" | "runs" | "compare" | "new";
 
 function activeNav(pathname: string): NavId | null {
   if (pathname === "/runs/new") return "new";
+  if (pathname.startsWith("/compare")) return "compare";
   if (pathname.startsWith("/runs")) return "runs";
   if (pathname === "/" || pathname.startsWith("/traces")) return "traces";
   return null;
@@ -75,6 +76,9 @@ function Rail() {
       </RailLink>
       <RailLink to={paths.runs} label="Runs" active={nav === "runs"}>
         <Activity {...ICON} />
+      </RailLink>
+      <RailLink to={paths.compare()} label="Compare runs" active={nav === "compare"}>
+        <GitCompareArrows {...ICON} />
       </RailLink>
       <RailDivider />
       <RailLink to={paths.newRun()} label="New run" active={nav === "new"}>

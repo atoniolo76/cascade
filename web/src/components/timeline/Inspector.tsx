@@ -102,7 +102,7 @@ export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; me
                     {clip ? (
                       <span className="flex min-w-0 items-baseline gap-2">
                         <span className="font-mono text-fg">#{clip.kernelIndex}</span>
-                        <span className="truncate font-mono text-[11px] text-muted" title={clip.name}>
+                        <span className="hidden truncate font-mono text-[11px] text-muted sm:inline" title={clip.name}>
                           {clip.pending ? "simulating…" : kernelLabel(clip.name)}
                         </span>
                       </span>
