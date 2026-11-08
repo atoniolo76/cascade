@@ -284,7 +284,7 @@ def simulate(
     if gap_info:
         result["summary"]["simulation"].update(gap_info)
         result["summary"]["simulation"]["request_assumption"] = (
-            "one request per repeat; arrival + pre/steps/inter-step gaps/post"
+            "one request per repeat; queued (or arrival) + pre/steps/inter-step gaps/post"
         )
         for kind, stats in gap_stats(result).items():
             result["summary"]["per_kind"][kind]["gap_before_ns"] = stats

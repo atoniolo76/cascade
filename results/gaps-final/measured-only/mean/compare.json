@@ -1,0 +1,1728 @@
+{
+  "steps": [
+    {
+      "repeat": 1,
+      "step": 32,
+      "kind": "prefill",
+      "wall_ns": {
+        "real": 4109514,
+        "simulated": 4109514,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 610651,
+        "simulated": 610651,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 33,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3831899,
+        "simulated": 3831899,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572345,
+        "simulated": 572345,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 34,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3828895,
+        "simulated": 3828895,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 570585,
+        "simulated": 570585,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 35,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3803596,
+        "simulated": 3803596,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571321,
+        "simulated": 571321,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 36,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3774650,
+        "simulated": 3774650,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571867,
+        "simulated": 571867,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 37,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3809258,
+        "simulated": 3809258,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572538,
+        "simulated": 572538,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 38,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3777058,
+        "simulated": 3777058,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571517,
+        "simulated": 571517,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 39,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3775155,
+        "simulated": 3775155,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572989,
+        "simulated": 572989,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 40,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3765439,
+        "simulated": 3765439,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572020,
+        "simulated": 572020,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 41,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3787771,
+        "simulated": 3787771,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571067,
+        "simulated": 571067,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 42,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3802669,
+        "simulated": 3802669,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571676,
+        "simulated": 571676,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 43,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3789304,
+        "simulated": 3789304,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572057,
+        "simulated": 572057,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 44,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3784059,
+        "simulated": 3784059,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571387,
+        "simulated": 571387,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 45,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3764348,
+        "simulated": 3764348,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573532,
+        "simulated": 573532,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 46,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3764321,
+        "simulated": 3764321,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571739,
+        "simulated": 571739,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 47,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3792254,
+        "simulated": 3792254,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571097,
+        "simulated": 571097,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 48,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3784235,
+        "simulated": 3784235,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573624,
+        "simulated": 573624,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 49,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3761665,
+        "simulated": 3761665,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 574526,
+        "simulated": 574526,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 50,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3797926,
+        "simulated": 3797926,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573879,
+        "simulated": 573879,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 51,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3791045,
+        "simulated": 3791045,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571865,
+        "simulated": 571865,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 52,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3811073,
+        "simulated": 3811073,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573949,
+        "simulated": 573949,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 53,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3780909,
+        "simulated": 3780909,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573629,
+        "simulated": 573629,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 54,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3787534,
+        "simulated": 3787534,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571452,
+        "simulated": 571452,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 55,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3794487,
+        "simulated": 3794487,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 570905,
+        "simulated": 570905,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 56,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3764202,
+        "simulated": 3764202,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572596,
+        "simulated": 572596,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 57,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3817964,
+        "simulated": 3817964,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 574589,
+        "simulated": 574589,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 58,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3823909,
+        "simulated": 3823909,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573276,
+        "simulated": 573276,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 59,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3890283,
+        "simulated": 3890283,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573847,
+        "simulated": 573847,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 60,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3785442,
+        "simulated": 3785442,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 570136,
+        "simulated": 570136,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 61,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3800072,
+        "simulated": 3800072,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571324,
+        "simulated": 571324,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 62,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3770953,
+        "simulated": 3770953,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571546,
+        "simulated": 571546,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 1,
+      "step": 63,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3897158,
+        "simulated": 3897158,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573308,
+        "simulated": 573308,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 64,
+      "kind": "prefill",
+      "wall_ns": {
+        "real": 4005804,
+        "simulated": 4005804,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 608151,
+        "simulated": 608151,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 65,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3803681,
+        "simulated": 3803681,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571958,
+        "simulated": 571958,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 66,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3777600,
+        "simulated": 3777600,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571255,
+        "simulated": 571255,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 67,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3783080,
+        "simulated": 3783080,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 570259,
+        "simulated": 570259,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 68,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3799369,
+        "simulated": 3799369,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571257,
+        "simulated": 571257,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 69,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3790963,
+        "simulated": 3790963,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571773,
+        "simulated": 571773,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 70,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3785759,
+        "simulated": 3785759,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571803,
+        "simulated": 571803,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 71,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3769893,
+        "simulated": 3769893,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572666,
+        "simulated": 572666,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 72,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3772972,
+        "simulated": 3772972,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572409,
+        "simulated": 572409,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 73,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3815401,
+        "simulated": 3815401,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572024,
+        "simulated": 572024,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 74,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3798476,
+        "simulated": 3798476,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 569943,
+        "simulated": 569943,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 75,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3794268,
+        "simulated": 3794268,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571770,
+        "simulated": 571770,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 76,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3782975,
+        "simulated": 3782975,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 570968,
+        "simulated": 570968,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 77,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3768212,
+        "simulated": 3768212,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573463,
+        "simulated": 573463,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 78,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3771776,
+        "simulated": 3771776,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571100,
+        "simulated": 571100,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 79,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3767588,
+        "simulated": 3767588,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572473,
+        "simulated": 572473,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 80,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3759329,
+        "simulated": 3759329,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572312,
+        "simulated": 572312,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 81,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3773765,
+        "simulated": 3773765,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 570843,
+        "simulated": 570843,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 82,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3777969,
+        "simulated": 3777969,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 574811,
+        "simulated": 574811,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 83,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3806281,
+        "simulated": 3806281,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572569,
+        "simulated": 572569,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 84,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3765496,
+        "simulated": 3765496,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572698,
+        "simulated": 572698,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 85,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3772709,
+        "simulated": 3772709,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572985,
+        "simulated": 572985,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 86,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3775268,
+        "simulated": 3775268,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572340,
+        "simulated": 572340,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 87,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3754969,
+        "simulated": 3754969,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571511,
+        "simulated": 571511,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 88,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3805581,
+        "simulated": 3805581,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572446,
+        "simulated": 572446,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 89,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3789881,
+        "simulated": 3789881,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571995,
+        "simulated": 571995,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 90,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3794876,
+        "simulated": 3794876,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571900,
+        "simulated": 571900,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 91,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3867388,
+        "simulated": 3867388,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573404,
+        "simulated": 573404,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 92,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3764427,
+        "simulated": 3764427,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571100,
+        "simulated": 571100,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 93,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3770223,
+        "simulated": 3770223,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573468,
+        "simulated": 573468,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 94,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3785504,
+        "simulated": 3785504,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573722,
+        "simulated": 573722,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 2,
+      "step": 95,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3851501,
+        "simulated": 3851501,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571772,
+        "simulated": 571772,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 96,
+      "kind": "prefill",
+      "wall_ns": {
+        "real": 4003899,
+        "simulated": 4003899,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 608536,
+        "simulated": 608536,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 97,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3813839,
+        "simulated": 3813839,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 570105,
+        "simulated": 570105,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 98,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3762155,
+        "simulated": 3762155,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571257,
+        "simulated": 571257,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 99,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3755687,
+        "simulated": 3755687,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572437,
+        "simulated": 572437,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 100,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3753597,
+        "simulated": 3753597,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 570812,
+        "simulated": 570812,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 101,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3775528,
+        "simulated": 3775528,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571063,
+        "simulated": 571063,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 102,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3808266,
+        "simulated": 3808266,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 570550,
+        "simulated": 570550,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 103,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3830838,
+        "simulated": 3830838,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573335,
+        "simulated": 573335,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 104,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3801578,
+        "simulated": 3801578,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 569272,
+        "simulated": 569272,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 105,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3820965,
+        "simulated": 3820965,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571672,
+        "simulated": 571672,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 106,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3794047,
+        "simulated": 3794047,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573275,
+        "simulated": 573275,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 107,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3849612,
+        "simulated": 3849612,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572374,
+        "simulated": 572374,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 108,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3821048,
+        "simulated": 3821048,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573241,
+        "simulated": 573241,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 109,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3831361,
+        "simulated": 3831361,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571449,
+        "simulated": 571449,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 110,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3790078,
+        "simulated": 3790078,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572666,
+        "simulated": 572666,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 111,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3797846,
+        "simulated": 3797846,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571929,
+        "simulated": 571929,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 112,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3827128,
+        "simulated": 3827128,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572311,
+        "simulated": 572311,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 113,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3782794,
+        "simulated": 3782794,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571960,
+        "simulated": 571960,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 114,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3772339,
+        "simulated": 3772339,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572093,
+        "simulated": 572093,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 115,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3782997,
+        "simulated": 3782997,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571708,
+        "simulated": 571708,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 116,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3807978,
+        "simulated": 3807978,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 570908,
+        "simulated": 570908,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 117,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3759816,
+        "simulated": 3759816,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571767,
+        "simulated": 571767,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 118,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3786925,
+        "simulated": 3786925,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571289,
+        "simulated": 571289,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 119,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3801929,
+        "simulated": 3801929,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572477,
+        "simulated": 572477,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 120,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3819992,
+        "simulated": 3819992,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 571672,
+        "simulated": 571672,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 121,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3830513,
+        "simulated": 3830513,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 574139,
+        "simulated": 574139,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 122,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3823063,
+        "simulated": 3823063,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572800,
+        "simulated": 572800,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 123,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3929760,
+        "simulated": 3929760,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573085,
+        "simulated": 573085,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 124,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3803522,
+        "simulated": 3803522,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572887,
+        "simulated": 572887,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 125,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3761345,
+        "simulated": 3761345,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572060,
+        "simulated": 572060,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 126,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3800593,
+        "simulated": 3800593,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 573719,
+        "simulated": 573719,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    },
+    {
+      "repeat": 3,
+      "step": 127,
+      "kind": "decode",
+      "wall_ns": {
+        "real": 3878715,
+        "simulated": 3878715,
+        "error": 0,
+        "error_pct": 0.0
+      },
+      "gpu_busy_ns": {
+        "real": 572122,
+        "simulated": 572122,
+        "error": 0,
+        "error_pct": 0.0
+      }
+    }
+  ],
+  "requests": [
+    {
+      "repeat": 1,
+      "ttft_ms": {
+        "real": 4.216354000007527,
+        "simulated": 4.330954,
+        "error": 0.11459999999247295,
+        "error_pct": 2.717988100436262
+      },
+      "itl_ms_mean": {
+        "real": 3.8254425483871506,
+        "simulated": 3.826997548387097,
+        "error": 0.0015549999999464603,
+        "error_pct": 0.04064889173677607
+      },
+      "itl_ms_p50": null,
+      "e2e_ms": {
+        "real": 122.8050730000092,
+        "simulated": 122.80295600015259,
+        "error": -0.002116999856610846,
+        "error_pct": -0.0017238700363874117
+      }
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": {
+        "real": 4.109750999987227,
+        "simulated": 4.214546,
+        "error": 0.10479500001277309,
+        "error_pct": 2.5499111749859975
+      },
+      "itl_ms_mean": {
+        "real": 3.8156938064519768,
+        "simulated": 3.8169216451612904,
+        "error": 0.0012278387093136445,
+        "error_pct": 0.03217864880136571
+      },
+      "itl_ms_p50": null,
+      "e2e_ms": {
+        "real": 122.39625899999851,
+        "simulated": 122.39650500015259,
+        "error": 0.00024600015407827414,
+        "error_pct": 0.00020098666093894025
+      }
+    },
+    {
+      "repeat": 3,
+      "ttft_ms": {
+        "real": 4.09238499999276,
+        "simulated": 4.19482,
+        "error": 0.10243500000724026,
+        "error_pct": 2.5030636171186607
+      },
+      "itl_ms_mean": {
+        "real": 3.8334625483874025,
+        "simulated": 3.835588548387097,
+        "error": 0.002125999999694539,
+        "error_pct": 0.05545900013002264
+      },
+      "itl_ms_p50": null,
+      "e2e_ms": {
+        "real": 122.92972400000224,
+        "simulated": 122.92826000015259,
+        "error": -0.0014639998496477347,
+        "error_pct": -0.0011909242142670946
+      }
+    }
+  ],
+  "summary": {
+    "wall_ns": {
+      "count": 96,
+      "mean_error": 0,
+      "mean_abs_error": 0,
+      "p50_abs_error": 0.0,
+      "p95_abs_error": 0.0,
+      "mean_error_pct": 0.0,
+      "mean_abs_error_pct": 0.0,
+      "p50_abs_error_pct": 0.0,
+      "p95_abs_error_pct": 0.0
+    },
+    "gpu_busy_ns": {
+      "count": 96,
+      "mean_error": 0,
+      "mean_abs_error": 0,
+      "p50_abs_error": 0.0,
+      "p95_abs_error": 0.0,
+      "mean_error_pct": 0.0,
+      "mean_abs_error_pct": 0.0,
+      "p50_abs_error_pct": 0.0,
+      "p95_abs_error_pct": 0.0
+    }
+  }
+}

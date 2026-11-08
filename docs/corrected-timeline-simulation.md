@@ -164,14 +164,15 @@ Warm-up rows, including null fields, are copied unchanged.
 Fits are in `summary.simulation.gap_fit`; simulated gap n/mean/p50/p95 statistics are under
 `summary.per_kind.<kind>.gap_before_ns`. First-step null gaps are excluded from both.
 
-For gap-aware repeats, start the timeline at **arrival_ns + pre_first_step_ns**, then place
+For gap-aware repeats, use **queued_ns** as the request reference when supplied, otherwise
+fall back to **arrival_ns** (or zero). Start the timeline at **reference + pre_first_step_ns**, then place
 each subsequent step after its preceding simulated wall and selected gap. Output baseline
 start/end/gap fields are reconstructed; existing profiled start/end/gap fields are normalized
 to the synthesized timeline, consistently with the synthesized `profiled_wall_ns`.
 
 Request boundaries and metrics are reconstructed as follows (ns converted to ms for metrics):
 
-- First-step start = arrival + pre-first-step. Pre-first-step already includes queue/dispatch
+- First-step start = reference + pre-first-step. Pre-first-step already includes queue/dispatch
   time; **do not add queued_ms again**.
 - TTFT = pre-first-step + all prefill walls and gaps through the final prefill end. Prefill
   must precede decode. First-token timestamp is that final prefill end.
@@ -182,7 +183,11 @@ Request boundaries and metrics are reconstructed as follows (ns converted to ms 
 
 The first-step gap is null, never an additional pre-first-step budget. If optional request
 boundaries are absent, arrival defaults to 0, pre-first-step defaults to queued_ms (or 0), and
-post-last-step to 0. Provided pre/post/arrival values must be finite/nonnegative. No request
+post-last-step to 0. Provided arrival/queued/pre values must be finite/nonnegative; post-last-step
+must be finite but may be negative when the last token is stamped before the final step ends.
+The diagnostic fields `arrival_to_first_step_ns` and `last_step_end_to_return_ns` are preserved
+but ignored. TTFT/e2e use the reference above; first token remains the modeled prefill end,
+not an offset fitted to the real in-step stamp. No request
 timing fields are required for legacy files without baseline gaps. No multi-request scheduler
 is introduced: request derivation still requires one active request per repeat and num_reqs=1.
 
@@ -253,11 +258,14 @@ from 683 nsys launches, and actual cycles for 20 traced layer-10 attention kerne
 prefill/decode assignment, queue/API fields and baseline/profiled walls are synthetic. Measured
 gap weights are capped and rescaled to representative profiled step budgets; the first decode
 baseline/profiled walls are 4.79/6.04 ms. Other walls vary to exercise fitting. This is an offline
-schema fixture, **not** the forthcoming real corrected artifact and not an accuracy claim.
+schema fixture, **not** a real corrected artifact and not an accuracy claim.
 
-No merge of the profiler branch is necessary: the artifact is the integration boundary. When
-the real file arrives, run the same commands with its corresponding UID/seq mapping. This work
+No merge of the profiler branch is necessary: the artifact is the integration boundary. For
+new runs, use the same commands with the corresponding UID/seq mapping. This work
 does not change the profiler's optional S3/Modal-volume storage behavior.
 
 Real artifact runs, including measured-only request-level discrepancies and transfer assumptions,
 are committed under [`results/20261108-043849`](../results/20261108-043849/README.md).
+The endpoint-aligned gap-aware run and all six configurations are under
+[`results/gaps-final`](../results/gaps-final/README.md), including signed post-step budgets
+and separate e2e/ITL versus in-step TTFT sanity outcomes.

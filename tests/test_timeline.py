@@ -374,6 +374,35 @@ def test_independently_sampled_step_spans(capture, tmp_path):
     )
 
 
+@pytest.mark.parametrize("post", [-200000, 0])
+def test_queued_reference_and_signed_post(capture, tmp_path, post):
+    request = capture["requests"][1]
+    request["queued_ns"] = request["arrival_ns"] + 1000000
+    request["post_last_step_ns"] = post
+    request["arrival_to_first_step_ns"] = 1200000
+    request["last_step_end_to_return_ns"] = 300000
+    result = simulate(load_timeline(write(tmp_path, capture)), {})
+    predicted = result["requests"][1]
+    assert predicted["arrival_ns"] == request["arrival_ns"]
+    assert predicted["first_step_start_ns"] == request["queued_ns"] + request["pre_first_step_ns"]
+    assert predicted["last_token_ns"] == predicted["last_step_end_ns"] + post
+    assert predicted["e2e_ms"] == pytest.approx(request["e2e_ms"] + post / 1e6)
+    assert predicted["ttft_ms"] == request["ttft_ms"]
+    assert predicted["itl_ms_mean"] == request["itl_ms_mean"]
+    assert predicted["arrival_to_first_step_ns"] == request["arrival_to_first_step_ns"]
+    assert predicted["last_step_end_to_return_ns"] == request["last_step_end_to_return_ns"]
+    load_timeline(write(tmp_path, result))
+    del request["post_last_step_ns"]
+    assert simulate(capture, {})["requests"][1]["post_last_step_ns"] == 0
+
+
+@pytest.mark.parametrize("post", [None, True, float("nan"), float("inf"), -float("inf")])
+def test_invalid_signed_post(capture, tmp_path, post):
+    capture["requests"][1]["post_last_step_ns"] = post
+    with pytest.raises(ValueError, match="post_last_step_ns must be"):
+        load_timeline(write(tmp_path, capture))
+
+
 def test_launch_latency_alias(capture, tmp_path, monkeypatch):
     durations = write(
         tmp_path,
