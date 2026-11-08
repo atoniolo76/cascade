@@ -60,7 +60,7 @@ EPHEMERAL_DISK_MIB = 512 * 1024
 
 
 image = (
-    profiler_image(accelsim_commit=ACCELSIM_COMMIT, arch="sm_90")
+    profiler_image(accelsim_commit=ACCELSIM_COMMIT, arch="all")
     .add_local_file(Path(__file__).parent / "vllm_trace.py", TRACE_SCRIPT)
     .add_local_file(Path(__file__).parent / "kernel_microbench.py", MICROBENCH_SCRIPT)
 )
@@ -87,9 +87,9 @@ def profile_e2e(workload_dict: dict, run_name: str | None, trace_steps: list[int
 @app.local_entrypoint()
 def e2e_main(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is", max_tokens: int = 32,
              repeats: int = 4, trace_steps: str = "0,5", trace_repeat: int = 1,
-             run_name: str = "", timing_only: bool = False):
+             run_name: str = "", timing_only: bool = False, gpu: str = "H100!"):
     selection = None if timing_only else "plan" if trace_steps == "plan" else [int(i.strip()) for i in trace_steps.split(",") if i.strip()]
-    result = profile_e2e.remote(Workload(model, [prompt], max_tokens=max_tokens, repeats=repeats).to_dict(),
+    result = profile_e2e.with_options(gpu=gpu).remote(Workload(model, [prompt], max_tokens=max_tokens, repeats=repeats).to_dict(),
                                 run_name or None, selection, trace_repeat)
     print("Profile stage wall seconds:", result["stage_wall_s"])
     if timing_only:
