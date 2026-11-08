@@ -91,6 +91,7 @@ def test_fake_sim_runs_to_success_and_streams_events(server):
     assert first["type"] == "snapshot"
     assert sorted((k["sim_id"], k["kernel_index"]) for k in first["kernels"]) == expected
     assert first["kernels"][5]["gpu_sim_cycle"] == 45709
+    assert all(k["stats"] == {} for k in first["kernels"])
 
 
 def test_cancel_stops_the_fake_sim(server):
