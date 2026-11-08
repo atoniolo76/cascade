@@ -7,9 +7,9 @@ pip install "git+https://github.com/atoniolo76/cascade@profiler"
 # Optional dependency sets: cascade-profiler[modal] / cascade-profiler[vllm]
 ```
 
-`import cascade_profiler` requires neither Modal nor torch/vLLM. The package exports only
-`Workload`, `RunResult`, and `profile`; image builders, registration, and simulation are not
-part of this API yet. The caller supplies the GPU/container, dependencies, output mount, and
+`import cascade_profiler` requires neither Modal nor torch/vLLM. The package exports
+`Workload`, `RunResult`, `profile`, `trace_plan`, and lazily loaded `simulate_accelsim`, `image`,
+`accelsim_image`, `register`. The caller supplies the GPU/container, dependencies, output mount, and
 volume commit. Runtime timing needs vLLM 0.21.0, torch, nvtx, nsys and nvidia-smi; optional
 NVBit tracing also needs a built Accel-Sim tracer/spinlock tool/postprocessor at `accelsim_root`.
 Baseline-only execution does not need nsys or Accel-Sim. All stages run sequentially inside
@@ -30,10 +30,21 @@ print(result.run_dir, result.paths["corrected_timeline.json"], result.stage_wall
 
 `Workload.to_dict()` / `Workload.from_dict()` round-trip JSON-compatible configuration:
 model, prompts, max_tokens (32), repeats (4), exec_mode (eager), max_model_len (2048),
-llm_kwargs, sampling_kwargs, and optional `driver="your_module:your_function"`.
+llm_kwargs, sampling_kwargs, and optional `driver="your_module:your_function"`. model is required;
+library code does not choose a model or layer path. Layer-scope tracing requires user-specified
+paths (`--list-layers` helps discover them). Only compatibility CLI wrappers retain OPT defaults.
 Sampling defaults are temperature=0, seed=0, ignore_eos=True, max_tokens=workload.max_tokens;
 sampling_kwargs can override them. LLM extras can override non-required defaults such as
-gpu_memory_utilization=0.8; conflicting profiler-required kwargs raise before launching.
+gpu_memory_utilization=0.8, enforce_eager, and compilation_config: **user kwargs win over exec_mode
+defaults**. dtype, quantization, trust_remote_code, max_num_seqs and other JSON-compatible kwargs
+pass through unchanged. run.json records per-phase effective kwargs and overridden execution defaults.
+Conflicting truly required settings (async scheduling off, iteration/metrics instrumentation, CUDA
+capture, layerwise NVTX's eager requirement) raise with an explanation before launching.
+TP/PP/DP>1 and distributed executors are explicitly unsupported: engine-core multiprocessing being
+off does not prevent vLLM from spawning GPU worker processes. In vLLM 0.21, parallel.py:831-876
+selects mp/ray for multi-worker world sizes; StepRecorder's local NVBit enable/disable and synchronize
+cannot control those workers. Single-device uni execution is required; register's gpu argument
+is explicit and can name/type/count the caller's allocation, but multi-device workloads are rejected.
 Custom sampling/drivers must preserve the kernel sequence across processes for later alignment.
 
 A driver must be importable in both parent and subprocesses (not a closure passed as a callable
@@ -68,8 +79,156 @@ Module map: workload.py (configuration/driver validation), runner.py (GPU subpro
 (orchestration), nsys.py (CLI, scrubbing, SQLite/CSV helpers and existing alignment), clocks.py
 (NVML/smi), timeline.py (pure reconciliation), tracing.py (parameterized NVBit commands), utils.py
 (logging/naming/serialization), legacy.py (existing trace/nsys/microbench orchestration and storage).
+align.py handles step-local trace alignment, accelsim.py CPU simulation/durations, and
+modal_support.py optional image factories/registration, without module-level Modal objects.
 accelsim_trace.py remains the compatibility Modal app, with package sources added to its image;
 all existing Modal commands below remain valid. Offline checks: `python3 -m unittest discover -s tests -v`.
+
+## End-to-end tracing and CPU simulation
+
+With Python **3.12** and Modal credentials, the bring-your-own-app example is:
+
+```
+modal run examples/modal_app.py
+# Existing app also supports the complete flow (GPU profiling then CPU simulation):
+modal run accelsim_trace.py::e2e_main --trace-steps 0,5 --trace-repeat 1 --gpu-config SM90_H100
+```
+
+`register(app, volume, gpu=<required>, image=None, sim_image=None, hf_cache=None, mount="/data",
+timeout=14400, sim_cpu=32, sim_timeout=86400)` returns `.profile` and `.simulate` Modal functions.
+`.profile.remote(workload.to_dict(), run_name=None, trace_steps=[0,5], trace_repeat=1)` writes
+`<mount>/<run_name>/`, commits the caller's volume (also on errors), and returns run_name and
+stage_wall_s. `.simulate.remote(run_name, gpu_config="SM90_H100", propagate=False, uids=None,
+kernel_timeout_s=None)` reloads that volume before reading, then commits results. Defaults use
+32 CPU simulation workers, not the container's potentially larger reported os.cpu_count().
+Functions use `serialized=True` because they are nested: client and container **Python minor
+versions must match** (default images are 3.12). Import checks do not build/deploy images.
+Use separate apps/registration names when registering multiple pairs on one client.
+
+`image(base=None, accelsim_commit=..., nvbit=True, nsys=True, arch="all")` builds the profiling
+image with package sources. A custom base must supply vLLM/torch/nvtx and be CUDA **12.x devel,
+Ubuntu 22.04**, with NVIDIA's apt repository for cuda-nsight-systems-12-9. `nvbit=False` skips
+tracer installation/build; `nsys=False` skips nsys. arch="all" supports multiple CUDA architectures
+(slower image build); the old H100 app explicitly uses arch="sm_90". `accelsim_image()` builds a separate CPU-only
+simulator image with CUDA's toolkit, compiler/build dependencies, and the standalone CPU trace
+postprocessor; it does not request a GPU or install vLLM. Default pins:
+
+- Accel-Sim: `7ba54ded60c4ba0083410c37d22d719166acd6dc`.
+- GPGPU-Sim dev: `4195dd4f229cbf03f4f38c49139ae94d01d23f03` (resolved with git ls-remote).
+  setup_environment.sh honors `GPGPUSIM_BRANCH`; the CPU image sets it to this commit before
+  setup clones/checks out GPGPU-Sim. Pass `gpgpusim_ref` to override deliberately.
+
+### Alignment
+
+When both timing phases and tracing exist, profile() writes `trace_alignment.json` after
+postprocessing. Corrected steps now add `step_in_repeat`; older timelines are indexed by counting
+steps within each repeat. Corrected kernel `name` is already nsys's **mangledName** when available
+(`_nsys_kernels` selects it rather than shortName; demangledName is only an old-schema fallback),
+so no extra name field is needed. Alignment also accepts explicit `mangled_name` from external
+timelines. It never guesses equivalence between demangled and mangled names.
+
+Tracer rows are limited to each selected repeat-local step's `[first_kernel_id,end_kernel_id)`;
+only positive total_insts or existing raw/processed trace files count as traced. Ordered
+(name,grid,block) SequenceMatcher anchors are followed by name-only matches within unmatched
+ordered gaps, marked `dims_match=false`. UID collisions across contexts are rejected rather than
+silently mapping the wrong kernel. Output contains provenance (including traced_timing_used=false),
+per-step counts/exactness, UID/file → (repeat, baseline-global step, seq) mappings, and unmatched
+counts/lists. Missing capture windows remain unmatched, not fabricated timing kernels.
+
+### Simulation and artifacts
+
+```
+from cascade_profiler import simulate_accelsim
+summary = simulate_accelsim("/data/my-run", jobs=32, kernel_timeout_s=600, propagate=True)
+```
+
+Each aligned UID runs as a **separate process** in a process pool (jobs defaults to os.cpu_count()).
+The simulator uses gpu-simulator/bin/release/accel-sim.out, GPGPU-Sim's
+configs/tested-cfgs/<gpu_config>/gpgpusim.config, and Accel-Sim's corresponding trace.config.
+Config companions are copied to each working directory. A bash wrapper sources the runtime
+setup **once before parallel work**, captures its environment, and passes library paths to workers;
+this avoids setup scripts racing over shared symlinks. Setup/build/config failures are fatal;
+individual simulator exits, missing traces, invalid stats, and timeouts are recorded, not fatal.
+Missing kernelslist.g/.tracez triggers postprocessing first. Partial postprocessing failure is
+recorded in provenance/summary; existing processed kernels still run and missing kernels fail individually.
+
+`sim/kernel-<uid>/kernelslist.g` contains only that kernel filename, symlinked to its .tracez.
+The parser accepts kernel-only lists (`trace_parser.cc:390-428`); MemcpyHtoD lines are omitted.
+These are isolated **cold-cache** simulations, not warm-cache application replay: copies can warm
+caches in a full replay, and that behavior is deliberately not reproduced here. Per-kernel logs
+are `sim/kernel-<uid>.log`; `sim/kernels.csv` records UID/name/cycles/wall seconds/status/error and
+the simulator's own launch UID (which need not equal the tracer UID). Parsing requires completed
+single-kernel kernel_name/kernel_launch_uid/gpu_sim_cycle stats; cycle-limit truncation is rejected.
+
+`sim_durations.json` has provenance and scoped `kernels` records:
+`{repeat,step,seq,sim_cycles,clock_mhz,source,tracer_uid,name}` (propagated rows omit tracer_uid).
+The simulator reader accepts extra fields. Clock MHz is the **first domain** of the actual config;
+measured profiled SM clock is separately recorded, never silently substituted. Failed kernels have
+no duration record so the simulator consumer can fall back to measured durations. `uids` selects
+aligned IDs explicitly; each invocation replaces durations/CSV/summary (old per-UID logs may remain).
+
+With propagate="identical" (or legacy True), only **untraced steps** get assignments with identical kernel (name,grid,block)
+and step kind. Dimension-mismatched alignments do not seed propagation. Differing measured cycles
+for the same key use their median and are listed in provenance. This is an extrapolation, not an
+exact simulation of those steps. `sim/summary.json` reports coverage per traced step, success/failure
+counts, summed per-kernel simulator wall seconds, mean/max, and overall elapsed wall seconds.
+
+### Generic models, planning, deduplication and interpolation
+
+For example, a second-architecture timing-only run needs no NVBit and never invokes simulation:
+
+```
+modal run accelsim_trace.py::e2e_main --model Qwen/Qwen2.5-0.5B --timing-only
+```
+
+The runner collects `meta.model_config` from the loaded model, not a preset: architecture,
+num_layers, hidden_size, num_heads, num_kv_heads, head_dim, dtype, tensor_parallel_size, quantization.
+vLLM paths checked: v1/engine/llm_engine.py:61-62 (`engine.model_config`), config/model.py:164-167
+(`hf_config`, `hf_text_config`), and engine.vllm_config.parallel_config. HF text config supplies
+GQA's num_key_value_heads and head_dim (or hidden_size/num_attention_heads). Missing fields remain
+null; model-specific assumptions are not substituted. The standalone **OPT-only** kernel_microbench.py
+is intentionally outside the installable package and is not a generic model benchmark.
+
+simulate_accelsim defaults gpu_config=None: measured nvidia-smi names H100/H200/A100/RTX3070/RTX2060
+map to existing tested configs; unknown names require an explicit gpu_config. Provenance records
+the measured name, chosen config, and whether the selection was explicit or mapped. An explicit
+override is the caller's responsibility (including precision, memory-system and clock validity).
+
+`trace_plan(workload, context_lengths=(1,8,16,32), baseline_steps=..., iterations=..., repeat=1)`
+returns (repeat,step_in_repeat) pairs: prefill plus available decode contexts. It requires baseline
+inputs; corrected steps additionally expose nullable `context_length` derived from those inputs.
+Multi-request prompt lengths require uniform per-request token counts; aggregate averages alone
+are not treated as a known context length. The helper requires baseline
+inputs because prompt strings are **not** token counts. ctx_tokens/ctx_reqs comes from baseline
+iteration logs (raw scheduled-token fields are a fallback); decode k has context prompt_tokens+k.
+Unavailable target lengths are skipped. Plans require one homogeneous, non-chunked prefill per
+repeat; ambiguous/mixed/chunked schedules error rather than guessing. Use `profile(...,
+trace_steps="plan")`, or `trace_plan=(1,8,16,32)`, to compute after baseline and before tracing.
+The resolved selection is persisted in run.json. Planning does not require Modal.
+
+`simulate_accelsim(..., dedup=True, verify_dedup=0)` groups globally across selected traced steps by
+mangled name/grid/block plus cheap stable header fields. tracez has a null-terminated plain-text
+header before its compressed instruction data (post-traces-processing.cpp:394-406); .trace/.trace.xz
+are text headers. shmem, nregs, binary/tracer versions, cluster dimensions and any explicit shape/args
+fields are included; kernel IDs, stream IDs and base addresses are excluded. Standard headers do
+**not** expose complete kernel arguments, so this is an assumption about repeated instruction traces,
+not proof of equivalence. Unknown/missing headers disable dedup for that occurrence.
+
+One representative runs per group, with cycles fanned out. Each duration record's `sim` is `exact`
+(own run) or `dedup:<uid>`. verify_dedup=N runs up to N additional group members and uses their own
+cycles, reporting per-group and overall maximum absolute/relative differences. A zero reference with
+nonzero difference is separately flagged. Nonzero verification differences do not silently disable
+dedup: choose dedup=False for independent simulations. Summary/provenance include unique runs vs
+traced occurrences, verification details, and counts for every provenance label.
+
+propagate="none" is default; "identical" labels assignments `identical:<representative uid>` (median
+for ambiguous same-key cycles, detailed in provenance). "interp" additionally detects varying cycles
+by traced decode **seq/name/grid/block**, with no kernel-name allowlists. It linearly interpolates
+between nearest traced context lengths, clamps outside their range, and labels `interp:<uidA>,<uidB>`
+or `interp:<uid>,<uid>:clamped`. Targets with different dimensions, names, seq, or unavailable contexts
+do not get interpolated. Unmatched untraced kernels stay absent and are counted; the simulator reader
+falls back to measured durations. Use dedup=False or verification when probing context dependence:
+unverified dedup can otherwise hide variation. These labels are extra fields accepted by the simulator.
 
 All commands run from the repo root. Without `--s3-*` flags, `trace_vllm` writes the whole run
 dir (raw traces, `kernelslist.g` + `.tracez` from post-traces-processing, `metadata.json`,

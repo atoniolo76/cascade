@@ -1,6 +1,7 @@
 import re
 
 from cascade_profiler.nsys import STEP_RE
+from cascade_profiler.planning import step_contexts
 
 ITERATION_RE = re.compile(
     r"Iteration\((\d+)\): (\d+) context requests, (\d+) context tokens, "
@@ -123,6 +124,7 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
         return out
 
     baseline, profiled = indexed(baseline_steps), indexed(profiled_steps)
+    contexts = step_contexts(baseline_steps, iterations)
     iteration_by_step = {r["step"]: r for r in iterations}
     steps = []
     for key, record in baseline.items():
@@ -143,7 +145,8 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
                                      "block": [int(x) for x in k["block"].split("x")],
                                      "duration_ns": k["end"] - k["start"],
                                      "start_offset_ns": k["start"] - span["start"]})
-        steps.append({"step": record["step"], "repeat": record["repeat"],
+        steps.append({"step": record["step"], "repeat": record["repeat"], "step_in_repeat": key[1],
+                      "context_length": contexts.get((record["repeat"], record["step"])),
                       "warmup": record["warmup"], "kind": it.get("kind", record.get("kind", "unknown")),
                       "num_reqs": it["ctx_reqs"] + it["gen_reqs"] if it else record.get("num_reqs"),
                       "num_scheduled_tokens": it["ctx_tokens"] + it["gen_tokens"] if it else
@@ -208,6 +211,7 @@ def _corrected_timeline(meta: dict, baseline_steps: list[dict], profiled_steps: 
     return {"meta": {k: meta[k] for k in (
         "run_name", "model", "prompt", "max_tokens", "repeats", "exec_mode", "gpu_name",
         "sm_clock_mhz_median", "mem_clock_mhz", "vllm_version", "layerwise_nvtx")} | {
+            **({"model_config": meta["model_config"]} if "model_config" in meta else {}),
             "clock": {"step_clock": "monotonic", "wall_minus_monotonic_ns": None,
                       "how": "unavailable in legacy metrics", **clock,
                       "profiled_wall_minus_monotonic_ns": profiled_clock.get("wall_minus_monotonic_ns")}},

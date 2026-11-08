@@ -23,7 +23,7 @@ class WorkloadTest(unittest.TestCase):
 
     def test_invalid_workloads_and_conflicts(self):
         for kwargs in ({"prompts": []}, {"repeats": 0}, {"exec_mode": "wrong"},
-                       {"llm_kwargs": {"enforce_eager": False}},
+                       {"llm_kwargs": {"tensor_parallel_size": 2}},
                        {"llm_kwargs": {"async_scheduling": True}}, {"driver": lambda: None}):
             with self.subTest(kwargs=kwargs), self.assertRaises((ValueError, TypeError)):
                 Workload(**{"model": "fake", "prompts": ["hello"], **kwargs})
@@ -42,6 +42,9 @@ class PipelineTest(unittest.TestCase):
     def setUp(self):
         test_phases.PhasesTest.setUp(self)
         self.calls = []
+        self.model_config = {"architecture": "Qwen2ForCausalLM", "num_layers": 24, "hidden_size": 896,
+                             "num_heads": 14, "num_kv_heads": 2, "head_dim": 64, "dtype": "bfloat16",
+                             "tensor_parallel_size": 1, "quantization": None}
 
     def tearDown(self):
         test_phases.PhasesTest.tearDown(self)
@@ -60,7 +63,7 @@ class PipelineTest(unittest.TestCase):
         self.calls.append((command, kwargs["env"], work.name))
         if "--workload-json" in command:
             config = Workload.from_dict(json.loads(Path(command[command.index("--workload-json") + 1]).read_text()))
-            self.assertEqual(config.model, "fake")
+            self.assertEqual(config.model, getattr(self, "expected_model", "fake"))
             log, steps = test_phases.PhasesTest.fake_log()
             local_steps = (set(map(int, command[command.index("--trace-steps-in-repeat") + 1].split(",")))
                            if "--trace-steps-in-repeat" in command and command[command.index("--trace-steps-in-repeat") + 1]
@@ -74,7 +77,7 @@ class PipelineTest(unittest.TestCase):
             def last_value(flag):
                 return command[max(i for i, arg in enumerate(command) if arg == flag) + 1]
             Path(last_value("--step-log")).write_text(json.dumps(steps))
-            Path(last_value("--metrics-out")).write_text(json.dumps({"requests": []}))
+            Path(last_value("--metrics-out")).write_text(json.dumps({"requests": [], "model_config": self.model_config}))
             if work.name == "profiled":
                 shutil.copyfile(self.db, work / "profile.sqlite")
                 (work / "profile.nsys-rep").write_text("unscrubbed")
@@ -130,6 +133,7 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(manifest["git_sha"], "fake-sha")
         self.assertEqual(set(result.stage_wall_s), {"baseline", "profiled", "traced", "post_process"})
         self.assertTrue(result.paths["corrected_timeline.json"].exists())
+        self.assertTrue(result.paths["trace_alignment.json"].exists())
         self.assertTrue(result.paths["baseline_iterations.jsonl"].exists())
         self.assertTrue(result.paths["profiled_iterations.jsonl"].exists())
         self.assertTrue(result.paths["traced/traces/kernelslist.g"].exists())
@@ -161,6 +165,22 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(set(result.stage_wall_s), {"baseline", "profiled"})
         self.assertNotIn("--no-step-sync", self.calls[0][0])
         self.assertNotIn("--no-gc-between-repeats", self.calls[0][0])
+
+    def test_second_architecture_and_plan(self):
+        self.expected_model = "Qwen/Qwen2.5-0.5B"
+        workload = Workload(self.expected_model, ["hello"], repeats=2,
+                            llm_kwargs={"dtype": "bfloat16", "trust_remote_code": True,
+                                        "max_num_seqs": 8, "enforce_eager": False})
+        with patch.object(subprocess, "Popen", side_effect=self.fake_popen), \
+                patch.object(subprocess, "run", side_effect=self.fake_run), self.patches():
+            result = profile(workload, self.work / "runs", nsys_bin="custom-nsys", trace_steps="plan")
+        meta = json.loads(result.paths["corrected_timeline.json"].read_text())["meta"]
+        self.assertEqual(meta["model_config"], self.model_config)
+        manifest = json.loads(result.paths["run.json"].read_text())
+        self.assertEqual(manifest["trace_steps"], [0])
+        self.assertEqual(manifest["trace_plan"]["selected"], [[1, 0]])
+        self.assertFalse(manifest["effective_llm_kwargs"]["baseline"]["enforce_eager"])
+        self.assertIn("enforce_eager", manifest["exec_mode_defaults_overridden"])
 
     def test_trace_all_and_unreached_selection(self):
         with patch.object(subprocess, "Popen", side_effect=self.fake_popen), \

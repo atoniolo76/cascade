@@ -39,8 +39,9 @@ from pathlib import Path
 
 import modal
 
-from cascade_profiler import Workload, profile
+from cascade_profiler import Workload, profile, simulate_accelsim
 from cascade_profiler import legacy
+from cascade_profiler.modal_support import image as profiler_image, accelsim_image
 
 ACCELSIM_REPO = "https://github.com/accel-sim/accel-sim-framework.git"
 ACCELSIM_COMMIT = "7ba54ded60c4ba0083410c37d22d719166acd6dc"  # dev branch, 2026-10-27
@@ -59,40 +60,8 @@ FUNCTION_TIMEOUT_S = 4 * 60 * 60  # NVBit instrumentation is slow
 EPHEMERAL_DISK_MIB = 512 * 1024
 
 
-# Modal's vLLM image (modal-examples/06_gpu_and_ml/llm-serving/vllm_inference.py),
-# extended with the Accel-Sim tracer build. The CUDA *devel* base provides nvcc for NVBit.
 image = (
-    modal.Image.from_registry("nvidia/cuda:12.9.0-devel-ubuntu22.04", add_python="3.12")
-    .entrypoint([])
-    .uv_pip_install("vllm==0.21.0", "huggingface-hub", "nvtx")
-    .apt_install("git", "wget", "build-essential", "bc", "libzstd-dev", "zlib1g-dev")
-    .env(
-        {
-            "HF_XET_HIGH_PERFORMANCE": "1",
-            "CUDA_INSTALL_PATH": "/usr/local/cuda",
-            "PATH": "/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        }
-    )
-    .run_commands(
-        f"git clone {ACCELSIM_REPO} {ACCELSIM_DIR}",
-        f"cd {ACCELSIM_DIR} && git checkout {ACCELSIM_COMMIT}",
-        # README step 1: build the tracer. ARCH=sm_90 targets H100 (and is much faster
-        # to compile than the default ARCH=all).
-        f"cd {ACCELSIM_DIR} && ./util/tracer_nvbit/install_nvbit.sh",
-        f"cd {ACCELSIM_DIR} && ARCH=sm_90 make -j$(nproc) -C ./util/tracer_nvbit/",
-        f"test -f {TRACER_SO}",
-        f"test -f {SPINLOCK_SO}",
-        f"test -x {POST_PROCESS_BIN}",
-    )
-    # Separate layer so adding it doesn't rebuild vLLM / the tracer.
-    .uv_pip_install("boto3>=1.36")
-    # Nsight Systems CLI for the real-hardware timing pass (profile_nsys). Own layer, same reason.
-    .apt_install("cuda-nsight-systems-12-9")
-    .run_commands(
-        "command -v nsys || ln -sf \"$(ls -d /opt/nvidia/nsight-systems/*/bin/nsys | tail -1)\" /usr/local/bin/nsys",
-        "nsys --version",
-    )
-    .add_local_python_source("cascade_profiler")
+    profiler_image(accelsim_commit=ACCELSIM_COMMIT, arch="sm_90")
     .add_local_file(Path(__file__).parent / "vllm_trace.py", TRACE_SCRIPT)
     .add_local_file(Path(__file__).parent / "kernel_microbench.py", MICROBENCH_SCRIPT)
 )
@@ -102,6 +71,49 @@ app = modal.App("accelsim-vllm-trace", image=image)
 hf_cache_vol = modal.Volume.from_name("huggingface-cache", create_if_missing=True)
 traces_vol = modal.Volume.from_name("accelsim-traces", create_if_missing=True)
 TRACES_MOUNT = "/traces"
+
+
+@app.function(image=accelsim_image(), cpu=32, memory=64 * 1024, timeout=24 * 60 * 60,
+              volumes={TRACES_MOUNT: traces_vol})
+def simulate(run_name: str, gpu_config: str | None = None, propagate: str = "none",
+             dedup: bool = True, verify_dedup: int = 0):
+    if not run_name or Path(run_name).name != run_name or run_name in {".", ".."}:
+        raise ValueError("run_name must be a single directory name")
+    traces_vol.reload()
+    try:
+        return simulate_accelsim(Path(TRACES_MOUNT) / "phases" / run_name, gpu_config=gpu_config,
+                                 jobs=32, propagate=propagate, dedup=dedup, verify_dedup=verify_dedup)
+    finally:
+        traces_vol.commit()
+
+
+@app.function(gpu="H100!", timeout=FUNCTION_TIMEOUT_S, cpu=8, memory=64 * 1024,
+              ephemeral_disk=EPHEMERAL_DISK_MIB,
+              volumes={TRACES_MOUNT: traces_vol, "/root/.cache/huggingface": hf_cache_vol})
+def profile_e2e(workload_dict: dict, run_name: str | None, trace_steps: list[int] | str | None, trace_repeat: int = 1):
+    try:
+        result = profile(Workload.from_dict(workload_dict), Path(TRACES_MOUNT) / "phases", run_name=run_name,
+                         trace_steps=trace_steps, trace_repeat=trace_repeat)
+        return {"run_name": result.run_dir.name, "stage_wall_s": result.stage_wall_s}
+    finally:
+        traces_vol.commit()
+
+
+@app.local_entrypoint()
+def e2e_main(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is", max_tokens: int = 32,
+             repeats: int = 4, trace_steps: str = "0,5", trace_repeat: int = 1,
+             gpu_config: str = "", run_name: str = "", timing_only: bool = False):
+    selection = None if timing_only else "plan" if trace_steps == "plan" else [int(i.strip()) for i in trace_steps.split(",") if i.strip()]
+    result = profile_e2e.remote(Workload(model, [prompt], max_tokens=max_tokens, repeats=repeats).to_dict(),
+                                run_name or None, selection, trace_repeat)
+    print("Profile stage wall seconds:", result["stage_wall_s"])
+    if timing_only:
+        print("Timing-only run:", result["run_name"], "(NVBit and simulation skipped)")
+        return
+    summary = simulate.remote(result["run_name"], gpu_config=gpu_config or None)
+    print("Simulation wall seconds:", summary["wall_s"], "coverage:", summary["coverage"])
+    print("Simulation counts:", summary["counts"], "provenance labels:", summary["provenance_labels"])
+    print("Dedup verification:", {k: v for k, v in summary["dedup_verification"].items() if k != "groups"})
 
 
 # --------------------------------------------------------------------------------------
@@ -136,7 +148,7 @@ def trace_vllm(
 ) -> str | None:
     try:
         return legacy.trace_vllm(
-            model=model, layers=layers, prompts=prompts, max_tokens=max_tokens, max_model_len=max_model_len,
+            model=model, layers=layers or ["model.decoder.layers.10.self_attn"], prompts=prompts, max_tokens=max_tokens, max_model_len=max_model_len,
             run_name=run_name, list_layers=list_layers, spinlock_handling=spinlock_handling,
             s3_endpoint=s3_endpoint, s3_bucket=s3_bucket, s3_prefix=s3_prefix, s3_region=s3_region,
             s3_addressing_style=s3_addressing_style, trace_scope=trace_scope, trace_steps=trace_steps,

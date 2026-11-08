@@ -76,11 +76,27 @@ class Workload:
         return driver
 
     def merged_llm_kwargs(self, required: dict) -> dict:
-        required = {"model": self.model, "max_model_len": self.max_model_len, **required}
-        for key, value in required.items():
+        for key in ("tensor_parallel_size", "pipeline_parallel_size", "data_parallel_size"):
+            if self.llm_kwargs.get(key, 1) != 1:
+                raise ValueError(f"{key}>1 is unsupported: worker processes escape StepRecorder's NVBit/capture control")
+        if self.llm_kwargs.get("distributed_executor_backend") not in (None, "uni"):
+            raise ValueError("only the in-process uni executor is supported; distributed workers escape NVBit control")
+        defaults = {"gpu_memory_utilization": 0.8, "model": self.model, "max_model_len": self.max_model_len,
+                    **execution_kwargs(self.exec_mode, True), **required}
+        locked = {"model": self.model, "async_scheduling": False}
+        for key in ("enable_logging_iteration_details", "disable_log_stats", "profiler_config", "enable_layerwise_nvtx_tracing"):
+            if key in required:
+                locked[key] = required[key]
+        effective = {**defaults, **self.llm_kwargs}
+        if effective.get("enable_layerwise_nvtx_tracing"):
+            if not effective["enforce_eager"]:
+                raise ValueError("layerwise NVTX requires enforce_eager=True (use exec_mode='eager' or llm_kwargs)")
+            locked["enforce_eager"] = True
+        for key, value in locked.items():
             if key in self.llm_kwargs and self.llm_kwargs[key] != value:
-                raise ValueError(f"llm_kwargs[{key!r}] conflicts with required profiler value {value!r}")
-        return {"gpu_memory_utilization": 0.8, **self.llm_kwargs, **required}
+                raise ValueError(f"llm_kwargs[{key!r}] conflicts with required profiler value {value!r}: "
+                                 "capture needs synchronous in-process steps and enabled iteration/metrics instrumentation")
+        return {**effective, **locked}
 
     def sampling_params_kwargs(self) -> dict:
         return {"temperature": 0.0, "seed": 0, "ignore_eos": True,

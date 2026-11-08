@@ -175,7 +175,7 @@ class PhasesTest(unittest.TestCase):
                                        stats, ranges, kernels)
         self.assertEqual(set(result), {"meta", "steps", "requests", "summary", "gc_summary"})
         self.assertEqual(set(result["meta"]), set(meta) | {"clock"})
-        step_keys = {"step", "repeat", "warmup", "kind", "num_reqs", "num_scheduled_tokens",
+        step_keys = {"step", "repeat", "step_in_repeat", "context_length", "warmup", "kind", "num_reqs", "num_scheduled_tokens",
                      "baseline_wall_ns", "profiled_wall_ns", "gpu_busy_ns", "cuda_api_ns",
                      "host_ns", "kernels", "baseline_wall_start_ns", "baseline_wall_end_ns",
                      "baseline_gap_before_ns", "profiled_wall_start_ns", "profiled_wall_end_ns",
@@ -378,7 +378,11 @@ class PhasesTest(unittest.TestCase):
         class FakeLLM:
             def __init__(self, **kw):
                 kwargs.update(kw)
-                self.llm_engine = SimpleNamespace(step=lambda: calls.append("step"))
+                hf = SimpleNamespace(architectures=["Qwen2ForCausalLM"], num_hidden_layers=24,
+                                     hidden_size=896, num_attention_heads=14, num_key_value_heads=2)
+                self.llm_engine = SimpleNamespace(step=lambda: calls.append("step"), model_config=SimpleNamespace(
+                    hf_config=hf, hf_text_config=hf, dtype="torch.bfloat16", quantization=None),
+                    vllm_config=SimpleNamespace(parallel_config=SimpleNamespace(tensor_parallel_size=1)))
 
             def collective_rpc(self, fn):
                 pass
@@ -428,6 +432,10 @@ class PhasesTest(unittest.TestCase):
         self.assertEqual([r["warmup"] for r in recorded], [True, True, False, False, False, False])
         data = json.loads(metrics.read_text())
         self.assertEqual(len(data["requests"]), 3)
+        self.assertEqual(data["model_config"]["architecture"], "Qwen2ForCausalLM")
+        self.assertEqual(data["model_config"]["num_kv_heads"], 2)
+        self.assertEqual(data["model_config"]["head_dim"], 64)
+        self.assertEqual(data["model_config"]["dtype"], "bfloat16")
         self.assertEqual(data["requests"][0]["ttft_s"], 1)
         self.assertEqual(data["metrics"][0]["buckets"], {"+Inf": 1})
         self.assertTrue(data["gc"]["between_repeats"])

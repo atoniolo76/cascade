@@ -157,7 +157,7 @@ class KernelTraceUploader(threading.Thread):
 
 
 def trace_vllm(
-    model: str = "facebook/opt-125m",
+    model: str,
     layers: list[str] | None = None,
     prompts: list[str] | None = None,
     max_tokens: int = 4,
@@ -207,7 +207,9 @@ def trace_vllm(
         raise ValueError(f"trace_scope must be one of {TRACE_SCOPES}")
     if exec_mode not in EXEC_MODES:
         raise ValueError(f"exec_mode must be one of {EXEC_MODES}")
-    layers = layers or ["model.decoder.layers.10.self_attn"]
+    layers = layers or []
+    if trace_scope == "layers" and not layers and not list_layers:
+        raise ValueError("layer-scope tracing requires user-provided layer paths (or list_layers=True)")
     prompts = prompts or ["Hello, my name is"]
     params = {
         "model": model,

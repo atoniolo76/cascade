@@ -38,6 +38,7 @@ import torch
 from vllm import LLM, SamplingParams
 
 from cascade_profiler.workload import Workload, execution_kwargs as llm_kwargs
+from cascade_profiler.model_info import model_summary
 
 try:
     import nvtx
@@ -302,8 +303,6 @@ def main():
         local_steps = {int(s) for s in args.trace_steps_in_repeat.split(",") if s.strip()}
         if any(s < 0 for s in local_steps):
             p.error("repeat-local step indices must be nonnegative")
-    if args.layerwise_nvtx and args.exec_mode != "eager":
-        p.error("--layerwise-nvtx requires --exec-mode eager")
     if args.repeats < 1:
         p.error("--repeats must be positive")
     if args.cuda_profiler_from_repeat is not None and not (
@@ -394,7 +393,7 @@ def main():
             recorder.close()
     if args.metrics_out:
         Path(args.metrics_out).write_text(json.dumps({
-            "clock": clock, "requests": requests,
+            "clock": clock, "requests": requests, "model_config": model_summary(llm),
             "gc": {"between_repeats": args.gc_between_repeats, "repeats": repeat_gc,
                    "events": recorder.gc.events},
             "metrics": [asdict(m) for m in llm.get_metrics()]}, indent=2))

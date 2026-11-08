@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+from cascade_profiler.align import write_alignment
+from cascade_profiler.planning import trace_plan as make_trace_plan
 from cascade_profiler.clocks import ClockSampler, _clock_stats, _gpu_name
 from cascade_profiler.nsys import (
     _assign_steps, _nsys_api_calls, _nsys_base_cmd, _nsys_env, _nsys_events,
@@ -58,10 +60,10 @@ def _trace(command: list[str], work: Path, accelsim_root: str, env: dict, deadli
 
 
 def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = None,
-            phases=("baseline", "profiled"), trace_steps: list[int] | None = None,
+            phases=("baseline", "profiled"), trace_steps: list[int] | str | None = None,
             trace_repeat: int = 1, layerwise_nvtx: bool = False, no_step_sync: bool = False,
             gc_between_repeats: bool = True, keep_nsys_rep: bool = False,
-            accelsim_root: str = "/opt/accel-sim-framework", nsys_bin: str = "nsys") -> RunResult:
+            accelsim_root: str = "/opt/accel-sim-framework", nsys_bin: str = "nsys", trace_plan=None) -> RunResult:
     """Profile in the caller's GPU container. NVBit timing is never used for reconciliation."""
     workload = Workload.from_dict(workload.to_dict())
     workload.resolve_driver()
@@ -71,12 +73,17 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
     if len(set(phases)) != len(phases) or any(p not in {"baseline", "profiled"} for p in phases):
         raise ValueError("phases must contain baseline and/or profiled without duplicates")
     selected = [p for p in ("baseline", "profiled") if p in phases]
+    planned = trace_steps == "plan" or trace_plan is not None
+    if planned:
+        if "baseline" not in selected:
+            raise ValueError("trace planning requires a baseline phase")
+        if trace_steps not in (None, "plan"):
+            raise ValueError("choose explicit trace_steps or trace_plan, not both")
+        trace_steps = []
     if not selected and trace_steps is None:
         raise ValueError("select at least one phase or request tracing")
     if "profiled" in selected and workload.repeats < 2:
         raise ValueError("profiled capture requires at least two repeats")
-    if layerwise_nvtx and workload.exec_mode != "eager":
-        raise ValueError("layerwise_nvtx requires exec_mode='eager'")
     if trace_steps is not None:
         if not isinstance(trace_steps, list) or any(isinstance(i, bool) or not isinstance(i, int) or i < 0
                                                   for i in trace_steps):
@@ -99,6 +106,15 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
                 "trace_steps": trace_steps, "trace_repeat": trace_repeat,
                 "stage_wall_s": stage_wall_s, "package_version": _version("cascade-profiler") or "0.1.0",
                 "git_sha": _git_sha(), "traced_timing_used": False, "status": "running"}
+    manifest["effective_llm_kwargs"] = {name: workload.merged_llm_kwargs({
+        "enable_logging_iteration_details": True, "disable_log_stats": False,
+        **({"profiler_config": {"profiler": "cuda"}} if name == "profiled" else {}),
+        **({"enable_layerwise_nvtx_tracing": True} if name == "profiled" and layerwise_nvtx else {})})
+        for name in selected}
+    manifest["exec_mode_defaults_overridden"] = [key for key, value in execution_kwargs(workload.exec_mode, True).items()
+                                                 if key in workload.llm_kwargs and workload.llm_kwargs[key] != value]
+    manifest["runner_flags"] = {"layerwise_nvtx": layerwise_nvtx, "no_step_sync": no_step_sync,
+                                "gc_between_repeats": gc_between_repeats}
     manifest_path = run_dir / "run.json"
     manifest_path.write_text(json.dumps(manifest, indent=2))
     parsed_phases, diagnostics, step_logs, metrics = {}, {}, {}, {}
@@ -155,6 +171,13 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
                                          "clock_sampler_error": sampler.error}
                     (run_dir / f"{name}_iterations.jsonl").write_text(
                         "".join(json.dumps(r) + "\n" for r in parsed))
+                    if name == "baseline" and planned:
+                        lengths = (1, 8, 16, 32) if trace_plan is None or trace_plan is True else tuple(trace_plan)
+                        plan = make_trace_plan(workload, lengths, baseline_steps=step_logs[name], iterations=parsed,
+                                               repeat=trace_repeat)
+                        trace_steps = [local for repeat, local in plan]
+                        manifest.update(trace_steps=trace_steps, trace_plan={"context_lengths": lengths, "selected": plan})
+                        manifest_path.write_text(json.dumps(manifest, indent=2))
                     if name == "profiled":
                         db = work / "profile.sqlite"
                         kernels, ranges = _nsys_kernels(db), _nsys_steps(db)
@@ -192,12 +215,15 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
         if "baseline" in step_logs and "profiled" in step_logs:
             clocks = diagnostics["profiled"]["clocks"]
             meta = {**summary, "gpu_name": _gpu_name().split(",")[0].strip(), "vllm_version": _version("vllm"),
+                    "model_config": metrics["baseline"].get("model_config"),
                     "sm_clock_mhz_median": clocks.get("sm_mhz", {}).get("median"),
                     "mem_clock_mhz": clocks.get("mem_mhz", {}).get("median")}
             timeline = _corrected_timeline(meta, step_logs["baseline"], step_logs["profiled"],
                                            parsed_phases["baseline"], metrics["baseline"], nsys_stats,
                                            ranges, kernels, metrics["profiled"])
             (run_dir / "corrected_timeline.json").write_text(json.dumps(timeline, indent=2))
+            if "traced" in selected:
+                write_alignment(run_dir)
         else:
             print("Skipping corrected_timeline.json: both baseline and profiled phases are required")
         manifest["status"] = "completed"
