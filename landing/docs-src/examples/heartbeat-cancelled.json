@@ -1,0 +1,15 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/sims/sim-47077db646b1/heartbeat",
+    "body": {
+      "state": "running"
+    }
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "body": {
+    "state": "cancelled",
+    "cancel": true
+  }
+}

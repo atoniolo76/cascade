@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/runs/run-000000000000",
+    "body": null
+  },
+  "status": 404,
+  "content_type": "application/json",
+  "body": {
+    "detail": "run run-000000000000 not found"
+  }
+}

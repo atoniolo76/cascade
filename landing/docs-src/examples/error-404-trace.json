@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/traces/nope",
+    "body": null
+  },
+  "status": 404,
+  "content_type": "application/json",
+  "body": {
+    "detail": "trace nope not found"
+  }
+}

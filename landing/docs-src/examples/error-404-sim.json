@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/sims/sim-000000000000/heartbeat",
+    "body": {
+      "state": "running"
+    }
+  },
+  "status": 404,
+  "content_type": "application/json",
+  "body": {
+    "detail": "sim sim-000000000000 not found"
+  }
+}

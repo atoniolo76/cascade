@@ -1,0 +1,36 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/gpu-configs",
+    "body": null
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "body": [
+    {
+      "name": "SM7_QV100",
+      "arch": "sm_70",
+      "core_clock_mhz": 1132.0
+    },
+    {
+      "name": "SM80_A100",
+      "arch": "sm_80",
+      "core_clock_mhz": 1410.0
+    },
+    {
+      "name": "SM86_RTX3070",
+      "arch": "sm_86",
+      "core_clock_mhz": 1132.0
+    },
+    {
+      "name": "SM90_H100",
+      "arch": "sm_90",
+      "core_clock_mhz": 1980.0
+    },
+    {
+      "name": "SM90_H200",
+      "arch": "sm_90",
+      "core_clock_mhz": 1980.0
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/runs/run-d96aefcba965",
+    "body": null
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "body": {
+    "id": "run-d96aefcba965",
+    "trace_id": "demo",
+    "created_at": "2026-11-08T03:05:34.001386Z",
+    "state": "succeeded",
+    "entries": [
+      {
+        "gpu_config": "SM86_RTX3070",
+        "count": 2
+      }
+    ],
+    "sim_counts": {
+      "succeeded": 2
+    },
+    "trace": {
+      "id": "demo",
+      "state": "ready",
+      "error": null,
+      "created_at": "2026-11-08T03:05:31.585353Z",
+      "updated_at": "2026-11-08T03:05:31.586920Z",
+      "model": null,
+      "layers": [],
+      "source_gpu": null,
+      "trace_gpu_arch": "sm_86",
+      "suggested_sim_config": "SM86_RTX3070",
+      "kernel_count": 4,
+      "bytes": 31660273,
+      "has_real_timing": false
+    },
+    "sims": [
+      {
+        "id": "sim-45609b32f314",
+        "run_id": "run-d96aefcba965",
+        "gpu_config": "SM86_RTX3070",
+        "replica": 0,
+        "state": "succeeded",
+        "error": null,
+        "launcher_ref": "91078",
+        "created_at": "2026-11-08T03:05:34.001386Z",
+        "started_at": "2026-11-08T03:05:34.066598Z",
+        "finished_at": "2026-11-08T03:05:37.087222Z",
+        "last_heartbeat_at": "2026-11-08T03:05:37.087222Z",
+        "exit_code": 0,
+        "kernels_done": 6,
+        "kernels_total": 4,
+        "current_kernel": "_Z10dot_kernelIdEvPKT_S2_PS0_i",
+        "latest": {
+          "gpu_tot_sim_cycle": 76713.0,
+          "gpu_tot_sim_insn": 26560256.0,
+          "gpu_tot_ipc": 346.2289,
+          "sim_rate_ips": 510774.0
+        },
+        "log_tail": [
+          "",
+          "Reply_Network_injected_packets_num = 4096",
+          "Reply_Network_cycles = 76713",
+          {
+            "$trimmed": "17 more items"
+          }
+        ]
+      },
+      {
+        "id": "sim-d698ff59b168",
+        "run_id": "run-d96aefcba965",
+        "gpu_config": "SM86_RTX3070",
+        "replica": 1,
+        "state": "succeeded",
+        "error": null,
+        "launcher_ref": "91079",
+        "created_at": "2026-11-08T03:05:34.001386Z",
+        "started_at": "2026-11-08T03:05:34.066118Z",
+        "finished_at": "2026-11-08T03:05:37.088830Z",
+        "last_heartbeat_at": "2026-11-08T03:05:37.088830Z",
+        "exit_code": 0,
+        "kernels_done": 6,
+        "kernels_total": 4,
+        "current_kernel": "_Z10dot_kernelIdEvPKT_S2_PS0_i",
+        "latest": {
+          "gpu_tot_sim_cycle": 76713.0,
+          "gpu_tot_sim_insn": 26560256.0,
+          "gpu_tot_ipc": 346.2289,
+          "sim_rate_ips": 510774.0
+        },
+        "log_tail": [
+          "",
+          "Reply_Network_injected_packets_num = 4096",
+          "Reply_Network_cycles = 76713",
+          {
+            "$trimmed": "17 more items"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,188 @@
+{
+  "run_id": "run-d96aefcba965",
+  "headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-cache"
+  },
+  "events": {
+    "snapshot": {
+      "type": "snapshot",
+      "run": {
+        "id": "run-d96aefcba965",
+        "trace_id": "demo",
+        "created_at": "2026-11-08T03:05:34.001386Z",
+        "state": "active",
+        "entries": [
+          {
+            "gpu_config": "SM86_RTX3070",
+            "count": 2
+          }
+        ],
+        "sim_counts": {
+          "launching": 2
+        },
+        "trace": {
+          "id": "demo",
+          "state": "ready",
+          "error": null,
+          "created_at": "2026-11-08T03:05:31.585353Z",
+          "updated_at": "2026-11-08T03:05:31.586920Z",
+          "model": null,
+          "layers": [],
+          "source_gpu": null,
+          "trace_gpu_arch": "sm_86",
+          "suggested_sim_config": "SM86_RTX3070",
+          "kernel_count": 4,
+          "bytes": 31660273,
+          "has_real_timing": false
+        },
+        "sims": [
+          {
+            "id": "sim-45609b32f314",
+            "run_id": "run-d96aefcba965",
+            "gpu_config": "SM86_RTX3070",
+            "replica": 0,
+            "state": "launching",
+            "error": null,
+            "launcher_ref": "91078",
+            "created_at": "2026-11-08T03:05:34.001386Z",
+            "started_at": null,
+            "finished_at": null,
+            "last_heartbeat_at": null,
+            "exit_code": null,
+            "kernels_done": 0,
+            "kernels_total": 4,
+            "current_kernel": null,
+            "latest": {
+              "gpu_tot_sim_cycle": null,
+              "gpu_tot_sim_insn": null,
+              "gpu_tot_ipc": null,
+              "sim_rate_ips": null
+            },
+            "log_tail": []
+          },
+          {
+            "id": "sim-d698ff59b168",
+            "run_id": "run-d96aefcba965",
+            "gpu_config": "SM86_RTX3070",
+            "replica": 1,
+            "state": "launching",
+            "error": null,
+            "launcher_ref": "91079",
+            "created_at": "2026-11-08T03:05:34.001386Z",
+            "started_at": null,
+            "finished_at": null,
+            "last_heartbeat_at": null,
+            "exit_code": null,
+            "kernels_done": 0,
+            "kernels_total": 4,
+            "current_kernel": null,
+            "latest": {
+              "gpu_tot_sim_cycle": null,
+              "gpu_tot_sim_insn": null,
+              "gpu_tot_ipc": null,
+              "sim_rate_ips": null
+            },
+            "log_tail": []
+          }
+        ]
+      },
+      "kernels": []
+    },
+    "sim": {
+      "type": "sim",
+      "sim": {
+        "id": "sim-d698ff59b168",
+        "run_id": "run-d96aefcba965",
+        "gpu_config": "SM86_RTX3070",
+        "replica": 1,
+        "state": "running",
+        "error": null,
+        "launcher_ref": "91079",
+        "created_at": "2026-11-08T03:05:34.001386Z",
+        "started_at": "2026-11-08T03:05:34.066118Z",
+        "finished_at": null,
+        "last_heartbeat_at": "2026-11-08T03:05:34.066118Z",
+        "exit_code": null,
+        "kernels_done": 0,
+        "kernels_total": 4,
+        "current_kernel": null,
+        "latest": {
+          "gpu_tot_sim_cycle": null,
+          "gpu_tot_sim_insn": null,
+          "gpu_tot_ipc": null,
+          "sim_rate_ips": null
+        },
+        "log_tail": []
+      }
+    },
+    "log": {
+      "type": "log",
+      "sim_id": "sim-d698ff59b168",
+      "lines": [
+        "GPGPU-Sim version 4.2.0 (build gpgpu-sim_git-commit-13c67115070dc2f0876254a790d0238073ca364a-modified_590.0) configured with AccelWattch.",
+        "",
+        "----------------------------------------------------------------------------",
+        {
+          "$trimmed": "197 more items"
+        }
+      ]
+    },
+    "kernel": {
+      "type": "kernel",
+      "stat": {
+        "sim_id": "sim-45609b32f314",
+        "kernel_index": 0,
+        "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
+        "kernel_launch_uid": 1,
+        "gpu_sim_cycle": 6174,
+        "gpu_sim_insn": 19456,
+        "gpu_ipc": 3.1513,
+        "sim_time_ns": 5454.063604240282,
+        "stats": {
+          "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
+          "kernel_launch_uid": 1.0,
+          "gpu_sim_cycle": 6174.0,
+          "gpu_sim_insn": 19456.0,
+          "gpu_ipc": 3.1513,
+          "gpu_tot_sim_cycle": 6174.0,
+          "$trimmed": "943 more keys"
+        }
+      }
+    },
+    "sim_finished": {
+      "type": "sim",
+      "sim": {
+        "id": "sim-45609b32f314",
+        "run_id": "run-d96aefcba965",
+        "gpu_config": "SM86_RTX3070",
+        "replica": 0,
+        "state": "succeeded",
+        "error": null,
+        "launcher_ref": "91078",
+        "created_at": "2026-11-08T03:05:34.001386Z",
+        "started_at": "2026-11-08T03:05:34.066598Z",
+        "finished_at": "2026-11-08T03:05:37.087222Z",
+        "last_heartbeat_at": "2026-11-08T03:05:37.087222Z",
+        "exit_code": 0,
+        "kernels_done": 6,
+        "kernels_total": 4,
+        "current_kernel": "_Z10dot_kernelIdEvPKT_S2_PS0_i",
+        "latest": {
+          "gpu_tot_sim_cycle": 76713.0,
+          "gpu_tot_sim_insn": 26560256.0,
+          "gpu_tot_ipc": 346.2289,
+          "sim_rate_ips": 510774.0
+        },
+        "log_tail": [
+          "",
+          "Reply_Network_injected_packets_num = 4096",
+          "Reply_Network_cycles = 76713",
+          {
+            "$trimmed": "17 more items"
+          }
+        ]
+      }
+    }
+  }
+}

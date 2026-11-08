@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/nope",
+    "body": null
+  },
+  "status": 404,
+  "content_type": "application/json",
+  "body": {
+    "detail": "Not Found"
+  }
+}

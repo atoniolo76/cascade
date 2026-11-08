@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/traces",
+    "body": null
+  },
+  "status": 401,
+  "content_type": "application/json",
+  "body": {
+    "detail": "missing or wrong token"
+  }
+}

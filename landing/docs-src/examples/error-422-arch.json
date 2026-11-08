@@ -1,0 +1,20 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/runs",
+    "body": {
+      "trace_id": "demo",
+      "entries": [
+        {
+          "gpu_config": "SM90_H100",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "status": 422,
+  "content_type": "application/json",
+  "body": {
+    "detail": "SM90_H100 is sm_90 but trace demo is sm_86"
+  }
+}

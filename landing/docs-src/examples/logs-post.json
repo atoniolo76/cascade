@@ -1,0 +1,15 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/sims/sim-45609b32f314/logs",
+    "body": {
+      "seq": 0,
+      "lines": [
+        "replayed line"
+      ]
+    }
+  },
+  "status": 204,
+  "content_type": null,
+  "body": null
+}
