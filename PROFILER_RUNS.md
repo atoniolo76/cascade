@@ -7,7 +7,7 @@ dir (raw traces, `kernelslist.g` + `.tracez` from post-traces-processing, `metad
 `<timestamp>__<model>__<scope>__<exec_mode>`; `modal volume ls accelsim-traces` lists them).
 Add `--no-post-process` to skip post-processing, or `--s3-endpoint/--s3-bucket` to stream to S3
 instead (no post-processing; then copy the run dir to the volume yourself before `nsys_main`).
-Defaults are unchanged: `modal run accelsim_trace.py` still traces one layer in eager mode.
+Defaults are unchanged: `modal run accelsim_trace.py::main` still traces one layer in eager mode.
 
 ## 1. Whole-model trace of complete engine steps (eager)
 
@@ -16,7 +16,7 @@ including input prep, logits and sampler kernels. Startup/profiling/warmup kerne
 `LLM()`) are never traced.
 
 ```
-modal run accelsim_trace.py --trace-scope steps --exec-mode eager
+modal run accelsim_trace.py::main --trace-scope steps --exec-mode eager
 # only some steps, e.g. prefill + first decode:  --trace-steps 0,1
 ```
 
@@ -32,7 +32,7 @@ tracer launch ids. So trace the same torch.compile'd (Triton) kernels with graph
 time them with graphs on:
 
 ```
-modal run accelsim_trace.py --trace-scope steps --exec-mode compile
+modal run accelsim_trace.py::main --trace-scope steps --exec-mode compile
 modal run accelsim_trace.py::nsys_main --trace-run <compile_run_name>                     # -> nsys/
 modal run accelsim_trace.py::nsys_main --trace-run <compile_run_name> --exec-mode graphs  # -> nsys_graphs/
 ```

@@ -21,11 +21,11 @@ are not wired up yet: if AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY happen to be se
 container they're used, otherwise requests are sent unsigned.
 
 Usage:
-  modal run accelsim_trace.py --list-layers
-  modal run accelsim_trace.py --layers model.decoder.layers.10.self_attn --max-tokens 4
+  modal run accelsim_trace.py::main --list-layers
+  modal run accelsim_trace.py::main --layers model.decoder.layers.10.self_attn --max-tokens 4
       # -> accelsim-traces volume (post-processed); add --s3-endpoint/--s3-bucket to stream to S3
-  modal run accelsim_trace.py ... --spinlock-handling none   # skip spinlock detection
-  modal run accelsim_trace.py ... --trace-scope steps [--trace-steps 0,1] [--exec-mode compile]
+  modal run accelsim_trace.py::main ... --spinlock-handling none   # skip spinlock detection
+  modal run accelsim_trace.py::main ... --trace-scope steps [--trace-steps 0,1] [--exec-mode compile]
   modal run accelsim_trace.py::nsys_main --trace-run <run> [--exec-mode graphs]
   modal run accelsim_trace.py::microbench_main
   (see PROFILER_RUNS.md)
