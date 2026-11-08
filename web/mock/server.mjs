@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import http from "node:http";
 import { URL } from "node:url";
+import { gzipSync } from "node:zlib";
 
 const PORT = Number(process.env.PORT ?? 8000);
 const TOKEN = process.env.CASCADE_TOKEN ?? "cascade-dev";
@@ -428,8 +429,78 @@ function attachStepTimelines(run) {
   stepTimelines.set(run.id, list);
 }
 
+// Alessio's real OPT-125m H100 Accel-Sim outputs; the text files are rebuilt from each sim's own stats.
+const OUTPUTS = new URL("../../results/20261108-021007-opt125m-h100-accelsim/outputs/", import.meta.url);
+const CONTENT_TYPES = { ".csv": "text/csv", ".txt": "text/plain", ".log": "text/plain", ".json": "application/json", ".gz": "application/gzip" };
+const simFiles = new Map();
+function attachFiles(run) {
+  const real = (name) => readFileSync(new URL(name, OUTPUTS));
+  for (const sim of run._sims.map((id) => sims.get(id))) {
+    const stats = ["uid,name,gpu_sim_cycle,gpu_sim_insn,ipc", ...sim._stats.map((k) => [k.kernel_launch_uid, k.kernel_name, k.gpu_sim_cycle, k.gpu_sim_insn, k.gpu_ipc].join(","))];
+    const files = {
+      "accelsim.log.gz": gzipSync(sim._log.join("\n") + "\n"),
+      "exit-status.txt": Buffer.from(`${sim.exit_code}\n`),
+      "gpgpu_inst_stats.txt": real("gpgpu_inst_stats.txt"),
+      "kernel-stats.csv": Buffer.from(stats.join("\n") + "\n"),
+      "opt125m_H100_perfetto.json.gz": real("opt125m_H100_perfetto.json.gz"),
+      "perf_counter.csv.gz": real("perf_counter.csv.gz"),
+    };
+    simFiles.set(sim.id, Object.entries(files).map(([name, bytes]) => ({ name, size: bytes.length, content_type: CONTENT_TYPES[name.slice(name.lastIndexOf("."))], created_at: sim.finished_at, _bytes: bytes })));
+  }
+}
+const publicFile = ({ _bytes, ...f }) => f;
+
+// cascade/perfetto.py's run_trace, with raw kernel names (the readable-name port lives in TypeScript and Python only).
+function perfettoTrace(run) {
+  const meta = (name, pid, value, tid) => ({ ph: "M", pid, name, args: { [name.endsWith("sort_index") ? "sort_index" : "name"]: value }, ...(tid === undefined ? {} : { tid }) });
+  const label = (uid, name) => (uid == null ? name : `k${uid} ${name}`);
+  const configs = [...new Set(run.entries.map((e) => e.gpu_config))];
+  const events = [];
+  configs.forEach((config, i) => {
+    const pid = i + 1;
+    events.push(meta("process_name", pid, `${config} · Accel-Sim simulated GPU`), meta("process_sort_index", pid, pid));
+    for (const sim of runSims(run).filter((s) => s.gpu_config === config).toSorted((a, b) => a.replica - b.replica)) {
+      const tid = sim.replica + 1;
+      events.push(meta("thread_name", pid, `replica ${sim.replica} · ${sim.id}`, tid), meta("thread_sort_index", pid, tid, tid));
+      let startNs = 0;
+      let cycle = 0;
+      for (const k of sim._stats.toSorted((a, b) => a.kernel_index - b.kernel_index)) {
+        if (k.sim_time_ns == null) continue;
+        const cycles = k.gpu_sim_cycle ?? 0;
+        events.push({
+          ph: "X", pid, tid, cat: "kernel", name: label(k.kernel_launch_uid, k.kernel_name), ts: startNs / 1000, dur: k.sim_time_ns / 1000,
+          args: { kernel_index: k.kernel_index, uid: k.kernel_launch_uid, kernel_name: k.kernel_name, gpu_sim_cycle: k.gpu_sim_cycle, gpu_sim_insn: k.gpu_sim_insn, ipc: k.gpu_ipc, sim_time_ns: k.sim_time_ns, start_cycle: cycle, end_cycle: cycle + cycles },
+        });
+        startNs += k.sim_time_ns;
+        cycle += cycles;
+      }
+    }
+  });
+  const trace = traceById(run.trace_id);
+  if (trace._real) {
+    const pid = configs.length + 1;
+    events.push(meta("process_name", pid, trace.source_gpu ? `Real hardware · ${trace.source_gpu}` : "Real hardware"), meta("process_sort_index", pid, pid), meta("thread_name", pid, "measured kernels", 1));
+    let startNs = 0;
+    for (const row of trace._real) {
+      events.push({ ph: "X", pid, tid: 1, cat: "kernel", name: label(row.kernel_id, row.kernel_name), ts: startNs / 1000, dur: row.duration_ns / 1000, args: row });
+      startNs += row.duration_ns;
+    }
+  }
+  return {
+    traceEvents: events,
+    displayTimeUnit: "ns",
+    otherData: {
+      run_id: run.id,
+      trace_id: run.trace_id,
+      time_axis: "simulated time, microseconds; each sim's kernels laid end to end",
+      slice_duration: "sim_time_ns = gpu_sim_cycle / core clock (MHz) * 1000",
+      kernel_scope: "sequential kernels, each including the configured launch latency; excludes host time and memcpy",
+    },
+  };
+}
+
 if (SCENARIO !== "empty") {
-attachStepTimelines(createRun({
+const filesRun = createRun({
   trace_id: traces[3].id,
   entries: [{ gpu_config: "SM90_H100", count: 2 }, { gpu_config: "SM90_H200", count: 1 }],
   createdAt: BOOT - 2 * HOUR,
@@ -439,7 +510,9 @@ attachStepTimelines(createRun({
     // Like the stand-in replay: its log has more kernels than the trace lists.
     if (sim.gpu_config === "SM90_H200") sim.kernels_done += 3;
   },
-}));
+});
+attachStepTimelines(filesRun);
+attachFiles(filesRun);
 createRun({
   trace_id: traces[2].id,
   entries: [{ gpu_config: "SM90_H100", count: 2 }, { gpu_config: "SM90_H200", count: 2 }],
@@ -717,6 +790,28 @@ const routes = [
   ["GET", /^\/api\/sims\/([^/]+)\/results$/, ([id], _req, res) => {
     const sim = sims.get(id);
     return sim ? send(res, 200, simResults(sim)) : send(res, 404, { detail: "sim not found" });
+  }],
+  ["GET", /^\/api\/runs\/([^/]+)\/files$/, ([id], _req, res) => {
+    const run = runs.find((r) => r.id === id);
+    if (!run) return send(res, 404, { detail: "run not found" });
+    const ordered = runSims(run).toSorted((a, b) => a.gpu_config.localeCompare(b.gpu_config) || a.replica - b.replica || a.id.localeCompare(b.id));
+    return send(res, 200, ordered.flatMap((s) => (simFiles.get(s.id) ?? []).map((f) => ({ ...publicFile(f), sim_id: s.id, gpu_config: s.gpu_config, replica: s.replica }))));
+  }],
+  ["GET", /^\/api\/runs\/([^/]+)\/perfetto$/, ([id], _req, res) => {
+    const run = runs.find((r) => r.id === id);
+    if (!run) return send(res, 404, { detail: "run not found" });
+    return send(res, 200, perfettoTrace(run), { "content-disposition": `attachment; filename="${run.id}-perfetto.json"` });
+  }],
+  ["GET", /^\/api\/sims\/([^/]+)\/files$/, ([id], _req, res) => {
+    if (!sims.has(id)) return send(res, 404, { detail: "sim not found" });
+    return send(res, 200, (simFiles.get(id) ?? []).map(publicFile));
+  }],
+  ["GET", /^\/api\/sims\/([^/]+)\/files\/([^/]+)$/, ([id, name], _req, res) => {
+    if (!sims.has(id)) return send(res, 404, { detail: "sim not found" });
+    const file = simFiles.get(id)?.find((f) => f.name === name);
+    if (!file) return send(res, 404, { detail: `sim ${id} has no file '${name}'` });
+    res.writeHead(200, { "content-type": file.content_type, "content-length": file.size, "content-disposition": `attachment; filename="${name}"` });
+    res.end(file._bytes);
   }],
   ["GET", /^\/api\/sims\/([^/]+)\/log$/, ([id], _req, res) => {
     const sim = sims.get(id);

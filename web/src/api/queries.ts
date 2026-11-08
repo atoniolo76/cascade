@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiJson } from "./client";
 import type {
@@ -6,7 +7,9 @@ import type {
   KernelStat,
   RunCreate,
   RunDetail,
+  RunFile,
   RunSummary,
+  SimFile,
   SimStepTimeline,
   TraceDetail,
   TraceSummary,
@@ -23,6 +26,8 @@ export const keys = {
   comparison: (id: string) => ["runs", id, "comparison"] as const,
   kernels: (id: string) => ["runs", id, "kernels"] as const,
   stepTimelines: (id: string) => ["runs", id, "step-timelines"] as const,
+  runFiles: (id: string) => ["runs", id, "files"] as const,
+  simFiles: (id: string) => ["sims", id, "files"] as const,
   gpuConfigs: ["gpu-configs"] as const,
   simLog: (id: string) => ["sims", id, "log"] as const,
 };
@@ -77,6 +82,26 @@ export function useStepTimelines(runId: string, { live }: { live: boolean }) {
     queryFn: () => apiJson<SimStepTimeline[]>(`/api/runs/${enc(runId)}/step-timelines`),
     refetchInterval: live ? 5000 : false,
   });
+}
+
+/** A sim uploads its files just before its final heartbeat, so the poll ends with one last fetch once it settles. */
+function usePollUntilSettled<T>(queryKey: readonly unknown[], path: string, live: boolean) {
+  const q = useQuery({ queryKey, queryFn: () => apiJson<T>(path), refetchInterval: live ? 5000 : false });
+  const { refetch } = q;
+  const wasLive = useRef(live);
+  useEffect(() => {
+    if (wasLive.current && !live) void refetch();
+    wasLive.current = live;
+  }, [live, refetch]);
+  return q;
+}
+
+export function useRunFiles(runId: string, { live }: { live: boolean }) {
+  return usePollUntilSettled<RunFile[]>(keys.runFiles(runId), `/api/runs/${enc(runId)}/files`, live);
+}
+
+export function useSimFiles(simId: string, { live }: { live: boolean }) {
+  return usePollUntilSettled<SimFile[]>(keys.simFiles(simId), `/api/sims/${enc(simId)}/files`, live);
 }
 
 /** Everything the Compare timeline needs per run; active runs refresh on the comparison cadence. */
