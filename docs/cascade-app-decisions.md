@@ -123,3 +123,15 @@ Superseded 2026-11-07: per-kernel real-vs-simulated comparison is now in scope (
 
 - `CASCADE_NO_AUTH=1` turns off the token check for local play only. `/api/health` reports `auth: false` and the UI skips the token screen. A missing token without this flag still refuses to start, so a deployment can't end up open by accident.
 - `scripts/seed_demo.py` fills a local app with demo traces and runs (one processed trace re-labeled, source GPU marked "(demo)").
+
+## Subcommands (2026-11-07, agreed with Alessio)
+
+Ownership change: Amani now also owns the simulator *process* (`cascade worker`). Alessio keeps the profiler and the step-timing model (`cascade simulate`, `cascade compare`, `cascade import-sim-durations`, `cascade/sim/`).
+
+- `cascade serve --sims local|sail` picks where simulators run. It replaces the `CASCADE_LAUNCHER` env var (migrated and removed in the same change).
+- `cascade worker` is what every sim runs: a local subprocess, or a background exec in a Sail fork. Same image, second mode, as the charter wants. It replaces `scripts/fake_sim.py` (migrated and deleted).
+  - Real mode: runs `$CASCADE_ACCELSIM_DIR/gpu-simulator/bin/release/accel-sim.out` on `$CASCADE_TRACE_DIR/traces/kernelslist.g` with the config's `gpgpusim.config` and `trace.config`, in its own run dir.
+  - `--replay <log>`: the stand-in, replaying a recorded Accel-Sim log.
+  - Both stream log chunks and heartbeats to main and stop on a cancel ack (the contract in docs/api.md).
+- Step timing: if the trace dir holds `corrected_timeline.json` (from the profiler's phases run) and `kernel_mapping.json` (uid/name/repeat/step/seq), the worker runs Alessio's importer and `simulate`, plus `compare` against the corrected timeline, and posts the result to main. Otherwise it skips that step. Building the mapping automatically stays Alessio's.
+- Contract additions: `TraceSummary.has_step_timeline`, `POST /api/sims/{id}/step-timeline` (worker → main), `GET /api/runs/{id}/step-timelines`.
