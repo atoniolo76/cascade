@@ -725,7 +725,7 @@ async function readJson(req) {
 }
 
 const routes = [
-  ["GET", /^\/api\/health$/, (_m, _req, res) => send(res, 200, { ok: true }), { open: true }],
+  ["GET", /^\/api\/health$/, (_m, _req, res) => send(res, 200, { ok: true, workspace: process.env.CASCADE_WORKSPACE ?? "acme-inference-lab" }), { open: true }],
   ["GET", /^\/api\/gpu-configs$/, (_m, _req, res) => send(res, 200, CONFIGS)],
   ["GET", /^\/api\/traces$/, (_m, _req, res) => send(res, 200, traces.map(traceSummary))],
   ["GET", /^\/api\/traces\/([^/]+)$/, ([id], _req, res) => {
