@@ -132,7 +132,7 @@ class OpenAI:
             prompt,
             [m.model_dump() for m in body.messages] if chat else None,
         )
-        self.scenarios.validate_shape(real, prompt_tokens, count)
+        self.scenarios.validate_shape(real, prompt_tokens, count, prompt_tokens_source=source)
         if source == "tokenizer:chat_template":
             match_prompt = prompt
         return (

@@ -81,14 +81,22 @@ class Scenarios:
         real.setdefault("meta", {}).update(run=load("run.json"), workload=load("workload.json"))
         return real
 
-    def validate_shape(self, real, prompt, output):
+    def validate_shape(self, real, prompt, output, prompt_tokens_source: str | None = None):
         try:
             limit = model_limit(real)
         except ValueError as exc:
             raise error(422, str(exc), "unsupported_profile") from exc
-        if prompt < 1 or output < 0 or prompt + output > limit:
+        if prompt < 1:
+            raise error(422, f"prompt_tokens must be >= 1; got {prompt}", "invalid_request")
+        if output < 0:
+            raise error(422, f"output_tokens must be >= 0; got {output}", "invalid_request")
+        if prompt + output > limit:
+            source = f" ({prompt_tokens_source})" if prompt_tokens_source else ""
             raise error(
-                422, f"request exceeds model limits (max_model_len={limit})", "invalid_request"
+                422,
+                f"request exceeds max_model_len={limit}: "
+                f"prompt_tokens={prompt}{source} + output_tokens={output} = {prompt + output}",
+                "invalid_request",
             )
 
     def timeline(self, sim):
