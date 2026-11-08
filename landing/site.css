@@ -60,13 +60,12 @@ h1 {
   letter-spacing: -0.01em;
 }
 @media (min-width: 640px) { h1 { font-size: 36px; } }
-.mark { height: 0.98em; width: auto; flex-shrink: 0; overflow: visible; }
-.mark rect {
-  transform-box: fill-box; transform-origin: left center;
-  transform: scaleX(0); opacity: 0;
-  animation: grow 0.55s cubic-bezier(.3,.7,.2,1) forwards;
-}
-@keyframes grow { to { transform: none; opacity: 1; } }
+.mark { height: 0.95em; width: auto; flex-shrink: 0; overflow: visible; }
+.mark .tier { opacity: 0; transform: translateX(-5px); animation: tier-in 0.6s cubic-bezier(.3,.7,.2,1) forwards; }
+.mark .tier:nth-child(2) { animation-delay: 0.05s; }
+.mark .tier:nth-child(3) { animation-delay: 0.18s; }
+.mark .tier:nth-child(4) { animation-delay: 0.31s; }
+@keyframes tier-in { to { opacity: 1; transform: none; } }
 
 .lede { margin: 16px 0 0; color: var(--ink-70); line-height: 1.6; }
 
@@ -137,7 +136,7 @@ footer {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mark rect { animation: none; opacity: 1; transform: none; }
+  .mark .tier { animation: none; opacity: 1; transform: none; }
   .aside { position: static; }
   .hl { transition: none; }
 }
