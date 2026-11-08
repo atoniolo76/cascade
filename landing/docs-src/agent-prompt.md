@@ -86,6 +86,8 @@ for name, values in sorted(configs.items()):
 3. **Worst kernels.** Name up to 5 kernels. With real timing, pick those with the largest absolute percentage error. Without it, pick those with the largest share of simulated time, and say how much their time differs between configs. Name each kernel in readable form. Demangle `kernel_name` with `c++filt -n -p <kernel_name>` when `c++filt` is installed, so `_Z11copy_kernelIdEvPKT_PS0_` becomes `copy_kernel<double>`. The `-n` matters on macOS, where `c++filt` without it returns the name unchanged. Without `c++filt`, give the identifier inside the mangled name, such as `copy_kernel`. Give the `kernel_index` too.
 4. **Failed, lost and cancelled sims.** List every sim whose `state` is not `succeeded`, with its `id`, `gpu_config`, `replica`, `state`, `error`, `exit_code` and the lines of `log_tail` that show the cause.
 
+When the user wants the simulator's own files, list them with `GET /api/runs/{run_id}/files`, download one with `GET /api/sims/{sim_id}/files/{name}`, and fetch a Perfetto trace of the run with `GET /api/runs/{run_id}/perfetto`.
+
 Give times in the largest unit that keeps the number above 1, such as 5.2 µs or 3.1 ms, and call them simulated. Take every number from an API response. When a value is `null`, say that it is missing. If the user asks what a number means, explain it from the field descriptions under "Types" below.
 
 ## Rules

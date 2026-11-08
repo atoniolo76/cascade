@@ -17,7 +17,7 @@ To drive a Cascade app from an AI agent, give the agent [agent-prompt.md](agent-
 - [Trace a workload](trace-a-workload.html): Trace a vLLM model on a Modal H100 with Accel-Sim's NVBit tracer and stream the trace into your Cascade app over S3.
 - [Traces](traces.html): How the Cascade app notices an upload, decides it is complete, post-processes it, and marks it ready to simulate.
 - [Runs](runs.html): Launch a Cascade run on a ready trace, choose GPU configs and counts, follow its sims, and cancel it.
-- [Reading results](reading-results.html): What Cascade's run screen, metrics, comparison panel and results downloads mean, and where each number comes from in Accel-Sim's output.
+- [Reading results](reading-results.html): What Cascade's run screen, metrics, comparison panel, output files, Perfetto trace and downloads mean, and where each number comes from in Accel-Sim's output.
 - [Bring your own simulator](simulator.html): The contract a program follows to run as a Cascade simulator, what the simulator image needs, and a complete stdlib client.
 
 ## API reference
@@ -26,7 +26,7 @@ To drive a Cascade app from an AI agent, give the agent [agent-prompt.md](agent-
 - [Traces](api-traces.html): List the traces the Cascade app has received and read one trace's metadata and kernels.
 - [Runs](api-runs.html): List GPU configs, create and cancel runs, read run and sim state, and download results and logs from the Cascade API.
 - [Live events (SSE)](api-events.html): Subscribe to one Cascade run's live updates over server-sent events: the snapshot, sim, log and kernel events, and how to reconnect.
-- [Simulator endpoints](api-simulator.html): The two calls a Cascade simulator makes, heartbeats and log chunks, with their bodies, replies and retry rules.
+- [Simulator endpoints](api-simulator.html): The calls a Cascade simulator makes, heartbeats, log chunks, step timing and output files, with their bodies, replies and retry rules.
 - [Types](types.html): Every request, response and event model in the Cascade API, its fields and types, and the sim state machine, generated from cascade/models.py.
 - [Errors](errors.html): The status codes the Cascade API returns, the two error body shapes, and a captured example of each.
 

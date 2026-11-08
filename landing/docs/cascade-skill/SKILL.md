@@ -91,6 +91,8 @@ for name, values in sorted(configs.items()):
 3. **Worst kernels.** Name up to 5 kernels. With real timing, pick those with the largest absolute percentage error. Without it, pick those with the largest share of simulated time, and say how much their time differs between configs. Name each kernel in readable form. Demangle `kernel_name` with `c++filt -n -p <kernel_name>` when `c++filt` is installed, so `_Z11copy_kernelIdEvPKT_PS0_` becomes `copy_kernel<double>`. The `-n` matters on macOS, where `c++filt` without it returns the name unchanged. Without `c++filt`, give the identifier inside the mangled name, such as `copy_kernel`. Give the `kernel_index` too.
 4. **Failed, lost and cancelled sims.** List every sim whose `state` is not `succeeded`, with its `id`, `gpu_config`, `replica`, `state`, `error`, `exit_code` and the lines of `log_tail` that show the cause.
 
+When the user wants the simulator's own files, list them with `GET /api/runs/{run_id}/files`, download one with `GET /api/sims/{sim_id}/files/{name}`, and fetch a Perfetto trace of the run with `GET /api/runs/{run_id}/perfetto`.
+
 Give times in the largest unit that keeps the number above 1, such as 5.2 µs or 3.1 ms, and call them simulated. Take every number from an API response. When a value is `null`, say that it is missing. If the user asks what a number means, explain it from the field descriptions under "Types" below.
 
 ## Rules
@@ -100,7 +102,7 @@ Give times in the largest unit that keeps the number above 1, such as 5.2 µs or
 - Cancel a run only when the user asks. `POST /api/runs/{run_id}/cancel` stops every sim that has not finished. It is safe to repeat.
 - Use `GET /api/runs/{run_id}/kernels` for per-kernel numbers. Use `GET /api/runs/{run_id}/results` only for the full stats maps.
 - Check whether the numbers come from Cascade's stand-in simulator, unless the user has said the app runs a real Accel-Sim image. A default deploy runs the stand-in, `cascade worker --replay`, which replays one recorded Accel-Sim run of `facebook/opt-125m` on SM90_H100 (20 vLLM kernels), whatever the trace. A local dev server may replay a BabelStream log instead, whose kernels are named init, copy, mul, add, triad and dot. The signs are the same kernels for every trace (`nvjet_sm90_hsh_64x8_64x16_4x1_v_bz_bias_TNT`, `vllm::reshape_and_cache_flash_kernel`, `cutlass::device_kernel` and `at::native::vectorized_elementwise_kernel` on a default deploy), OPT-125m kernels for a trace of another model, and `kernels_done` different from `kernels_total`. When you see these signs, say at the top of the report that the numbers come from the stand-in and do not describe the trace.
-- Never call `POST /api/sims/{sim_id}/heartbeat`, `POST /api/sims/{sim_id}/logs` or `POST /api/sims/{sim_id}/step-timeline`. Those routes are for simulators, and a heartbeat changes a sim's state.
+- Never call `POST /api/sims/{sim_id}/heartbeat`, `POST /api/sims/{sim_id}/logs`, `POST /api/sims/{sim_id}/step-timeline` or `PUT /api/sims/{sim_id}/files/{name}`. Those routes are for simulators, and a heartbeat changes a sim's state.
 - Lists come back whole, with no pagination.
 
 ## Errors
@@ -133,6 +135,10 @@ Every route takes the bearer token except `GET /api/health`. Bodies are JSON, an
 | GET | `/api/runs/{run_id}/results` | One JSON file with the run, trace, every sim's stats and the comparison. |
 | GET | `/api/sims/{sim_id}/results` | One sim's config, per-kernel stats and totals. |
 | GET | `/api/sims/{sim_id}/log` | The sim's full raw output. |
+| GET | `/api/runs/{run_id}/files` | Every output file the run's sims uploaded. |
+| GET | `/api/runs/{run_id}/perfetto` | The run's simulated kernels as a Chrome trace JSON for ui.perfetto.dev. |
+| GET | `/api/sims/{sim_id}/files` | The output files one sim uploaded. |
+| GET | `/api/sims/{sim_id}/files/{name}` | One output file, as the sim uploaded it. |
 | GET | `/api/runs/{run_id}/events` | Server-sent events for one run. |
 
 ### GET /api/health
@@ -242,6 +248,39 @@ Download a sim's log. Streams every line the simulator sent, in `seq` order, as 
 - Path parameter `sim_id` (str): The sim's `id`, such as `sim-6b4c91e71437`. Find it in `RunDetail.sims`.
 - Returns: `200` with the log as plain text.
 - `404`: No sim has this id.
+
+### GET /api/runs/{run_id}/files
+
+List a run's output files. Lists the files every sim in the run uploaded, ordered by config, replica, then name. Each `RunFile` names its sim, so one call covers the run. `cascade worker` uploads a sim's files just before its final heartbeat, so the list grows as sims finish. Fetch one with `GET /api/sims/{sim_id}/files/{name}`.
+
+- Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
+- Returns: `200` with a list of `RunFile`.
+- `404`: No run has this id.
+
+### GET /api/runs/{run_id}/perfetto
+
+Download a Perfetto trace. Builds a Chrome trace JSON from the run's parsed kernel stats and returns it with `Content-Disposition: attachment; filename="<run_id>-perfetto.json"`. Each config is a process, each replica is a thread in it, and each finished kernel is one slice. The app builds it from the stats it parsed, so every run has one, whether or not the simulator wrote its own. Reading results describes the layout.
+
+- Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
+- Returns: `200` with a Chrome trace JSON object: `traceEvents`, `displayTimeUnit` and `otherData`.
+- `404`: No run has this id.
+
+### GET /api/sims/{sim_id}/files
+
+List a sim's output files. Lists one sim's uploaded files, sorted by name. The list is empty until the simulator uploads something.
+
+- Path parameter `sim_id` (str): The sim's `id`, such as `sim-6b4c91e71437`. Find it in `RunDetail.sims`.
+- Returns: `200` with a list of `SimFile`.
+- `404`: No sim has this id.
+
+### GET /api/sims/{sim_id}/files/{name}
+
+Download an output file. Returns the file as a download named `name`, with the file's `content_type`. A `.gz` file comes back as `application/gzip` with no `Content-Encoding`, so it stays compressed.
+
+- Path parameter `sim_id` (str): The sim's `id`, such as `sim-6b4c91e71437`. Find it in `RunDetail.sims`.
+- Path parameter `name` (str): The file's name, such as `kernel-stats.csv`. Letters, digits, `.`, `_` and `-`, 1 to 128 characters, and not `.` or `..`.
+- Returns: `200` with the file's bytes.
+- `404`: No sim has this id, or the sim has no file with this name.
 
 ### GET /api/runs/{run_id}/events
 
@@ -432,6 +471,23 @@ One per-kernel stats block parsed from Accel-Sim output.
 - `replica` (`int`): The sim's replica.
 - `simulated` (`dict`): As sent in `StepTimelineUpload.simulated`.
 - `compare` (`dict | None`): As sent in `StepTimelineUpload.compare`.
+
+### SimFile
+
+An output file a sim uploaded with PUT /api/sims/{id}/files/{name}.
+
+- `name` (`str`): Matches FILE_NAME_PATTERN; Accel-Sim's name, plus .gz when the worker gzipped it.
+- `size` (`int`): Bytes as stored.
+- `content_type` (`str`): From the name: `text/csv` for `.csv`, `text/plain` for `.txt` and `.log`, `application/json` for `.json`, `application/gzip` for `.gz`, and otherwise a guess, falling back to `application/octet-stream`.
+- `created_at` (`datetime`): When this version was stored; a re-put replaces the file.
+
+### RunFile
+
+Every field of `SimFile`, plus these.
+
+- `sim_id` (`str`): The sim that uploaded the file.
+- `gpu_config` (`str`): The sim's config.
+- `replica` (`int`): The sim's replica.
 
 ### RunEvent
 

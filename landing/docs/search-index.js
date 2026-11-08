@@ -295,6 +295,16 @@ window.DOCS_INDEX = [
 "g": "Reading results"
 },
 {
+"t": "Outputs",
+"u": "reading-results.html#outputs",
+"g": "Reading results"
+},
+{
+"t": "The Perfetto trace",
+"u": "reading-results.html#the-perfetto-trace",
+"g": "Reading results"
+},
+{
 "t": "Downloads",
 "u": "reading-results.html#downloads",
 "g": "Reading results"
@@ -322,6 +332,11 @@ window.DOCS_INDEX = [
 {
 "t": "The built-in worker",
 "u": "simulator.html#the-built-in-worker",
+"g": "Bring your own simulator"
+},
+{
+"t": "Output files",
+"u": "simulator.html#output-files",
 "g": "Bring your own simulator"
 },
 {
@@ -450,6 +465,26 @@ window.DOCS_INDEX = [
 "g": "Runs"
 },
 {
+"t": "List a run's output files",
+"u": "api-runs.html#list-run-files",
+"g": "Runs"
+},
+{
+"t": "Download a Perfetto trace",
+"u": "api-runs.html#get-run-perfetto",
+"g": "Runs"
+},
+{
+"t": "List a sim's output files",
+"u": "api-runs.html#list-sim-files",
+"g": "Runs"
+},
+{
+"t": "Download an output file",
+"u": "api-runs.html#get-sim-file",
+"g": "Runs"
+},
+{
 "t": "Live events (SSE)",
 "u": "api-events.html",
 "g": "API reference"
@@ -512,6 +547,11 @@ window.DOCS_INDEX = [
 {
 "t": "Send step timing",
 "u": "api-simulator.html#post-step-timeline",
+"g": "Simulator endpoints"
+},
+{
+"t": "Upload an output file",
+"u": "api-simulator.html#put-sim-file",
 "g": "Simulator endpoints"
 },
 {
@@ -635,6 +675,16 @@ window.DOCS_INDEX = [
 "g": "Types"
 },
 {
+"t": "SimFile",
+"u": "types.html#simfile",
+"g": "Types"
+},
+{
+"t": "RunFile",
+"u": "types.html#runfile",
+"g": "Types"
+},
+{
 "t": "Simulator calls",
 "u": "types.html#simulator-calls",
 "g": "Types"
@@ -717,6 +767,11 @@ window.DOCS_INDEX = [
 {
 "t": "409 Conflict",
 "u": "errors.html#e409",
+"g": "Errors"
+},
+{
+"t": "413 Content Too Large",
+"u": "errors.html#e413",
 "g": "Errors"
 },
 {

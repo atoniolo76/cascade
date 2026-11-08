@@ -223,6 +223,7 @@ STATUS_TEXT = {
     401: "Unauthorized",
     404: "Not Found",
     409: "Conflict",
+    413: "Content Too Large",
     422: "Unprocessable Entity",
 }
 
@@ -650,6 +651,8 @@ def samples(ep: Endpoint) -> str:
         )
     path = ex["request"]["path"]
     body = ex["request"]["body"]
+    upload = ex["request"].get("file") if ep.raw_body else None
+    ctype = "application/octet-stream" if upload else "application/json"
     token = "$CASCADE_TOKEN" if ep.auth != "none" else None
     curl = ["curl"]
     if method != "GET":
@@ -659,25 +662,31 @@ def samples(ep: Endpoint) -> str:
     curl_lines = [" ".join(curl) + f' "$CASCADE_URL{path}"']
     if token:
         curl_lines.append(f'-H "Authorization: Bearer {token}"')
+    if body is not None or upload:
+        curl_lines.append(f'-H "Content-Type: {ctype}"')
     if body is not None:
-        curl_lines.append('-H "Content-Type: application/json"')
         curl_lines.append(f"-d '{json.dumps(body)}'")
+    if upload:
+        curl_lines.append(f"--data-binary @{upload}")
     curl_code = " \\\n  ".join(curl_lines)
 
     py = ["import os", "", "import httpx", ""]
     if token:
-        py.append('headers = {"Authorization": f"Bearer {os.environ[\'CASCADE_TOKEN\']}"}')
+        extra = f', "Content-Type": "{ctype}"' if upload else ""
+        py.append(
+            f'headers = {{"Authorization": f"Bearer {{os.environ[\'CASCADE_TOKEN\']}}"{extra}}}'
+        )
     call_args = [f"f\"{{os.environ['CASCADE_URL']}}{path}\""]
     if token:
         call_args.append("headers=headers")
     if body is not None:
         call_args.append(f"json={py_literal(body)}")
+    if upload:
+        call_args.append(f'content=open("{upload}", "rb").read()')
     py.append(f"resp = httpx.{method.lower()}({', '.join(call_args)})")
     py.append("resp.raise_for_status()")
-    if ep.kind == "download" and ex["content_type"] == "text/plain":
-        py.append(f'open("{path.split("/")[3]}.log", "w").write(resp.text)')
-    elif ep.kind == "download":
-        py.append(f'open("{path.split("/")[3]}-results.json", "wb").write(resp.content)')
+    if ep.kind == "download":
+        py.append(f'open("{ex["filename"]}", "wb").write(resp.content)')
     elif ex["status"] != 204:
         py.append("print(resp.json())")
 
@@ -685,23 +694,28 @@ def samples(ep: Endpoint) -> str:
     headers = []
     if token:
         headers.append("Authorization: `Bearer ${CASCADE_TOKEN}`")
-    if body is not None:
-        headers.append('"Content-Type": "application/json"')
+    if body is not None or upload:
+        headers.append(f'"Content-Type": "{ctype}"')
     if headers:
         opts.append("headers: { " + ", ".join(headers) + " }")
     if body is not None:
         opts.append(f"body: JSON.stringify({json.dumps(body)})")
-    js = [f"const resp = await fetch(`${{CASCADE_URL}}{path}`"]
+    if upload:
+        opts.append(f'body: await readFile("{upload}")')
+    js = ['import { readFile } from "node:fs/promises";', ""] if upload else []
+    js.append(f"const resp = await fetch(`${{CASCADE_URL}}{path}`")
     if opts:
-        js[0] += ", {"
+        js[-1] += ", {"
         js += [f"  {o}," for o in opts]
         js.append("});")
     else:
-        js[0] += ");"
-    if ep.kind == "download" and ex["content_type"] == "text/plain":
-        js.append("const log = await resp.text();")
+        js[-1] += ");"
+    if ep.kind == "download" and ex["content_type"] == "application/json":
+        js.append("const data = await resp.json();")
+    elif ep.kind == "download" and ex["content_type"].startswith("text/"):
+        js.append("const text = await resp.text();")
     elif ep.kind == "download":
-        js.append("const results = await resp.json();")
+        js.append("const blob = await resp.blob();")
     elif ex["status"] != 204:
         js.append("console.log(await resp.json());")
     return tabs(
@@ -753,6 +767,11 @@ def endpoint_section(ep: Endpoint) -> str:
         ps = tuple(p for p in ep.params if p.where == where)
         if ps:
             parts.append(f"<h3 data-notoc>{label}</h3>{params_table(ps)}")
+    if ep.raw_body:
+        parts.append(
+            "<h3 data-notoc>Request body</h3><p>The file's raw bytes, sent as "
+            "<code>Content-Type: application/octet-stream</code>. Not JSON and not a form.</p>"
+        )
     if ep.body:
         parts.append(f"<h3 data-notoc>Request body</h3><p>JSON, {type_link(ep.body)}.</p>")
         parts.append(fields_table(ep.body))
@@ -1086,7 +1105,7 @@ PROMPT_PARTS = {
 def check_prompt_template(template: str) -> None:
     """The hand-written parts of the prompt may only name routes the app serves and real fields."""
     served = {(e.method, e.path) for e in ENDPOINTS}
-    for method, path in re.findall(r"\b(GET|POST) (/api/[^\s`]*)", template):
+    for method, path in re.findall(r"\b(GET|POST|PUT) (/api/[^\s`]*)", template):
         if (method, path) not in served:
             raise SystemExit(f"agent-prompt.md names {method} {path}, which no Endpoint documents")
     fields = {f.name for info in MODELS.values() for f in info.fields}

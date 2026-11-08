@@ -1,0 +1,50 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/runs/run-f9ef217a2c3c/files",
+    "body": null
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "body": [
+    {
+      "name": "accelsim.log.gz",
+      "size": 37105,
+      "content_type": "application/gzip",
+      "created_at": "2026-11-08T06:47:53.804058Z",
+      "sim_id": "sim-060fbd075b71",
+      "gpu_config": "SM86_RTX3070",
+      "replica": 0
+    },
+    {
+      "name": "exit-status.txt",
+      "size": 2,
+      "content_type": "text/plain",
+      "created_at": "2026-11-08T06:47:53.791135Z",
+      "sim_id": "sim-060fbd075b71",
+      "gpu_config": "SM86_RTX3070",
+      "replica": 0
+    },
+    {
+      "name": "gpgpu_inst_stats.txt",
+      "size": 133,
+      "content_type": "text/plain",
+      "created_at": "2026-11-08T06:47:53.792849Z",
+      "sim_id": "sim-060fbd075b71",
+      "gpu_config": "SM86_RTX3070",
+      "replica": 0
+    },
+    {
+      "name": "kernel-stats.csv",
+      "size": 3829,
+      "content_type": "text/csv",
+      "created_at": "2026-11-08T06:47:53.794331Z",
+      "sim_id": "sim-060fbd075b71",
+      "gpu_config": "SM86_RTX3070",
+      "replica": 0
+    },
+    {
+      "$trimmed": "8 more items"
+    }
+  ]
+}

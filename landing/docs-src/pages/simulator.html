@@ -18,12 +18,13 @@ description: The contract a program follows to run as a Cascade simulator, what 
 </li>
 <li>Send `POST /api/sims/{id}/heartbeat` with `{"state": "running"}` right away, and again every few seconds. If the reply has `"cancel": true`, stop and exit.</li>
 <li>Send your output as `POST /api/sims/{id}/logs` with `{"seq": n, "lines": [...]}`, counting `seq` up from 0. Send Accel-Sim's stdout as it is. The app parses the per-kernel stats out of it.</li>
-<li>Finish with one heartbeat of `succeeded` or `failed`, with your `exit_code`, and an `error` if you failed.</li>
+<li>Optionally, upload the files your simulator wrote with `PUT /api/sims/{id}/files/{name}`, one file per call, with the raw bytes as the body. They show up under the run's **Outputs**.</li>
+<li>Finish with one heartbeat of `succeeded` or `failed`, with your `exit_code`, and an `error` if you failed. Send every log chunk and file before it.</li>
 </ol>
-<p>[Simulator endpoints](api-simulator.html) has the full request and response for both calls.</p>
+<p>[Simulator endpoints](api-simulator.html) has the full request and response for each call.</p>
 
 <h2>Retries are safe</h2>
-<p>Both calls are safe to repeat, so retry any `5xx` or network error with backoff. The app ignores a log chunk whose `seq` it already has, and a heartbeat that repeats the current state only refreshes the heartbeat time. Don't retry a `4xx`. It means the token or the body is wrong, or the sim doesn't exist.</p>
+<p>Every call is safe to repeat, so retry any `5xx` or network error with backoff. The app ignores a log chunk whose `seq` it already has, a heartbeat that repeats the current state only refreshes the heartbeat time, and a file put again replaces the earlier one. Don't retry a `4xx`. It means the token, the body or the file name is wrong, the file is too big, or the sim doesn't exist.</p>
 <p>Keep heartbeats going while you wait on retries. After 60 seconds of silence the sim shows as `lost`, and after 600 seconds it fails and the app stops its sandbox.</p>
 
 <h2>The built-in worker</h2>
@@ -33,8 +34,18 @@ description: The contract a program follows to run as a Cascade simulator, what 
 <li>It keeps the full log in that directory as `accelsim.log`.</li>
 <li>If the binary, a config or `kernelslist.g` is missing, it sends a `failed` heartbeat with exit code 2 and an error that names the missing path.</li>
 <li>It sends a chunk every 200 lines or 0.5 seconds, a heartbeat every 5 seconds, and every chunk before its final heartbeat.</li>
-<li>`cascade worker --replay <log>` replays a recorded Accel-Sim log instead of running Accel-Sim. `--delay` sets the pause every 200 lines, 0.05 seconds by default. This is the stand-in simulator.</li>
+<li>After the simulator exits, succeeded or failed, it uploads its [output files](#output-files), then sends the final heartbeat.</li>
+<li>`cascade worker --replay <log>` replays a recorded Accel-Sim log instead of running Accel-Sim. `--delay` sets the pause every 200 lines, 0.05 seconds by default. `--replay-outputs <dir>` copies the directory's files, except `run.log` and `setup.log`, into the run directory as if Accel-Sim wrote them, so they upload like real output. This is the stand-in simulator. A default deploy replays a recorded OPT-125m run and its outputs.</li>
 </ul>
+
+<h2>Output files</h2>
+<p>Before it starts the simulator, `cascade worker` notes every file in its run directory, which is the copied configs. After the simulator exits, it uploads each regular file in that directory that the simulator created or changed, in name order, and then its own log as `accelsim.log.gz`. It skips symlinks and subdirectories. A cancelled sim uploads nothing.</p>
+<ul>
+<li>A text file over 1 MiB is gzipped as it uploads and stored as `<name>.gz`.</li>
+<li>The app keeps up to 64 MiB per file and 256 MiB per sim. The worker skips a file over a limit, and a name the app would refuse, with one log line each.</li>
+<li>A failed upload is retried like every other call. If it still fails, the worker writes a log line, and the sim's state doesn't change.</li>
+</ul>
+<p>A custom simulator uploads with the same call. [Upload an output file](api-simulator.html#put-sim-file) has the name rules and errors.</p>
 
 <h2>Step timing</h2>
 <p>A trace can carry two more files next to `metadata.json`. When both are there, the trace's `has_step_timeline` is true. The app checks on every scan, so they can arrive after the trace is ready.</p>
@@ -61,4 +72,4 @@ description: The contract a program follows to run as a Cascade simulator, what 
 <p>Pin the simulator to the version the profiler traced with. The profiler at `b348d7d` builds the tracer from Accel-Sim commit `7ba54ded`. The app's notes name Accel-Sim tag `v2.0.1` for the simulator.</p>
 
 <h2>Where output goes</h2>
-<p>Anything your command prints to stdout or stderr is also saved to `$CASCADE_DATA_DIR/work/sims/<sim id>.out` on the sim's disk. Only what you send to `/logs` reaches the app, and only that gets parsed.</p>
+<p>Anything your command prints to stdout or stderr is also saved to `$CASCADE_DATA_DIR/work/sims/<sim id>.out` on the sim's disk. Only what you send to `/logs` and `/files` reaches the app, and only the log gets parsed. On Sail, the sim's disk is gone when its fork ends, so upload any file you want to keep.</p>

@@ -1,0 +1,13 @@
+{
+  "request": {
+    "method": "PUT",
+    "path": "/api/sims/sim-f917948c0d2f/files/big.bin",
+    "body": null,
+    "file": "big.bin"
+  },
+  "status": 413,
+  "content_type": "application/json",
+  "body": {
+    "detail": "file is over the 64 MiB per-file limit"
+  }
+}

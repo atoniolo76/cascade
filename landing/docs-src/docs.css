@@ -338,6 +338,7 @@ blockquote { margin: 14px 0 0; padding: 2px 0 2px 14px; border-left: 2px solid v
 }
 .method.get { color: var(--get); background: var(--tint-get); }
 .method.post { color: var(--violet); background: var(--tint-violet); }
+.method.put { color: var(--warn); background: var(--tint-warn); }
 .route .path { font: 400 14px "Geist Mono", monospace; color: var(--ink); overflow-wrap: anywhere; }
 .route .pp { color: var(--orchid); }
 .route .auth { margin-left: auto; font: 400 11px "Geist Mono", monospace; color: var(--ink-45); }

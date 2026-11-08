@@ -1,36 +1,47 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/runs/run-a4297b7960e3/kernels",
+    "path": "/api/runs/run-f9ef217a2c3c/kernels",
     "body": null
   },
   "status": 200,
   "content_type": "application/json",
   "body": [
     {
-      "sim_id": "sim-b4ded55fc48b",
+      "sim_id": "sim-060fbd075b71",
       "kernel_index": 0,
       "kernel_name": "_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_",
       "kernel_launch_uid": 1,
       "gpu_sim_cycle": 6174,
       "gpu_sim_insn": 19456,
       "gpu_ipc": 3.1513,
-      "sim_time_ns": 3118.181818181818,
+      "sim_time_ns": 5454.063604240282,
       "stats": {}
     },
     {
-      "sim_id": "sim-b4ded55fc48b",
+      "sim_id": "sim-060fbd075b71",
       "kernel_index": 1,
       "kernel_name": "_Z11copy_kernelIdEvPKT_PS0_",
       "kernel_launch_uid": 2,
       "gpu_sim_cycle": 5923,
       "gpu_sim_insn": 11264,
       "gpu_ipc": 1.9017,
-      "sim_time_ns": 2991.4141414141413,
+      "sim_time_ns": 5232.332155477032,
       "stats": {}
     },
     {
-      "$trimmed": "46 more kernel stats"
+      "sim_id": "sim-060fbd075b71",
+      "kernel_index": 2,
+      "kernel_name": "_Z10mul_kernelIdEvPT_PKS0_",
+      "kernel_launch_uid": 3,
+      "gpu_sim_cycle": 6216,
+      "gpu_sim_insn": 12288,
+      "gpu_ipc": 1.9768,
+      "sim_time_ns": 5491.166077738516,
+      "stats": {}
+    },
+    {
+      "$trimmed": "9 more items"
     }
   ]
 }
