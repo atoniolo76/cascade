@@ -59,6 +59,10 @@ export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; me
                 <span className="font-mono font-medium text-fg">{focus.label}</span> at kernel <span className="font-mono">#{k}</span>
               </>
             )
+          ) : focusClip?.pending ? (
+            <span className="text-muted">
+              Kernel <span className="font-mono">#{focusClip.kernelIndex}</span> is still simulating on <span className="font-mono">{focus.label}</span>
+            </span>
           ) : !linkable ? (
             <span className="text-muted">Different traces, so kernels aren't compared across tracks</span>
           ) : (
@@ -72,7 +76,7 @@ export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; me
             <tr className="border-b border-border">
               <th className={TH}>Track</th>
               <th className={TH}>Kernel</th>
-              <th className={TH}>Through</th>
+              <th className={cx(TH, "hidden sm:table-cell")}>Through</th>
               <th className={cx(TH, "hidden sm:table-cell")}>Elapsed</th>
               <th className={cx(TH, "hidden md:table-cell")}>Cycles</th>
               <th className={cx(TH, "hidden md:table-cell")}>IPC</th>
@@ -112,7 +116,7 @@ export function Inspector({ ctl, meta, linkable }: { ctl: TimelineController; me
                       <span className="text-faint">—</span>
                     )}
                   </td>
-                  <td className={TD}>
+                  <td className={cx(TD, "hidden sm:table-cell")}>
                     {reading ? (
                       <span className="flex items-center gap-2">
                         <span className="relative h-1.5 w-12 overflow-hidden rounded-full bg-block-off">

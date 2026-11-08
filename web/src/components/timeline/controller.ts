@@ -17,9 +17,7 @@ import {
   type View,
 } from "../../domain/timeline";
 import { formatInt, formatNs } from "../../domain/format";
-import { kernelLabel } from "../../domain/kernelLabel";
-
-const clipLabel = (name: string) => kernelLabel(name).split("::").at(-1) ?? name;
+import { kernelBase } from "../../domain/kernelLabel";
 import { ColorResolver, inkOn, withAlpha } from "./colors";
 
 export interface Row {
@@ -624,8 +622,8 @@ export class TimelineController {
       const box = this.el.root.getBoundingClientRect();
       const x = e.clientX - box.left;
       const y = e.clientY - box.top;
-      const flip = x + 300 > box.width;
-      card.style.transform = `translate(${flip ? x - 296 : x + 16}px, ${y + 18}px)`;
+      const left = x + 296 > box.width ? x - 296 : x + 16;
+      card.style.transform = `translate(${Math.max(8, Math.min(box.width - 288, left))}px, ${y + 18}px)`;
     }
     if (prev?.clip === hover?.clip && prev?.track === hover?.track) return;
     this.setCoarse({ hover });
@@ -896,10 +894,10 @@ export class TimelineController {
     const tx = Math.max(left, 0) + 6;
     if (compact || cw < 64) {
       ctx.font = LABEL_FONT;
-      ctx.fillText(clipLabel(c.name), tx, y + h / 2 + 0.5);
+      ctx.fillText(kernelBase(c.name), tx, y + h / 2 + 0.5);
     } else {
       ctx.font = LABEL_FONT;
-      ctx.fillText(clipLabel(c.name), tx, y + h / 2 - 6);
+      ctx.fillText(kernelBase(c.name), tx, y + h / 2 - 6);
       ctx.font = SUB_FONT;
       ctx.globalAlpha = Math.min(1, alpha) * 0.78;
       ctx.fillText(`#${c.kernelIndex} · ${formatNs(c.end - c.start)}`, tx, y + h / 2 + 7.5);
@@ -1052,8 +1050,10 @@ export class TimelineController {
     const track = this.focusTrack();
     const reading = track ? readTrack(track, this.playhead, this.scene.mode, this.scene.align) : null;
     const total = track ? track.clips.length - (track.clips.at(-1)?.pending ? 1 : 0) : 0;
-    el.kernelReadout.textContent = reading
-      ? `#${reading.clip.kernelIndex} · ${formatInt(Math.min(total, reading.clip.kernelIndex + 1))}/${formatInt(total)}`
-      : "—";
+    el.kernelReadout.textContent = !reading
+      ? "—"
+      : reading.clip.pending
+        ? `#${reading.clip.kernelIndex} · simulating`
+        : `#${reading.clip.kernelIndex} · ${formatInt(Math.min(total, reading.clip.kernelIndex + 1))}/${formatInt(total)}`;
   }
 }

@@ -56,7 +56,7 @@ export function Transport({
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-3 py-2.5 sm:px-4">
       <div className="flex items-center gap-0.5 rounded-[12px] bg-card p-0.5 ring-1 ring-border">
-        <TBtn label="Jump to start (Home)" onClick={() => { ctl.toStart(); }}>
+        <TBtn label="Jump to start (Home)" onClick={() => { ctl.toStart(); }} className="hidden sm:grid">
           <SkipBack {...ICON} />
         </TBtn>
         <TBtn label="Previous kernel (←)" onClick={() => { ctl.step(-1); }}>
@@ -76,13 +76,13 @@ export function Transport({
         <TBtn label="Next kernel (→)" onClick={() => { ctl.step(1); }}>
           <ChevronRight {...ICON} />
         </TBtn>
-        <TBtn label="Jump to end (End)" onClick={() => { ctl.toEnd(); }}>
+        <TBtn label="Jump to end (End)" onClick={() => { ctl.toEnd(); }} className="hidden sm:grid">
           <SkipForward {...ICON} />
         </TBtn>
       </div>
 
       <div className="flex h-9 min-w-0 items-center gap-3 rounded-[12px] bg-card px-3 ring-1 ring-border">
-        <span data-tl="timecode" data-testid="timecode" className="min-w-[112px] font-mono text-[14px] font-medium text-fg tabular-nums">
+        <span data-tl="timecode" data-testid="timecode" className="min-w-[76px] sm:min-w-[112px] font-mono text-[14px] font-medium text-fg tabular-nums">
           0 µs
         </span>
         <span aria-hidden className="h-4 w-px bg-border-strong" />
@@ -148,7 +148,7 @@ export function Transport({
         <TBtn label={compact ? "Taller tracks" : "Compact tracks"} onClick={() => { onCompact(!compact); }} className="ring-1 ring-border bg-card">
           {compact ? <Rows2 {...ICON} /> : <Rows3 {...ICON} />}
         </TBtn>
-        <div className="relative">
+        <div className="relative hidden sm:block">
           <TBtn label="Keyboard shortcuts (?)" active={showKeys} onClick={() => { onShowKeys(!showKeys); }} className="ring-1 ring-border bg-card">
             <Keyboard {...ICON} />
           </TBtn>
