@@ -627,6 +627,8 @@ def _nsys_base_cmd(gpu_metrics: bool = False, capture_range: bool = False,
         cmd.append(f"--cuda-event-trace={str(cuda_events).lower()}")
     if capture_range:
         cmd.append("--capture-range=cudaProfilerApi")
+        # Default "stop-shutdown" SIGTERMs the app at cudaProfilerStop (exit 143).
+        cmd.append("--capture-range-end=stop")
     if gpu_metrics:
         flag = "--gpu-metrics-devices" if "--gpu-metrics-devices" in help_text else "--gpu-metrics-device"
         cmd.append(f"{flag}=all")
