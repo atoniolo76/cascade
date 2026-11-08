@@ -80,4 +80,10 @@ def map_records(records: list[dict], mapping: list[dict], clock_mhz: float) -> d
 
 
 def import_durations(stats_path: Path, mapping_path: Path, clock_mhz: float) -> dict:
-    return map_records(read_stats(stats_path), json.loads(mapping_path.read_text()), clock_mhz)
+    mapping = json.loads(mapping_path.read_text())
+    if isinstance(mapping, dict) and isinstance(mapping.get("kernels"), list):
+        mapping = [
+            {"uid": entry["tracer_uid"], **{k: entry[k] for k in ("name", "repeat", "step", "seq")}}
+            for entry in mapping["kernels"]
+        ]
+    return map_records(read_stats(stats_path), mapping, clock_mhz)

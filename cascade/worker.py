@@ -415,9 +415,10 @@ def step_timing(main: Main, env: SimEnv, log_path: Path, put: Callable[[str], No
         if cfg is None:
             raise ValueError(f"no core clock for {env.gpu_config} under {env.accelsim_dir}")
         real = load_timeline(env.trace_dir / "corrected_timeline.json")
-        durations = import_durations(
-            log_path, env.trace_dir / "kernel_mapping.json", cfg.core_clock_mhz
-        )
+        mapping = env.trace_dir / "kernel_mapping.json"
+        if not mapping.is_file():
+            mapping = env.trace_dir / "trace_alignment.json"
+        durations = import_durations(log_path, mapping, cfg.core_clock_mhz)
         simulated = simulate(real, parse_durations(durations))
         report = compare(real, simulated)
         main.post("step-timeline", {"simulated": simulated, "compare": report})

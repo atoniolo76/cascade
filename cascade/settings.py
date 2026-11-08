@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,6 +40,7 @@ class Settings:
     heartbeat_timeout_s: float
     run_s3: bool
     workspace: str | None
+    openai_wait_s: float = 3600.0
 
     @classmethod
     def from_env(
@@ -50,6 +52,9 @@ class Settings:
         if not token and not no_auth:
             raise SettingsError("CASCADE_TOKEN is required (or CASCADE_NO_AUTH=1 for local dev)")
         accelsim_dir = Path(env.get("CASCADE_ACCELSIM_DIR", "/opt/accel-sim-framework"))
+        wait_s = float(env.get("CASCADE_OPENAI_WAIT_S", "3600"))
+        if not math.isfinite(wait_s) or wait_s <= 0:
+            raise SettingsError("CASCADE_OPENAI_WAIT_S must be finite and positive")
         return cls(
             data_dir=Path(env.get("CASCADE_DATA_DIR", "/data")),
             token=token,
@@ -65,6 +70,7 @@ class Settings:
             heartbeat_timeout_s=float(env.get("CASCADE_HEARTBEAT_TIMEOUT_S", "60")),
             run_s3=_bool(env.get("CASCADE_RUN_S3", "true")),
             workspace=env.get("CASCADE_WORKSPACE") or None,
+            openai_wait_s=wait_s,
         )
 
     @property

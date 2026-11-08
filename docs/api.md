@@ -28,6 +28,89 @@ All `/api` routes require `Authorization: Bearer $CASCADE_TOKEN`, except `GET /a
 | GET | `/api/runs/{id}/files` | `RunFile[]` (a `SimFile` plus `sim_id`, `gpu_config`, `replica`), ordered by config, replica, then name |
 | GET | `/api/runs/{id}/perfetto` | Chrome trace JSON (download) built from the run's parsed kernel stats, for ui.perfetto.dev. One process per config (`<config> · Accel-Sim simulated GPU`), one thread per replica (`replica <n> · <sim id>`), and one `X` slice per kernel named `k<uid> <readable kernel name>`, laid end to end: `dur` is `sim_time_ns / 1000` µs. `args` hold `kernel_name` (as recorded), `kernel_index`, `uid`, `gpu_sim_cycle`, `gpu_sim_insn`, `ipc`, `sim_time_ns` and cumulative `start_cycle`/`end_cycle`. When the trace has real timing, a `Real hardware · <source_gpu>` process holds the measured kernels the same way. Kernels without `sim_time_ns` are left out. |
 
+## OpenAI-compatible simulation
+
+`GET /v1/models`, `POST /v1/completions` and `POST /v1/chat/completions` use the same
+bearer `CASCADE_TOKEN` authentication as `/api` (or `CASCADE_NO_AUTH=1` for local dev).
+These routes run **simulators, not model inference**. Timing always describes the
+profiled workload, even if the submitted prompt or output length differs.
+
+`/v1/models` returns an OpenAI `list` of ready traces, with trace IDs as model IDs,
+`owned_by: "cascade"` and `metadata.model` containing the original model name. A
+request's `model` may be that trace ID or the model name; the latter selects the
+newest ready trace for that model. Unknown/not-ready models return 404.
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(base_url="https://your-cascade-app/v1", api_key=os.environ["CASCADE_TOKEN"])
+response = client.chat.completions.create(
+    model="facebook/opt-125m",  # or an exact ready trace ID
+    messages=[{"role": "user", "content": "Hello, my name is"}],
+    max_completion_tokens=32,
+    seed=42,
+    extra_body={"gpu_config": "SM90_H100", "fresh": False},
+)
+print(response.choices[0].message.content)
+print(response.model_extra["cascade"])
+```
+
+- `gpu_config` defaults to the trace's `suggested_sim_config`; specify it if the
+  trace has no suggestion. Unknown configs or trace/config architecture mismatches
+  return 422, with the same checks as `POST /api/runs`.
+- `fresh: false` reuses the newest successful simulation for that exact trace and
+  config **only if it posted step timing**. Otherwise it attaches to a matching
+  pending/launching/running simulation, or creates a normal one-sim run through
+  the configured launcher. Concurrent callers share the new run. All runs appear
+  in the existing UI. `fresh: true` always creates a new run.
+- Non-streaming calls wait until the simulation is terminal. Set
+  `CASCADE_OPENAI_WAIT_S` (default 3600 seconds) to change the wait budget. A timeout
+  returns 504 with `error.run_id` and `error.sim_id`; it does not cancel the run.
+  Poll `/api/runs/{run_id}`. Failed/cancelled simulations return 502 with their
+  error; success without posted step timing also returns 502.
+- Output count is `max_tokens` for completions, `max_completion_tokens` or
+  `max_tokens` for chat, defaulting to the trace workload's `max_tokens`. Supplying
+  conflicting chat counts returns 422. Counts from 0 through 1,000,000 are accepted.
+  This changes synthetic content only, **not simulated timing**.
+- Output IDs are sampled uniformly with replacement from the trace model's
+  non-special vocabulary. `seed` makes sampling deterministic. The lightweight
+  `tokenizers` library loads public HF `tokenizer.json`, cached under
+  `$CASCADE_DATA_DIR/tokenizers/<sha256(model)>.json`. No model weights or remote
+  code are loaded. Offline, unsupported or unavailable tokenizers fall back to
+  seeded `tok<i>` placeholders; failed loads are remembered until server restart.
+  `cascade.tokens_source` is `vocab_uniform` or `placeholder`.
+- `usage.completion_tokens` counts sampled IDs (also available as
+  `cascade.output_token_ids`). Decoding a random ID sequence and re-tokenizing it
+  can change boundaries/counts; it is not a claim about re-encoded text length.
+  `usage.prompt_tokens` is the tokenized submitted text length when a tokenizer is
+  available, otherwise null; `total_tokens` is null when that length is unknown.
+  Chat text is the newline-joined message content, not a model-specific chat template.
+- Standard choices contain sampled text, `index: 0`, and `finish_reason: "length"`.
+  Exactly one choice is returned. Other generation options are ignored: this is
+  not semantic text generation. Chat accepts text-only message content.
+- `cascade` contains `trace_id`, `gpu_config`, `run_id`, `sim_id`, `cached`,
+  `simulated` and `real` request metrics (`repeat`, `ttft_ms`, `itl_ms_mean`, `e2e_ms`)
+  for steady repeats only, plus `compare` (the posted comparison summary or null).
+  `profile_match` is true only when the known profiled prompt and output count
+  match. `profile_match_details` and `note` explain the distinction. Chat prompt
+  equality is checked only for a single user message; multi-message requests do
+  not claim a match. No variable-size timing support is implied.
+- `stream: true` sends `text/event-stream`: periodic `: progress done/total state`
+  comments while waiting, OpenAI content chunks in the final phase, a final chunk
+  with usage and `cascade`, then `data: [DONE]`. This is not timing-paced inference.
+  Errors after headers are sent appear as `data: {"error": ...}` before `[DONE]`;
+  their HTTP status is necessarily 200. Pre-stream validation errors retain their
+  4xx status. Every error uses `{"error":{"message":...,"type":...,"code":...}}`.
+
+For step timing, upload `corrected_timeline.json` plus either the legacy
+`kernel_mapping.json` or the profiler's `trace_alignment.json` in the trace root.
+Alignment records map `tracer_uid` to `uid` and retain `name`, `repeat`, `step`, `seq`;
+UID/name validation remains strict. When both exist the legacy mapping wins.
+Late-arriving sidecars update `has_step_timeline` during ingest. Alignment alone
+maps only traced kernels: it does not imply untraced-kernel propagation or full
+coverage. The response's comparison/coverage remains that of the posted timeline.
+
 ## Simulator → main
 
 | Method | Path | Body | Returns |

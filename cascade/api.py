@@ -56,6 +56,7 @@ from cascade.models import (
     TraceState,
     TraceSummary,
 )
+from cascade.openai_api import install_openai_routes
 from cascade.perfetto import run_trace
 from cascade.settings import Settings
 from cascade.stats import LogParser
@@ -391,6 +392,7 @@ def create_app(settings: Settings | None = None, launcher: Launcher | None = Non
             bearer(request)
 
     auth = [Depends(bearer)]
+    install_openai_routes(app, cascade, bearer)
 
     def get_run_or_404(run_id: str) -> RunDetail:
         run = store.get_run(run_id)
