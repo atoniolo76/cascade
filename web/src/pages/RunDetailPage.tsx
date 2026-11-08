@@ -24,6 +24,7 @@ import { OVER_HINT, aggregateProgress, configSeries, estimateRemaining, orderedS
 import { RUN_STATE, SIM_STATE, TONE_VARS, deriveRunState, type Tone } from "../domain/status";
 import { useNow } from "../hooks/useNow";
 import { useRunStream, type Connection } from "../hooks/useRunStream";
+import { isTyping } from "../lib/keys";
 import { toast } from "../lib/toast";
 import { paths } from "../paths";
 
@@ -89,10 +90,6 @@ function useSimTransitionToasts(runId: string, run: RunDetail | undefined) {
     }
     seen.current = { runId, states: new Map(run.sims.map((s) => [s.id, s.state])) };
   }, [runId, run]);
-}
-
-function isTyping(target: EventTarget | null) {
-  return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 }
 
 function RunView({ live, connection, onRun }: { live: Live; connection: Connection; onRun: (run: RunDetail) => void }) {
