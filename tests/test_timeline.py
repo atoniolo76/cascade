@@ -7,6 +7,7 @@ import pytest
 
 from cascade.cli import main
 from cascade.sim.compare import aggregate, compare, error, perfetto, table
+from cascade.sim.gaps import fit_gaps
 from cascade.sim.importer import import_durations
 from cascade.sim.timeline import fit_host, load_durations, load_timeline, simulate
 
@@ -282,3 +283,107 @@ def test_cli_fixture(tmp_path, monkeypatch, capsys):
     with pytest.raises(SystemExit) as error:
         main()
     assert error.value.code == 2
+
+
+def test_measured_gaps_request_sanity(capture, tmp_path):
+    result = simulate(capture, {})
+    request = result["requests"][1]
+    actual = capture["requests"][1]
+    for field in ("ttft_ms", "itl_ms_mean", "itl_ms_p50", "e2e_ms"):
+        assert abs(request[field] / actual[field] - 1) <= 0.01
+        assert request[field] == actual[field]
+    assert request["first_step_start_ns"] == actual["arrival_ns"] + actual["pre_first_step_ns"]
+    assert request["last_token_ns"] == actual["last_token_ns"]
+    load_timeline(write(tmp_path, result))
+    assert result["summary"]["per_kind"]["decode"]["gap_before_ns"]["mean"] == 1000000
+
+
+@pytest.mark.parametrize("model", ["mean", "linear"])
+def test_gap_models(capture, tmp_path, model):
+    result = simulate(capture, {}, gap_model=model)
+    assert result["steps"][1]["baseline_gap_before_ns"] is None
+    assert [s["baseline_gap_before_ns"] for s in result["steps"][2:]] == [1000000] * 3
+    fit = result["summary"]["simulation"]["gap_fit"]["decode"]
+    assert fit["b_ns_per_req"] == 0
+    assert fit["slope_identifiable"] is False
+    assert result["requests"][1]["e2e_ms"] == capture["requests"][1]["e2e_ms"]
+    load_timeline(write(tmp_path, result))
+    for i, s in enumerate(capture["steps"][2:], 1):
+        s["num_reqs"] = i
+        s["baseline_gap_before_ns"] = 100 + 20 * i
+    fit = fit_gaps(capture, "linear")["decode"]
+    assert fit["a_ns"] == 100
+    assert fit["b_ns_per_req"] == 20
+    assert fit["slope_identifiable"] is True
+
+
+def test_gap_empty_and_legacy(capture):
+    assert fit_gaps({"steps": []}, "linear") == {}
+    with pytest.raises(ValueError, match="unknown gap model"):
+        simulate({"meta": {}, "steps": [], "requests": []}, {}, gap_model="invalid")
+    assert simulate({"meta": {}, "steps": [], "requests": []}, {}, gap_model="mean")["steps"] == []
+    for step in capture["steps"]:
+        for field in list(step):
+            if field.endswith(("_gap_before_ns", "_wall_start_ns", "_wall_end_ns")):
+                del step[field]
+    result = simulate(capture, {})
+    assert "gap_model" not in result["summary"]["simulation"]
+    assert result["requests"][1]["e2e_ms"] == pytest.approx(21.04)
+
+
+def test_gap_boundaries_and_post(capture):
+    request = capture["requests"][1]
+    request["arrival_ns"] += 1000000000
+    request["post_last_step_ns"] = 700000
+    result = simulate(capture, {})
+    predicted = result["requests"][1]
+    assert predicted["e2e_ms"] == pytest.approx(request["e2e_ms"] + 0.7)
+    assert predicted["ttft_ms"] == request["ttft_ms"]
+    assert predicted["itl_ms_mean"] == request["itl_ms_mean"]
+    assert predicted["last_token_ns"] == predicted["last_step_end_ns"] + 700000
+    assert result["steps"][1]["baseline_wall_start_ns"] == (
+        request["arrival_ns"] + request["pre_first_step_ns"]
+    )
+
+
+@pytest.mark.parametrize(
+    "change,match",
+    [
+        (lambda d: d["steps"][2].update(baseline_gap_before_ns=-1), "nonnegative"),
+        (lambda d: d["steps"][2].pop("baseline_gap_before_ns"), "every step"),
+        (lambda d: d["steps"][1].update(baseline_gap_before_ns=0), "null"),
+        (lambda d: d["steps"][2].update(baseline_wall_end_ns=1), "timestamps"),
+        (lambda d: d["requests"][1].update(pre_first_step_ns=None), "number"),
+    ],
+)
+def test_invalid_gap_fields(capture, tmp_path, change, match):
+    change(capture)
+    with pytest.raises(ValueError, match=match):
+        load_timeline(write(tmp_path, capture))
+
+
+def test_launch_latency_alias(capture, tmp_path, monkeypatch):
+    durations = write(
+        tmp_path,
+        [{"seq": capture["steps"][1]["kernels"][0]["seq"], "sim_cycles": 10000, "clock_mhz": 2000}],
+    )
+    output = tmp_path / "sim.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "cascade",
+            "simulate",
+            str(FIXTURE / "corrected_timeline.json"),
+            "--durations",
+            str(durations),
+            "--launch-latency-cycles",
+            "5000",
+            "--gap-model",
+            "mean",
+            "--output",
+            str(output),
+        ],
+    )
+    main()
+    assert json.loads(output.read_text())["steps"][1]["kernels"][0]["duration_ns"] == 2500

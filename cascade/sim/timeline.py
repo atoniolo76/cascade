@@ -2,18 +2,12 @@ from __future__ import annotations
 
 import copy
 import json
-import math
 from collections import Counter
 from pathlib import Path
 from statistics import mean, median
 
-
-def numeric(value, label: str, *, positive: bool = False) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError(f"{label} must be a number")
-    if not math.isfinite(value) or value < 0 or (positive and value == 0):
-        raise ValueError(f"{label} must be finite and {'positive' if positive else 'nonnegative'}")
-    return float(value)
+from cascade.sim.gaps import apply_gaps, derive_gap_request, gap_stats, validate_gaps
+from cascade.sim.gaps import number as numeric
 
 
 def key(step: dict) -> tuple[int, int]:
@@ -78,6 +72,7 @@ def load_timeline(path: Path) -> dict:
             raise ValueError("requests must be objects with boolean warmup")
         if isinstance(request.get("repeat"), bool) or not isinstance(request.get("repeat"), int):
             raise ValueError("request repeat must be an integer")
+    validate_gaps(data)
     return data
 
 
@@ -160,6 +155,9 @@ def derive_requests(data: dict) -> None:
         decode = [s["baseline_wall_ns"] / 1e6 for s in steps if s["kind"] == "decode"]
         if not prefill:
             raise ValueError("request derivation requires a prefill step")
+        if "baseline_gap_before_ns" in steps[0]:
+            derive_gap_request(request, steps)
+            continue
         queue = numeric(request.get("queued_ms"), "queued_ms")
         request.update(
             ttft_ms=queue + sum(prefill),
@@ -169,7 +167,9 @@ def derive_requests(data: dict) -> None:
         )
 
 
-def simulate(data: dict, durations: dict, host_model: str = "scaled-gaps") -> dict:
+def simulate(
+    data: dict, durations: dict, host_model: str = "scaled-gaps", gap_model: str = "measured"
+) -> dict:
     if host_model not in ("scaled-gaps", "parametric"):
         raise ValueError("unknown host model")
     result = copy.deepcopy(data)
@@ -251,6 +251,7 @@ def simulate(data: dict, durations: dict, host_model: str = "scaled-gaps") -> di
     unused = set(durations) - used
     if unused:
         raise ValueError(f"unmatched simulated duration keys: {sorted(unused, key=str)}")
+    gap_info = apply_gaps(result, gap_model)
     derive_requests(result)
     result["summary"] = {
         "simulation": {
@@ -280,4 +281,11 @@ def simulate(data: dict, durations: dict, host_model: str = "scaled-gaps") -> di
             if (selected := [s for s in result["steps"] if not s["warmup"] and s["kind"] == kind])
         },
     }
+    if gap_info:
+        result["summary"]["simulation"].update(gap_info)
+        result["summary"]["simulation"]["request_assumption"] = (
+            "one request per repeat; arrival + pre/steps/inter-step gaps/post"
+        )
+        for kind, stats in gap_stats(result).items():
+            result["summary"]["per_kind"][kind]["gap_before_ns"] = stats
     return result

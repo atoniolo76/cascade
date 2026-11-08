@@ -18,7 +18,7 @@ def run_simulate(args: argparse.Namespace) -> None:
     durations = load_durations(
         None if args.measured_only else args.durations, args.subtract_launch_cycles
     )
-    result = simulate(load_timeline(args.input), durations, args.host_model)
+    result = simulate(load_timeline(args.input), durations, args.host_model, args.gap_model)
     result["summary"]["simulation"]["subtract_launch_cycles"] = args.subtract_launch_cycles
     write_json(args.output, result)
     coverage = result["summary"]["simulation"]["coverage"]
@@ -53,7 +53,15 @@ def add_commands(sub: argparse._SubParsersAction) -> None:
     source = command.add_mutually_exclusive_group()
     source.add_argument("--durations", type=Path, help="mapped simulated kernel durations JSON")
     source.add_argument("--measured-only", action="store_true", help="use only measured durations")
-    command.add_argument("--subtract-launch-cycles", type=float, default=0)
+    command.add_argument(
+        "--launch-latency-cycles",
+        "--subtract-launch-cycles",
+        dest="subtract_launch_cycles",
+        type=float,
+        default=0,
+        help="subtract configured launch latency from each simulated kernel",
+    )
+    command.add_argument("--gap-model", choices=["measured", "mean", "linear"], default="measured")
     command.add_argument(
         "--host-model", choices=["scaled-gaps", "parametric"], default="scaled-gaps"
     )

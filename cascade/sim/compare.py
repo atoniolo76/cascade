@@ -125,7 +125,7 @@ def perfetto(real: dict, simulated: dict) -> dict:
             if step["warmup"]:
                 continue
             repeat, step_id = key(step)
-            start = offsets.get(repeat, 0)
+            start = offsets.get(repeat, 0) + (step.get("baseline_gap_before_ns") or 0)
             end = start + step["baseline_wall_ns"]
             for tid, label, begin, finish, args in [
                 (repeat * 2 + 1, f"{step['kind']} step {step_id}", start, end, {"repeat": repeat})
