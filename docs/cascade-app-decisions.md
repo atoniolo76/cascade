@@ -38,3 +38,10 @@ Decision:
 - `SailLauncher`: one checkpoint per run, shared by all sims in that run. Then per sim: `from_checkpoint` → background `exec` of `cascade simulate` with `CASCADE_SIM_ID` and `CASCADE_MAIN_URL` env.
 - `LocalLauncher`: runs `cascade simulate` as a local subprocess. Used for laptop dev.
 - Both launchers drive the same simulator-mode code path.
+
+## Auth
+
+- One shared bearer token, `CASCADE_TOKEN`, sent as `Authorization: Bearer <token>` by the profiler, sims, and UI.
+- The UI prompts for it once and keeps it in localStorage.
+- `SailLauncher` passes it to each sim via the `exec` env.
+- Sail's app allowlist is not used: it would block the browser and the profiler.
