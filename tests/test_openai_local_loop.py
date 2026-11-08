@@ -1,5 +1,4 @@
 import json
-import shutil
 
 from cascade.sim.importer import aligned_durations, read_stats
 from tests.conftest import BABELSTREAM_LOG, FIXTURES
@@ -12,8 +11,18 @@ def test_local_replay_worker_accepts_alignment_and_serves_openai(tmp_path, monke
     monkeypatch.setattr("cascade.openai_tokens.Tokenizers.get", lambda self, model: None)
     cmd = f"{CASCADE} worker --replay {BABELSTREAM_LOG} --delay 0 --heartbeat-s 0.3"
     with running_app(tmp_path, CASCADE_SIM_CMD=cmd) as (client, _, settings):
-        root = write_processed_trace(settings, "trace-rtx", arch="sm_86")
-        shutil.copy(TIMELINE / "corrected_timeline.json", root / "corrected_timeline.json")
+        root = write_processed_trace(settings, "trace-rtx", arch="sm_90")
+        real = json.loads((TIMELINE / "corrected_timeline.json").read_text())
+        real["meta"]["model_config"] = {
+            "architecture": "OPTForCausalLM",
+            "hidden_size": 768,
+            "num_layers": 12,
+            "num_heads": 12,
+            "dtype": "float16",
+        }
+        for step in real["steps"]:
+            step["context_length"] = 6 if step["kind"] == "prefill" else 7
+        (root / "corrected_timeline.json").write_text(json.dumps(real))
         mapping = json.loads((TIMELINE / "babelstream_kernel_mapping.json").read_text())
         alignment = {
             "kernels": [
@@ -31,7 +40,7 @@ def test_local_replay_worker_accepts_alignment_and_serves_openai(tmp_path, monke
         (root / "trace_alignment.json").write_text(json.dumps(alignment))
         metadata_path = root / "metadata.json"
         metadata = json.loads(metadata_path.read_text())
-        metadata.update(model="facebook/opt-125m", suggested_sim_config="SM86_RTX3070")
+        metadata.update(model="facebook/opt-125m", suggested_sim_config="SM90_H100")
         metadata_path.write_text(json.dumps(metadata))
         wait_for(
             lambda: (
@@ -43,7 +52,7 @@ def test_local_replay_worker_accepts_alignment_and_serves_openai(tmp_path, monke
         response = client.post("/v1/completions", json=body)
         assert response.status_code == 200, response.text
         data = response.json()
-        assert not data["cascade"]["cached"] and data["cascade"]["gpu_config"] == "SM86_RTX3070"
+        assert not data["cascade"]["cached"] and data["cascade"]["gpu_config"] == "SM90_H100"
         assert len(data["choices"][0]["text"].split()) == 7
         run_id = data["cascade"]["run_id"]
         (timing,) = client.get(f"/api/runs/{run_id}/step-timelines").json()

@@ -151,12 +151,18 @@ def classify_kernel(name: str) -> str:
 
 
 def kernel_groups(kernels: list[dict]) -> list[str]:
+    def grid_size(kernel):
+        grid = kernel.get("grid", (1,))
+        if isinstance(grid, str):
+            grid = tuple(map(int, grid.split("x")))
+        return prod(grid)
+
     groups = [classify_kernel(k["name"]) for k in kernels]
     linear = [i for i, group in enumerate(groups) if group == "linear"]
     if linear and "lm_head" not in groups:
         last = linear[-1]
         # The vocab projection is the final linear launch, with a substantially larger grid.
-        grids = [prod(kernels[i].get("grid", (1,))) for i in linear]
+        grids = [grid_size(kernels[i]) for i in linear]
         if grids[-1] >= 2 * median(grids):
             groups[last] = "lm_head"
     return groups
@@ -197,7 +203,7 @@ def _model(meta: dict, assumptions: list[str]) -> ModelConfig:
     )
 
 
-def _max_model_len(real: dict) -> int:
+def model_limit(real: dict) -> int:
     meta = real.get("meta", {})
     for source in (meta, meta.get("run", {}), real.get("run", {}), meta.get("workload", {})):
         for config in (
@@ -295,7 +301,7 @@ def build_profile(real_timeline: dict, simulated_timeline: dict, gpu_config: str
         model,
         p0,
         n0,
-        _max_model_len(real_timeline),
+        model_limit(real_timeline),
         baselines[("prefill", p0)],
         dict(sorted(decode.items())),
         {kind: median(values) for kind, values in hosts.items()},

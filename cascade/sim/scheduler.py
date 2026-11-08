@@ -137,9 +137,12 @@ def _percentile(values: list[float], percentile: float) -> float | None:
 
 
 class _Scheduler:
-    def __init__(self, profile, requests, config):
+    def __init__(self, profile, requests, config, max_steps):
         self.profile = profile
         self.config = _resolved_config(profile, config)
+        self.max_steps = max_steps
+        if max_steps is not None:
+            _integer(max_steps, "max_steps")
         self.states = []
         seen = set()
         for request in requests:
@@ -295,6 +298,8 @@ class _Scheduler:
     def run(self):
         first = True
         while self.future or self.waiting or self.running:
+            if self.max_steps is not None and len(self.steps) >= self.max_steps:
+                raise ValueError(f"scenario exceeds step limit={self.max_steps}")
             if not self.waiting and not self.running:
                 arrival = self.future[0].request.arrival_s * 1e9
                 self.idle_ns += max(0, arrival - self.now)
@@ -380,6 +385,8 @@ def simulate_scheduler(
     profile: PerfProfile,
     requests: list[SchedulerRequest | dict],
     config: SchedulerConfig | None = None,
+    *,
+    max_steps: int | None = None,
 ) -> SchedulerResult:
     """Run without I/O; output order follows input order, scheduling ties are stable."""
-    return _Scheduler(profile, requests, config or SchedulerConfig()).run()
+    return _Scheduler(profile, requests, config or SchedulerConfig(), max_steps).run()

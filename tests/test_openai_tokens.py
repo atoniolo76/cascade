@@ -2,6 +2,7 @@ import hashlib
 import json
 
 import httpx
+import pytest
 from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
 from tokenizers.pre_tokenizers import Whitespace
@@ -65,3 +66,42 @@ def test_no_nonspecial_vocab_falls_back(tmp_path):
     name = hashlib.sha256(b"test/model").hexdigest()
     (root / f"{name}.json").write_text(json.dumps(json.loads(tokenizer.to_str())))
     assert Tokenizers(tmp_path).get("test/model") is None
+
+
+def test_chat_config_download_disk_cache_and_render(tmp_path, monkeypatch):
+    model = "test/model"
+    loaded = (vocabulary(), (1, 2))
+    calls = []
+    config = {"chat_template": "{% for m in messages %}{{ m.content }} {% endfor %}hello"}
+
+    def fetch(url, **kwargs):
+        calls.append(url)
+        return httpx.Response(200, json=config, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr("cascade.openai_tokens.httpx.get", fetch)
+    cache = Tokenizers(tmp_path)
+    cache._cache[model] = loaded
+    messages = [{"role": "user", "content": "hello world"}]
+    first = cache.prepare_prompt(model, "ignored", messages)
+    assert first[:3] == ("hello world hello", 3, "tokenizer:chat_template")
+    assert cache.prepare_prompt(model, "ignored", messages) == first
+    assert len(calls) == 1 and calls[0].endswith("tokenizer_config.json")
+    monkeypatch.setattr("cascade.openai_tokens.httpx.get", lambda *a, **k: 1 / 0)
+    restarted = Tokenizers(tmp_path)
+    restarted._cache[model] = loaded
+    assert restarted.prepare_prompt(model, "ignored", messages) == first
+
+
+@pytest.mark.parametrize("config", [{}, {"chat_template": "{{ raise_exception('unsupported') }}"}])
+def test_missing_or_failed_chat_template_uses_joined_text(tmp_path, monkeypatch, config):
+    monkeypatch.setattr(Tokenizers, "get", lambda self, model: (vocabulary(), (1, 2)))
+    monkeypatch.setattr(Tokenizers, "_chat_config", lambda self, model: config)
+    result = Tokenizers(tmp_path).prepare_prompt(
+        "test/model",
+        "ignored",
+        [
+            {"role": "user", "content": "hello"},
+            {"role": "assistant", "content": "world"},
+        ],
+    )
+    assert result[:3] == ("hello\nworld", 2, "tokenizer:joined")

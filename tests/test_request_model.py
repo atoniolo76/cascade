@@ -115,6 +115,11 @@ def test_empty_and_non_vocab_kernel_lists():
     assert kernel_groups([{"name": "gemm", "grid": [1, 1, 1]}]) == ["linear"]
 
 
+def test_legacy_string_grid_vocab_projection():
+    kernels = [{"name": "gemm", "grid": grid} for grid in ("1x1x1", "2x1x1", "132x1x1")]
+    assert kernel_groups(kernels) == ["linear", "linear", "lm_head"]
+
+
 def test_prompt_and_output_monotonicity(sample):
     _, _, profile = sample
     prompts = list(range(1, 42)) + [128, 1024, 1800]
