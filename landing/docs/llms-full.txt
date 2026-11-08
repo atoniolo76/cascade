@@ -898,6 +898,7 @@ The sandbox has auto-sleep turned off, so the app keeps running while sims repor
 | `CASCADE_POSTPROCESS_CMD` | `$CASCADE_ACCELSIM_DIR/util/tracer_nvbit/tracer_tool/traces-processing/post-traces-processing` | Accel-Sim's trace post-processor. The app runs it once per trace as `<cmd> <trace>/traces -j <cpus>`. |
 | `CASCADE_HEARTBEAT_TIMEOUT_S` | `60` | Seconds without a heartbeat before a sim becomes `lost`. After 10 times this, a `lost` sim becomes `failed`. |
 | `CASCADE_RUN_S3` | `true` | Whether `cascade serve` starts `rclone serve s3` next to the app. Set `false` to run the S3 endpoint yourself. |
+| `CASCADE_WORKSPACE` | none | The workspace's name. `/api/health` returns it and the web UI shows it in the rail. `cascade deploy` and the Get started page set it. |
 | `CASCADE_PUBLIC_URL` | `http://127.0.0.1:8000` | The URL sims use to reach the app. Each sim gets it as `CASCADE_MAIN_URL`. |
 | `CASCADE_S3_PREFIX` | `accelsim-traces` | The key prefix traces live under. Each trace is `<prefix>/<run_name>/`. |
 

@@ -38,6 +38,7 @@ class Settings:
     postprocess_cmd: str
     heartbeat_timeout_s: float
     run_s3: bool
+    workspace: str | None
 
     @classmethod
     def from_env(
@@ -63,6 +64,7 @@ class Settings:
             or str(accelsim_dir / POSTPROCESS_REL),
             heartbeat_timeout_s=float(env.get("CASCADE_HEARTBEAT_TIMEOUT_S", "60")),
             run_s3=_bool(env.get("CASCADE_RUN_S3", "true")),
+            workspace=env.get("CASCADE_WORKSPACE") or None,
         )
 
     @property

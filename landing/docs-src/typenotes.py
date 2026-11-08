@@ -195,6 +195,10 @@ SETTINGS_NOTES: dict[str, tuple[str | None, str]] = {
         None,
         "Seconds without a heartbeat before a sim becomes `lost`. After 10 times this, a `lost` sim becomes `failed`.",
     ),
+    "CASCADE_WORKSPACE": (
+        None,
+        "The workspace's name. `/api/health` returns it and the web UI shows it in the rail. `cascade deploy` and the Get started page set it.",
+    ),
     "CASCADE_RUN_S3": (
         None,
         "Whether `cascade serve` starts `rclone serve s3` next to the app. Set `false` to run the S3 endpoint yourself.",
