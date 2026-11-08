@@ -663,7 +663,7 @@ def _scrub_nsys(work: Path, keep_nsys_rep: bool = False):
                 quoted = ['"' + c.replace('"', '""') + '"' for c in cols]
                 if quoted:
                     con.execute('DELETE FROM META_DATA_CAPTURE WHERE ' + ' OR '.join(
-                        f"(typeof({c})='text' AND {c} LIKE 'ENVIRONMENT_VARIABLE%')"
+                        f"(typeof({c})='text' AND {c} LIKE '%ENVIRONMENT_VARIABLE%')"
                         for c in quoted))
             con.commit()
             con.execute("VACUUM")
