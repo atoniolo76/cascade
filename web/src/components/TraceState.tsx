@@ -6,6 +6,7 @@ import { EntityChip } from "./ui";
 import { LogoTile } from "./BrandLogo";
 import { modelLogo } from "../domain/logos";
 import { paths } from "../paths";
+import { SAMPLE_TOOLTIP } from "../domain/samples";
 
 export function TraceState({ trace, detail = true }: { trace: TraceSummary; detail?: boolean }) {
   const meta = TRACE_STATE[trace.state];
@@ -51,6 +52,16 @@ export function StepsBadge() {
       className="inline-flex h-5 shrink-0 items-center rounded-[6px] bg-surface-2 px-1.5 text-[11px] font-medium text-fg-2"
     >
       Steps
+    </span>
+  );
+}
+
+/** Marks the bundled sample trace and run, which hold recorded results rather than this workspace's own. */
+export function SampleBadge() {
+  return (
+    <span title={SAMPLE_TOOLTIP} className="inline-flex h-5 shrink-0 cursor-help items-center rounded-[6px] bg-surface-2 px-1.5 text-[11px] font-medium text-fg-2">
+      Sample
+      <span className="sr-only">: {SAMPLE_TOOLTIP}</span>
     </span>
   );
 }

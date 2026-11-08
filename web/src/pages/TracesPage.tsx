@@ -6,12 +6,13 @@ import type { TraceSummary } from "../api/types";
 import { PageHeader } from "../components/AppShell";
 import { QuickLaunch } from "../components/QuickLaunch";
 import { SendTraceGuide } from "../components/SendTraceGuide";
-import { ModelTile, StepsBadge, TraceState } from "../components/TraceState";
+import { ModelTile, SampleBadge, StepsBadge, TraceState } from "../components/TraceState";
 import { LogoTile } from "../components/BrandLogo";
 import { gpuLogo } from "../domain/logos";
 import { Button, Card, Dash, ErrorNote, Panel, RelTime, SectionTitle, Skeleton, Th } from "../components/ui";
 import { ICON, ROW, THEAD } from "../components/styles";
 import { formatBytes, formatInt, plural } from "../domain/format";
+import { noOwnTraces } from "../domain/samples";
 import { paths } from "../paths";
 
 const CELL = "h-[60px] px-4 align-middle";
@@ -19,7 +20,8 @@ const CELL = "h-[60px] px-4 align-middle";
 export function TracesPage() {
   const traces = useTraces();
   const [guideOpen, setGuideOpen] = useState(false);
-  const empty = traces.data?.length === 0;
+  const first = traces.data !== undefined && noOwnTraces(traces.data);
+  const hasSample = traces.data?.some((t) => t.sample) ?? false;
 
   return (
     <>
@@ -27,7 +29,7 @@ export function TracesPage() {
         crumbs={[{ label: "Traces" }]}
         status={traces.data !== undefined && traces.data.length > 0 ? <span className="text-[15px] text-muted tabular-nums">{formatInt(traces.data.length)}</span> : undefined}
         actions={
-          !empty && (
+          !first && (
             <Button
               aria-expanded={guideOpen}
               onClick={() => {
@@ -43,12 +45,20 @@ export function TracesPage() {
         <p className="max-w-2xl text-[15px] text-muted">Kernel traces captured on real hardware. Replay any ready trace in Accel-Sim on other GPU configs.</p>
       </PageHeader>
 
-      {(empty || guideOpen) && (
+      {(first || guideOpen) && (
         <Card className="mb-8 p-5 sm:p-7">
           <div className="mb-6">
-            <SectionTitle title={empty ? "Send your first trace" : "Send a trace"} subtitle="The profiler streams kernel files into this app's bucket while it traces." />
+            <SectionTitle
+              title={first ? "Send your first trace" : "Send a trace"}
+              subtitle={
+                <>
+                  The profiler streams kernel files into this app's bucket while it traces.
+                  {hasSample && " Profiling takes about 30 minutes; explore the sample trace and its run below in the meantime."}
+                </>
+              }
+            />
           </div>
-          <SendTraceGuide waiting={empty} />
+          <SendTraceGuide waiting={first} />
         </Card>
       )}
 
@@ -76,6 +86,7 @@ function TraceName({ t }: { t: TraceSummary }) {
           <span className="truncate text-[14px] font-medium text-fg" title={t.id}>
             {t.model ?? t.id}
           </span>
+          {t.sample && <SampleBadge />}
           {t.has_step_timeline && <StepsBadge />}
         </span>
         <span className="block truncate font-mono text-[12px] leading-4 text-muted" title={t.layers.length > 0 ? t.layers.join(", ") : t.id}>

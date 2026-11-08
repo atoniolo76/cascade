@@ -44,6 +44,8 @@ export interface TraceSummary {
   bytes: number;
   has_real_timing: boolean;
   has_step_timeline: boolean;
+  /** Seeded from samples/ at startup: real, recorded results, with no instruction traces to simulate. */
+  sample: boolean;
 }
 
 export interface TraceDetail extends TraceSummary {
@@ -107,6 +109,8 @@ export interface RunSummary {
   state: RunState;
   entries: RunEntry[];
   sim_counts: Partial<Record<SimState, number>>;
+  /** Seeded from samples/ with its recorded results. */
+  sample: boolean;
 }
 
 export interface RunDetail extends RunSummary {

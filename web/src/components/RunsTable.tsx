@@ -5,7 +5,7 @@ import { plural } from "../domain/format";
 import { RUN_STATE, finishedSims } from "../domain/status";
 import { paths } from "../paths";
 import { SimStateBlocks, Status } from "./meters";
-import { TraceChip } from "./TraceState";
+import { SampleBadge, TraceChip } from "./TraceState";
 import { LogoGlyph } from "./BrandLogo";
 import { gpuLogo } from "../domain/logos";
 import { Chip, EntityIcon, RelTime, Th } from "./ui";
@@ -94,7 +94,8 @@ export function RunsTable({ runs, traces, showTrace = true }: { runs: readonly R
                     className="flex min-w-0 items-center gap-3"
                   >
                     <RunIcon run={r} />
-                    <span className="truncate font-mono text-[13px] font-medium text-fg">{r.id}</span>
+                    <span title={r.id} className="truncate font-mono text-[13px] font-medium text-fg">{r.id}</span>
+                    {r.sample && <SampleBadge />}
                   </Link>
                 </td>
                 <td className={CELL}>
@@ -128,6 +129,7 @@ export function RunsTable({ runs, traces, showTrace = true }: { runs: readonly R
                 <div className="flex items-center gap-3">
                   <RunIcon run={r} />
                   <span className="min-w-0 flex-1 truncate font-mono text-[13px] font-medium text-fg">{r.id}</span>
+                  {r.sample && <SampleBadge />}
                   <Status tone={meta.tone} live={meta.live} label={meta.label} />
                 </div>
                 <div className="flex flex-col gap-2.5 pl-9">
