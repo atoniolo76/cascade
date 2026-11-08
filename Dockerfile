@@ -47,5 +47,5 @@ RUN uv sync --frozen --no-dev --extra sail
 ENV PATH=/app/.venv/bin:$PATH \
     CASCADE_DATA_DIR=/data
 EXPOSE 8000 9000
-# Sail does not run CMD; scripts/deploy_sail.py starts `cascade serve` with exec.
+# Sail does not run CMD; `cascade deploy` starts `cascade serve` with exec.
 CMD ["cascade", "serve"]

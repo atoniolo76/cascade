@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import shutil
 import subprocess
+import sys
 import threading
+from pathlib import Path
 from typing import get_args
 
 import uvicorn
 
+from cascade import deploy as workspaces
 from cascade.api import create_app
 from cascade.settings import LauncherKind, Settings
 from cascade.sim.cli import add_commands
@@ -91,6 +95,80 @@ def serve(args: argparse.Namespace) -> None:
             rclone.stop()
 
 
+PHASE_TEXT = {
+    workspaces.Phase.creating_sandbox: "creating the sandbox (builds the image if needed)",
+    workspaces.Phase.starting: "starting Cascade",
+    workspaces.Phase.healthy: "healthy",
+}
+
+
+def deploy(args: argparse.Namespace) -> None:
+    api_key = os.environ.get("SAIL_API_KEY", "")
+    if not api_key:
+        raise SystemExit("SAIL_API_KEY is required")
+    if args.base_image and not args.from_source:
+        raise SystemExit("--base-image only applies with --from-source")
+    root = Path(__file__).resolve().parent.parent
+    image = (
+        workspaces.FromSource(root, args.base_image or "ubuntu:22.04")
+        if args.from_source
+        else workspaces.FromRegistry(args.image)
+    )
+    shown: list[workspaces.Phase] = []
+
+    def report(info: workspaces.WorkspaceInfo) -> None:
+        if not shown or shown[-1] is not info.phase:
+            shown.append(info.phase)
+            print(f"{info.app}: {PHASE_TEXT.get(info.phase, info.phase.value)}", flush=True)
+
+    simulator = workspaces.Simulator(args.sim_cmd, args.accelsim_dir, args.postprocess_cmd)
+    try:
+        info = workspaces.deploy_workspace(
+            api_key,
+            args.workspace,
+            image,
+            simulator=simulator,
+            token=os.environ.get("CASCADE_TOKEN") or None,
+            disk_gib=args.disk_gib,
+            on_phase=report,
+        )
+    except workspaces.DeployError as error:
+        print(f"cascade deploy: {error}", file=sys.stderr)
+        raise SystemExit(1) from None
+    print(f"sailbox:  {info.sailbox_id}")
+    print(f"app:      {info.app_url}")
+    print(
+        f"s3:       {info.s3_url}  (bucket cascade, prefix accelsim-traces, path-style, unsigned)"
+    )
+    print(f"token:    {info.token}")
+    print(f"open:     {info.app_url}/#token={info.token}")
+    print(f"logs:     {workspaces.SERVE_LOG} inside the sailbox")
+
+
+def add_deploy(sub) -> None:
+    d = sub.add_parser(
+        "deploy",
+        help="create or resume a workspace on Sail and start the app in it",
+        description="Creates the Sail app cascade-<workspace> with the sailbox cascade-main, or "
+        "resumes it, starts `cascade serve --sims sail` in it, and prints its URLs and token. "
+        "Reads SAIL_API_KEY, and CASCADE_TOKEN if set. Safe to rerun.",
+    )
+    d.add_argument("--workspace", required=True, help="3-32 lowercase letters, digits, hyphens")
+    source = d.add_mutually_exclusive_group()
+    source.add_argument("--image", default=workspaces.DEFAULT_IMAGE, help="prebuilt app image")
+    source.add_argument(
+        "--from-source",
+        action="store_true",
+        help="build this checkout's Dockerfile on Sail instead of pulling --image",
+    )
+    d.add_argument("--base-image", default="", help="Dockerfile BASE_IMAGE (--from-source)")
+    d.add_argument("--sim-cmd", default=workspaces.STAND_IN_SIM_CMD, help="CASCADE_SIM_CMD")
+    d.add_argument("--accelsim-dir", default=workspaces.STAND_IN_ACCELSIM_DIR)
+    d.add_argument("--postprocess-cmd", default="", help="CASCADE_POSTPROCESS_CMD override")
+    d.add_argument("--disk-gib", type=int, default=None, help="disk limit for the sailbox")
+    d.set_defaults(func=deploy)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="cascade")
     sub = p.add_subparsers(dest="command", required=True)
@@ -105,6 +183,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="where sims run: local subprocesses, or one Sail fork per sim",
     )
     s.set_defaults(func=serve)
+    add_deploy(sub)
     add_worker(sub)
     add_commands(sub)
     return p

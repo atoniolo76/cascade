@@ -53,7 +53,8 @@ GITHUB = "https://github.com/atoniolo76/cascade"
 ROOT = HERE.parent.parent
 PROMPT_TEMPLATE = HERE / "agent-prompt.md"
 STAND_IN_LOG = ROOT / "tests/fixtures/logs/opt125m_sm90_h100.log"
-DEPLOY_SCRIPT = ROOT / "scripts/deploy_sail.py"
+DEPLOY_MODULE = ROOT / "cascade/deploy.py"
+VENDORED_DEPLOY = HERE.parent / "api" / "_cascade_deploy.py"
 SIMULATOR_PAGE = "api-simulator"
 
 
@@ -1058,9 +1059,9 @@ def readable_kernel(mangled: str) -> str:
 
 
 def stand_in_kernels() -> str:
-    if STAND_IN_LOG.name not in DEPLOY_SCRIPT.read_text():
+    if STAND_IN_LOG.name not in DEPLOY_MODULE.read_text():
         raise SystemExit(
-            f"{DEPLOY_SCRIPT} no longer replays {STAND_IN_LOG.name}; update STAND_IN_LOG"
+            f"{DEPLOY_MODULE} no longer replays {STAND_IN_LOG.name}; update STAND_IN_LOG"
         )
     names: list[str] = []
     for m in re.finditer(r"^kernel_name = (\S+)", STAND_IN_LOG.read_text(), re.M):
@@ -1332,6 +1333,20 @@ def shell(page: Page, body: str, headings: list[Heading], pages: list[Page], i: 
 """
 
 
+def vendored_deploy() -> str:
+    """The Vercel functions deploy from landing/ alone, so they run a copy of cascade/deploy.py."""
+    source = DEPLOY_MODULE.read_text()
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        names = [node.module or ""] if isinstance(node, ast.ImportFrom) else []
+        names += [a.name for a in node.names] if isinstance(node, ast.Import) else []
+        if any(n.split(".")[0] == "cascade" for n in names):
+            raise SystemExit(f"{DEPLOY_MODULE} must not import cascade; Vercel runs a copy")
+    return (
+        f"# Generated from cascade/deploy.py by landing/docs-src/build.py. Do not edit.\n{source}"
+    )
+
+
 def write(path: Path, content: str, written: set[Path]) -> None:
     written.add(path)
     written.update(p for p in path.parents if OUT in p.parents)
@@ -1366,6 +1381,7 @@ def main() -> int:
     write(OUT / "llms-full.txt", llms_full(pages, bodies), written)
     for asset in ("docs.css", "docs.js"):
         write(OUT / asset, (HERE / asset).read_text(), written)
+    write(VENDORED_DEPLOY, vendored_deploy(), set())
     for stale in set(OUT.iterdir()) - written:
         print(f"removed {stale.relative_to(HERE.parent.parent)}")
         shutil.rmtree(stale) if stale.is_dir() else stale.unlink()
