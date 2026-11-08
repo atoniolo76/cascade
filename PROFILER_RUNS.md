@@ -1,5 +1,8 @@
 # Profiler runs for sim-to-real calibration
 
+The [profiler → simulator run-directory contract](docs/run-dir-contract.md)
+defines required handoff files, schemas, identity/units and compatibility rules.
+
 ## Python package (bring your own GPU container)
 
 ```

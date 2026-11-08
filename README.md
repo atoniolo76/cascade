@@ -43,3 +43,6 @@ The run directory is the interface: `run.json`, `corrected_timeline.json`,
 `trace_alignment.json`, and `traced/traces/` are produced by the profiler. The
 simulator consumes them and writes `sim_durations.json` and `sim/`.
 The profiler does not build or execute the CPU simulator.
+
+See the [run-directory contract](docs/run-dir-contract.md) for ownership, schemas,
+identity/units, compatibility rules, real examples, and end-to-end commands.
