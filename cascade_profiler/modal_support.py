@@ -36,8 +36,8 @@ def image(base=None, *, accelsim_commit=ACCELSIM_COMMIT, nvbit=True, nsys=True, 
 
 
 def register(app, volume, *, gpu, image=None, hf_cache=None, mount="/data",
-             timeout=4 * 60 * 60):
-    """Register nested serialized functions; client and container Python minor versions must match."""
+             timeout=4 * 60 * 60, s3=None, secrets=()):
+    """Register GPU profiling only; client and container Python minor versions must match."""
     from cascade_profiler import profile
     from cascade_profiler.modal_support import image as make_image
 
@@ -49,10 +49,10 @@ def register(app, volume, *, gpu, image=None, hf_cache=None, mount="/data",
     gpu_image = image if image is not None else make_image()
 
     @app.function(name="cascade_profile", serialized=True, image=gpu_image, gpu=gpu, cpu=8,
-                  memory=64 * 1024, ephemeral_disk=512 * 1024, timeout=timeout, volumes=volumes)
+                  memory=64 * 1024, ephemeral_disk=512 * 1024, timeout=timeout, volumes=volumes, secrets=list(secrets))
     def profile_remote(workload_dict, run_name=None, trace_steps=None, trace_repeat=1, layerwise_nvtx=False,
                        no_step_sync=False, gc_between_repeats=True, keep_nsys_rep=False,
-                       phases=("baseline", "profiled"), accelsim_root=ROOT, nsys_bin="nsys", trace_plan=None):
+                       phases=("baseline", "profiled"), accelsim_root=ROOT, nsys_bin="nsys", trace_plan=None, s3=s3):
         from cascade_profiler import Workload
 
         volume.reload()
@@ -61,7 +61,7 @@ def register(app, volume, *, gpu, image=None, hf_cache=None, mount="/data",
                              trace_steps=trace_steps, trace_repeat=trace_repeat, layerwise_nvtx=layerwise_nvtx,
                              no_step_sync=no_step_sync, gc_between_repeats=gc_between_repeats,
                              keep_nsys_rep=keep_nsys_rep, phases=phases, accelsim_root=accelsim_root, nsys_bin=nsys_bin,
-                             trace_plan=trace_plan)
+                             trace_plan=trace_plan, s3=s3)
             return {"run_name": result.run_dir.name, "run_dir": str(result.run_dir),
                     "stage_wall_s": result.stage_wall_s}
         finally:

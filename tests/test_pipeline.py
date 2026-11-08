@@ -5,7 +5,7 @@ import subprocess
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from cascade_profiler import Workload, profile
 from cascade_profiler import pipeline
@@ -92,12 +92,44 @@ class PipelineTest(unittest.TestCase):
             traces = work / "traces"
             traces.mkdir(exist_ok=True)
             (traces / "kernelslist.g").write_text("kernel-1.tracez\n")
+            (traces / "kernel-1-ctx_0xabc.trace.xz").write_bytes(b"fake raw trace")
+            (traces / "kernel-1-ctx_0xabc.tracez").write_bytes(b"fake processed trace")
             log = "post-processed\n"
         return SimpleNamespace(stdout=iter(log.splitlines(keepends=True)), returncode=0,
                                wait=lambda: 0, kill=lambda: None)
 
     def patches(self):
         return patch.multiple(pipeline.ClockSampler, start=lambda s: None, stop=lambda s: None)
+
+    def test_s3_finished_run_upload(self):
+        client = Mock()
+        snapshots = {}
+        client.upload_file.side_effect = lambda path, bucket, key, **kw: snapshots.update({key: Path(path).read_bytes()})
+        options = {"endpoint": "https://objects.example.com", "bucket": "my-runs", "prefix": "/profiles/",
+                   "region": "auto", "addressing_style": "path"}
+        credentials = {"AWS_ACCESS_KEY_ID": "test-only-access-marker", "AWS_SECRET_ACCESS_KEY": "test-only-secret-marker",
+                       "AWS_SESSION_TOKEN": "test-only-session-marker"}
+        with patch("boto3.client", return_value=client) as factory, \
+                patch.object(subprocess, "Popen", side_effect=self.fake_popen), \
+                patch.object(subprocess, "run", side_effect=self.fake_run), self.patches(), patch.dict(os.environ, credentials):
+            result = profile(Workload("fake", ["hello"], repeats=2), self.work / "runs", run_name="s3-test",
+                             trace_steps=[0], nsys_bin="custom-nsys", s3=options)
+        expected = {**options, "prefix": "profiles", "uri": "s3://my-runs/profiles/s3-test"}
+        self.assertEqual(json.loads(result.paths["run.json"].read_text())["s3"], expected)
+        self.assertEqual(json.loads(result.paths["traced/metadata.json"].read_text())["s3"], expected)
+        self.assertEqual(json.loads(snapshots["profiles/s3-test/run.json"])["s3_upload_status"], "completed")
+        self.assertEqual(factory.call_args.kwargs["endpoint_url"], options["endpoint"])
+        self.assertEqual(factory.call_args.kwargs["config"].s3, {"addressing_style": "path"})
+        self.assertEqual({call.args[1] for call in client.upload_file.call_args_list}, {"my-runs"})
+        self.assertEqual(set(snapshots), {f"profiles/s3-test/{rel}" for rel in result.paths})
+        for rel in ("corrected_timeline.json", "trace_alignment.json", "traced/traces/kernel-1-ctx_0xabc.trace.xz"):
+            self.assertIn(f"profiles/s3-test/{rel}", snapshots)
+        for path in result.paths.values():
+            data = path.read_bytes()
+            for marker in (*credentials.keys(), *credentials.values()):
+                self.assertNotIn(marker.encode(), data)
+        for _, env, _ in self.calls:
+            self.assertFalse(set(credentials) & set(env))
 
     def test_three_phase_orchestration(self):
         with patch.object(subprocess, "Popen", side_effect=self.fake_popen), \
@@ -128,6 +160,7 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(traced_command[traced_command.index("--trace-repeat") + 1], "1")
         self.assertTrue(any("spinlock_tool.so" in arg for arg in self.calls[2][0]))
         manifest = json.loads(result.paths["run.json"].read_text())
+        self.assertNotIn("s3", manifest)
         self.assertEqual(manifest["run_name"], "explicit")
         self.assertEqual(manifest["phases"], ["baseline", "profiled", "traced"])
         self.assertFalse(manifest["traced_timing_used"])

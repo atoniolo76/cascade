@@ -31,3 +31,6 @@ vllm = ["vllm==0.21.0", "nvtx"]
 
 [tool.setuptools.packages.find]
 include = ["cascade_profiler*"]
+
+[tool.setuptools]
+py-modules = []

@@ -1,7 +1,8 @@
 # Profiler → simulator run-directory contract
 
-This document is identical on the `profiler` and `simulator` branches. The
-profiler owns GPU measurement and instruction tracing; `cascade.sim` owns CPU
+The installable profiler owns only GPU measurement, instruction tracing and alignment.
+Our non-packaged `accelsim_local.py` supplies CPU execution for our repository-local app;
+the separate simulator checkout's `cascade.sim` owns CPU
 Accel-Sim execution and timeline replay. Neither package needs to import the other.
 Paths below are relative to one run directory, normally
 `accelsim-traces:/phases/<run-name>/` on Modal.
@@ -22,6 +23,7 @@ defaults; they are illustrations, not complete loader fixtures.
 | `traced/traces/stats_ctx_*`, raw `*.trace[.xz]` | Profiler NVBit tracer | Used to build alignment/postprocess traces; not timing sources for replay. |
 | `traced/trace_steps.json` | Profiler recorder | Required when building alignment; informational after alignment is supplied. |
 | `run.json` | Profiler pipeline | Manifest/status/provenance; required when profiler builds alignment, not read by current simulator loaders. |
+| `traced/metadata.json` | Profiler optional S3 handoff | Non-secret destination fields and final S3 URI; emitted for traced runs with S3 output. |
 | `workload.json` | Profiler | Serializable workload configuration; informational to simulator. |
 | `reconcile.json` (also `reconcile.csv`) | Profiler | Timing/clock diagnostics; informational to simulator. |
 | `baseline/`, `profiled/` | Profiler | Source logs, step/request metrics, clock samples; `profiled/profile.sqlite` and Nsight capture data support timing reconciliation. Not required once corrected timeline is available. |
@@ -391,11 +393,11 @@ Use matching branch checkouts and the same Modal account/volume. Authenticate
 through the normal Modal credential mechanism; do not put tokens in run files.
 
 ```sh
-# Profiler checkout (GPU): this entrypoint now profiles only.
+# Profiler checkout (GPU): skip our app's optional internal simulation.
 python -m pip install -e '.[modal]'
 modal run accelsim_trace.py::e2e_main --run-name my-run \
   --model facebook/opt-125m --prompt "Hello, my name is" \
-  --max-tokens 32 --repeats 4 --trace-steps plan --trace-repeat 1
+  --max-tokens 32 --repeats 4 --trace-steps plan --trace-repeat 1 --profile-only
 
 # Simulator checkout (CPU): reads phases/my-run on accelsim-traces.
 uv sync --python 3.12 --extra modal
@@ -419,8 +421,10 @@ uv run cascade compare /home/ubuntu/runs/phases/my-run/corrected_timeline.json \
 The CPU Python API is `cascade.sim.accelsim.simulate_accelsim(run_dir,
 gpu_config="SM90_H100", dedup=True, verify_dedup=2, propagate="interp")` and
 requires built Accel-Sim tools locally. The Modal helper supplies those tools.
-GPU-only `e2e_main` no longer accepts simulator flags; supply them to the CPU
-entrypoint. The inspected e2e-plan-v1 artifact predates this entrypoint split
+Our repo-local `e2e_main` can also run CPU simulation through `accelsim_local.py`;
+use `--profile-only` to stop after profiling/tracing, or `--timing-only` for timing without NVBit.
+Neither CPU runner nor its image is shipped in `cascade_profiler`.
+The inspected e2e-plan-v1 artifact predates this entrypoint split
 but has this same run-directory format.
 
 Verified e2e-plan-v1 facts: 128 total steps, four requests, 712 aligned trace

@@ -41,6 +41,7 @@ import modal
 
 from cascade_profiler import Workload, legacy, profile
 from cascade_profiler.modal_support import image as profiler_image
+from accelsim_local import accelsim_image, simulate_accelsim
 
 ACCELSIM_REPO = "https://github.com/accel-sim/accel-sim-framework.git"
 ACCELSIM_COMMIT = "7ba54ded60c4ba0083410c37d22d719166acd6dc"  # dev branch, 2026-10-27
@@ -72,6 +73,20 @@ traces_vol = modal.Volume.from_name("accelsim-traces", create_if_missing=True)
 TRACES_MOUNT = "/traces"
 
 
+@app.function(image=accelsim_image(), cpu=32, memory=64 * 1024, timeout=24 * 60 * 60,
+              volumes={TRACES_MOUNT: traces_vol})
+def simulate(run_name: str, gpu_config: str | None = None, propagate: str = "none",
+             dedup: bool = True, verify_dedup: int = 0):
+    if not run_name or Path(run_name).name != run_name or run_name in {".", ".."}:
+        raise ValueError("run_name must be a single directory name")
+    traces_vol.reload()
+    try:
+        return simulate_accelsim(Path(TRACES_MOUNT) / "phases" / run_name, gpu_config=gpu_config,
+                                 jobs=32, propagate=propagate, dedup=dedup, verify_dedup=verify_dedup)
+    finally:
+        traces_vol.commit()
+
+
 @app.function(gpu="H100!", timeout=FUNCTION_TIMEOUT_S, cpu=8, memory=64 * 1024,
               ephemeral_disk=EPHEMERAL_DISK_MIB,
               volumes={TRACES_MOUNT: traces_vol, "/root/.cache/huggingface": hf_cache_vol})
@@ -87,7 +102,9 @@ def profile_e2e(workload_dict: dict, run_name: str | None, trace_steps: list[int
 @app.local_entrypoint()
 def e2e_main(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is", max_tokens: int = 32,
              repeats: int = 4, trace_steps: str = "0,5", trace_repeat: int = 1,
-             run_name: str = "", timing_only: bool = False, gpu: str = "H100!"):
+             run_name: str = "", timing_only: bool = False, gpu: str = "H100!",
+             gpu_config: str = "", propagate: str = "none", dedup: bool = True, verify_dedup: int = 0,
+             profile_only: bool = False):
     selection = None if timing_only else "plan" if trace_steps == "plan" else [int(i.strip()) for i in trace_steps.split(",") if i.strip()]
     result = profile_e2e.with_options(gpu=gpu).remote(Workload(model, [prompt], max_tokens=max_tokens, repeats=repeats).to_dict(),
                                 run_name or None, selection, trace_repeat)
@@ -96,8 +113,12 @@ def e2e_main(model: str = "facebook/opt-125m", prompt: str = "Hello, my name is"
         print("Timing-only run:", result["run_name"], "(NVBit and simulation skipped)")
         return
     print("Profile run:", result["run_name"])
-    print("Run Accel-Sim from the simulator checkout:")
-    print("modal run scripts/simulate_accelsim.py --run-name", result["run_name"])
+    if profile_only:
+        return
+    summary = simulate.remote(result["run_name"], gpu_config=gpu_config or None, propagate=propagate,
+                              dedup=dedup, verify_dedup=verify_dedup)
+    print("Simulation wall seconds:", summary["wall_s"], "coverage:", summary["coverage"])
+    print("Simulation counts:", summary["counts"], "provenance labels:", summary["provenance_labels"])
 
 
 # --------------------------------------------------------------------------------------

@@ -1,4 +1,6 @@
 import sys
+import inspect
+import pkgutil
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,6 +22,9 @@ class ModalSupportTest(unittest.TestCase):
         self.assertFalse(hasattr(support, "accelsim_image"))
         self.assertFalse(hasattr(cascade_profiler, "simulate_accelsim"))
         self.assertFalse(hasattr(cascade_profiler, "accelsim_image"))
+        modules = {m.name for m in pkgutil.iter_modules(cascade_profiler.__path__)}
+        self.assertFalse(any("accelsim" in name or "simulation" in name for name in modules))
+        self.assertFalse({"sim_image", "sim_cpu", "sim_timeout"} & set(inspect.signature(support.register).parameters))
 
     def test_registration_and_commit_on_failure(self):
         options = []
@@ -30,10 +35,13 @@ class ModalSupportTest(unittest.TestCase):
         volume = SimpleNamespace(reload=Mock(), commit=Mock())
         result = SimpleNamespace(run_dir=Path("/data/fixture"), stage_wall_s={"baseline": 1})
         with patch.object(cascade_profiler, "profile", return_value=result) as profile:
-            functions = support.register(app, volume, gpu="H100!", image="GPU", hf_cache="cache")
+            destination = {"bucket": "runs", "prefix": "profiles"}
+            functions = support.register(app, volume, gpu="H100!", image="GPU", hf_cache="cache",
+                                         s3=destination, secrets=["app-owned-secret"])
             response = functions.profile({"model": "fake", "prompts": ["hello"]}, "fixture", trace_steps=[0])
             self.assertEqual(response["run_name"], "fixture")
             profile.assert_called_once()
+            self.assertEqual(profile.call_args.kwargs["s3"], destination)
             self.assertFalse(hasattr(functions, "simulate"))
             profile.side_effect = RuntimeError("failed")
             with self.assertRaisesRegex(RuntimeError, "failed"):
@@ -45,6 +53,7 @@ class ModalSupportTest(unittest.TestCase):
         self.assertTrue(all(o["serialized"] for o in options))
         self.assertEqual(options[0]["gpu"], "H100!")
         self.assertEqual(len(options), 1)
+        self.assertEqual(options[0]["secrets"], ["app-owned-secret"])
         self.assertEqual(options[0]["volumes"]["/root/.cache/huggingface"], "cache")
 
 

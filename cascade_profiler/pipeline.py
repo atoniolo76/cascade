@@ -12,6 +12,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from cascade_profiler.align import write_alignment
+from cascade_profiler.storage import s3_destination, upload_run
 from cascade_profiler.planning import trace_plan as make_trace_plan
 from cascade_profiler.clocks import ClockSampler, _clock_stats, _gpu_name
 from cascade_profiler.nsys import (
@@ -65,7 +66,7 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
             phases=("baseline", "profiled"), trace_steps: list[int] | str | None = None,
             trace_repeat: int = 1, layerwise_nvtx: bool = False, no_step_sync: bool = False,
             gc_between_repeats: bool = True, keep_nsys_rep: bool = False,
-            accelsim_root: str = "/opt/accel-sim-framework", nsys_bin: str = "nsys", trace_plan=None) -> RunResult:
+            accelsim_root: str = "/opt/accel-sim-framework", nsys_bin: str = "nsys", trace_plan=None, s3=None) -> RunResult:
     """Profile in the caller's GPU container. NVBit timing is never used for reconciliation."""
     workload = Workload.from_dict(workload.to_dict())
     workload.resolve_driver()
@@ -99,6 +100,9 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
     run_name = _unique_run_name() if run_name is None else run_name
     if not run_name or Path(run_name).name != run_name or run_name in {".", ".."}:
         raise ValueError("run_name must be a single nonempty directory name")
+    if s3 is not None and keep_nsys_rep:
+        raise ValueError("S3 output requires keep_nsys_rep=False to avoid uploading an unscrubbed environment")
+    destination, s3_meta = s3_destination(s3, run_name) if s3 is not None else (None, None)
     run_dir = Path(out_dir).resolve() / run_name
     run_dir.mkdir(parents=True, exist_ok=False)
     workload_file = run_dir / "workload.json"
@@ -118,6 +122,8 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
     manifest["runner_flags"] = {"layerwise_nvtx": layerwise_nvtx, "no_step_sync": no_step_sync,
                                 "gc_between_repeats": gc_between_repeats}
     manifest_path = run_dir / "run.json"
+    if destination is not None:
+        manifest.update(s3=s3_meta, s3_upload_status="pending")
     manifest_path.write_text(json.dumps(manifest, indent=2))
     parsed_phases, diagnostics, step_logs, metrics = {}, {}, {}, {}
     nsys_stats, ranges, kernels = {}, {}, []
@@ -247,5 +253,10 @@ def profile(workload: Workload, out_dir: str | Path, *, run_name: str | None = N
         if manifest["status"] == "running":
             manifest["status"] = "failed"
         manifest_path.write_text(json.dumps(manifest, indent=2))
+    if destination is not None:
+        if (run_dir / "traced").is_dir():
+            (run_dir / "traced/metadata.json").write_text(json.dumps({"run_name": run_name, "s3": s3_meta,
+                                                                   "traced_timing_used": False}, indent=2))
+        upload_run(run_dir, destination, manifest)
     paths = {p.relative_to(run_dir).as_posix(): p for p in run_dir.rglob("*") if p.is_file()}
     return RunResult(run_dir, paths, stage_wall_s)

@@ -14,8 +14,11 @@ pip install "git+https://github.com/atoniolo76/cascade@profiler"
 
 `import cascade_profiler` requires neither Modal nor torch/vLLM. The package exports
 `Workload`, `RunResult`, `profile`, `trace_plan`, and lazily loaded `image`,
-`register`. The caller supplies the GPU/container, dependencies, output mount, and
-volume commit. Runtime timing needs vLLM 0.21.0, torch, nvtx, nsys and nvidia-smi; optional
+`register`.
+The package only profiles: CPU simulation is internal repository-local tooling,
+not an installable package API. Profiling includes timing↔trace alignment and NVBit traces.
+The caller supplies the GPU/container, dependencies, output mount, and volume commit.
+Runtime timing needs vLLM 0.21.0, torch, nvtx, nsys and nvidia-smi; optional
 NVBit tracing also needs a built Accel-Sim tracer/spinlock tool/postprocessor at `accelsim_root`.
 Baseline-only execution does not need nsys or Accel-Sim. All stages run sequentially inside
 the same caller container, each workload in a fresh subprocess.
@@ -86,40 +89,59 @@ Module map: workload.py (configuration/driver validation), runner.py (GPU subpro
 (logging/naming/serialization), legacy.py (existing trace/nsys/microbench orchestration and storage).
 align.py handles step-local trace alignment, and modal_support.py optional GPU image
 factories/registration, without module-level Modal objects. CPU execution lives in
-`cascade.sim.accelsim` in the separate simulator checkout, not in this package.
+`accelsim_local.py` in this checkout, not in the installable package.
 accelsim_trace.py remains the compatibility Modal app, with package sources added to its image;
 all existing Modal commands below remain valid. Offline checks: `python3 -m unittest discover -s tests -v`.
 
-## End-to-end tracing and CPU simulation
+## Package profiling and our internal end-to-end app
 
 With Python **3.12** and Modal credentials, the bring-your-own-app example is:
 
 ```
 modal run examples/modal_app.py
-# GPU profiling only:
+# Download the package example's outputs:
+modal volume get my-profiler-runs <run_name> ./<run_name>
+# Our repo-local app: GPU profiling, tracing, then internal CPU simulation:
 modal run accelsim_trace.py::e2e_main --run-name my-run --trace-steps plan --trace-repeat 1
-# From the simulator checkout (same accelsim-traces volume, phases/<run>):
-modal run scripts/simulate_accelsim.py --run-name my-run --gpu-config SM90_H100 --propagate interp
+# Simulate an existing run in our app's volume, phases/<run>:
+modal run accelsim_trace.py::simulate --run-name my-run --gpu-config SM90_H100 --propagate interp
 ```
 
 `register(app, volume, gpu=<required>, image=None, hf_cache=None, mount="/data",
 timeout=14400)` returns only the `.profile` Modal function.
 `.profile.remote(workload.to_dict(), run_name=None, trace_steps=[0,5], trace_repeat=1)` writes
 `<mount>/<run_name>/`, commits the caller's volume (also on errors), and returns run_name and
-stage_wall_s. The simulator package's `cascade.sim.modal_support.register` separately returns
-a CPU function accepting run_name, gpu_config, propagate, dedup, and verify_dedup. Set its
-mount to the volume root and `run_subdir="phases"` for the compatibility app's layout.
-Defaults use 32 CPU simulation workers.
+stage_wall_s. Download the run directory for use with your own tools. There is no `.simulate`
+function or CPU image in the package. Our `accelsim_trace.py::simulate` function uses the
+non-packaged `accelsim_local.py` and 32 CPU workers on our infrastructure.
 Functions use `serialized=True` because they are nested: client and container **Python minor
 versions must match** (default images are 3.12). Import checks do not build/deploy images.
-Use separate apps when registering profiling and simulation.
+The example registers profiling only.
+
+### Optional S3-compatible output
+
+Pass `s3={"endpoint": "https://s3.example.com", "bucket": "my-runs", "prefix": "profiles",
+"region": "auto", "addressing_style": "path"}` to `profile()`, `register()`, or the
+registered `.profile.remote()` function (the per-call value overrides registration).
+`register(..., secrets=[modal.Secret.from_name("my-s3-credentials")])` mounts the caller's
+secret in the GPU function; set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and, if needed,
+AWS_SESSION_TOKEN there or in the caller environment. No credential fields are accepted
+in `s3`; endpoint userinfo/query strings are rejected. Install `boto3>=1.36` or the modal extra.
+
+Uploads occur **after profiling finishes**, not as traces stream. The complete run, including
+raw/processed NVBit traces, corrected_timeline.json, trace_alignment.json, and metadata, goes
+to `s3://my-runs/profiles/<run_name>/`. The local/volume copy remains unchanged. Without `s3`,
+there is no S3 client or upload. `run.json.s3` and `traced/metadata.json.s3` record endpoint,
+bucket, prefix, region, addressing_style and uri. The trace metadata exists when tracing ran.
+`run.json.s3_upload_status` is pending/completed/failed; it is uploaded last as the completion
+marker. An upload failure raises and preserves the local run. S3 output requires
+keep_nsys_rep=False to avoid exporting an unscrubbed Nsight environment capture.
 
 `image(base=None, accelsim_commit=..., nvbit=True, nsys=True, arch="all")` builds the profiling
 image with package sources. A custom base must supply vLLM/torch/nvtx and be CUDA **12.x devel,
 Ubuntu 22.04**, with NVIDIA's apt repository for cuda-nsight-systems-12-9. `nvbit=False` skips
 tracer installation/build; `nsys=False` skips nsys. arch="all" supports multiple CUDA architectures
-(slower image build); the old H100 app explicitly uses arch="sm_90". The simulator package's
-`cascade.sim.modal_support.accelsim_image()` builds a separate CPU-only
+(slower image build). Our non-packaged `accelsim_local.accelsim_image()` builds a separate CPU-only
 simulator image with CUDA's toolkit, compiler/build dependencies, and the standalone CPU trace
 postprocessor; it does not request a GPU or install vLLM. Default pins:
 
@@ -145,10 +167,10 @@ silently mapping the wrong kernel. Output contains provenance (including traced_
 per-step counts/exactness, UID/file → (repeat, baseline-global step, seq) mappings, and unmatched
 counts/lists. Missing capture windows remain unmatched, not fabricated timing kernels.
 
-### Simulation and artifacts
+### Internal simulation and artifacts (not a package API)
 
 ```
-from cascade.sim.accelsim import simulate_accelsim  # in the simulator checkout
+from accelsim_local import simulate_accelsim  # only in this repository checkout
 summary = simulate_accelsim("/data/my-run", jobs=32, kernel_timeout_s=600, propagate=True)
 ```
 
@@ -183,7 +205,7 @@ for the same key use their median and are listed in provenance. This is an extra
 exact simulation of those steps. `sim/summary.json` reports coverage per traced step, success/failure
 counts, summed per-kernel simulator wall seconds, mean/max, and overall elapsed wall seconds.
 
-### Generic models, planning, deduplication and interpolation
+### Generic models and planning; internal simulation deduplication and interpolation
 
 For example, a second-architecture timing-only run needs no NVBit and never invokes simulation:
 
