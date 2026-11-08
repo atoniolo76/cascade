@@ -71,3 +71,15 @@ Three screens:
 - **Run detail:** a grid of sim cards (status, heartbeat age, kernel progress i/N, live log tail via SSE) plus a chart of simulated cycles per GPU config.
 
 Deferred until Alessio's trace data is known: per-kernel original-vs-simulated comparison, cost/timing panel.
+
+## Metrics parsing
+
+- Main parses. Sims forward raw Accel-Sim log lines only.
+- Main's parser extracts per-kernel stats (`kernel_name`, `gpu_sim_cycle`, `gpu_ipc`, ...) from the stream and stores them.
+- Raw logs are stored too, so a fixed parser can re-parse and backfill.
+
+## Defaults (not separately discussed)
+
+- State lives in SQLite at `/data/cascade.db` on main's local disk.
+- A `scripts/deploy_sail.py` creates the main sailbox from the image, sets env/secrets, and exposes ports 8000 (app) and 9000 (MinIO).
+- The sim command is configurable (`CASCADE_SIM_CMD`), with a fake-sim that replays a sample Accel-Sim log for local dev. The real Accel-Sim invocation is the seam where Alessio's simulator work plugs in.
