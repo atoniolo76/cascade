@@ -22,14 +22,16 @@ container they're used, otherwise requests are sent unsigned.
 
 Usage:
   modal run accelsim_trace.py --list-layers
-  modal run accelsim_trace.py --s3-endpoint https://s3.example.com --s3-bucket my-bucket \
-      --layers model.decoder.layers.10.self_attn --max-tokens 4
+  modal run accelsim_trace.py --layers model.decoder.layers.10.self_attn --max-tokens 4
+      # -> accelsim-traces volume (post-processed); add --s3-endpoint/--s3-bucket to stream to S3
   modal run accelsim_trace.py ... --spinlock-handling none   # skip spinlock detection
   modal run accelsim_trace.py ... --trace-scope steps [--trace-steps 0,1] [--exec-mode compile]
   modal run accelsim_trace.py::nsys_main --trace-run <run> [--exec-mode graphs]
   modal run accelsim_trace.py::microbench_main
   (see PROFILER_RUNS.md)
 Objects land at s3://<bucket>/<prefix>/<run_name>/{traces/,spinlock_detection/,*.log,metadata.json}
+Without --s3-bucket the run dir goes to the accelsim-traces Modal volume at /<run_name>/ instead,
+post-processed on Modal (kernelslist.g + .tracez) unless --no-post-process.
 """
 
 import json
@@ -160,6 +162,23 @@ class S3Dest:
         )
 
 
+class VolumeDest:
+    """The accelsim-traces Modal volume as a destination (used when no S3 bucket is given)."""
+
+    def __init__(self, run_name: str):
+        self.root = Path(TRACES_MOUNT) / run_name
+        self.run_name = run_name
+
+    def uri(self, rel: str = "") -> str:
+        return f"modal-volume://accelsim-traces/{self.run_name}/{rel}".rstrip("/")
+
+    def upload(self, path: Path, rel: str):
+        import shutil
+        dst = self.root / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, dst)
+
+
 class KernelTraceUploader(threading.Thread):
     """Uploads finished kernel-N-*.trace.xz files while the tracer is still running.
 
@@ -232,7 +251,7 @@ class KernelTraceUploader(threading.Thread):
     cpu=8,
     memory=64 * 1024,
     ephemeral_disk=EPHEMERAL_DISK_MIB,
-    volumes={"/root/.cache/huggingface": hf_cache_vol},
+    volumes={"/root/.cache/huggingface": hf_cache_vol, TRACES_MOUNT: traces_vol},
 )
 def trace_vllm(
     model: str = "facebook/opt-125m",
@@ -251,6 +270,7 @@ def trace_vllm(
     trace_scope: str = "layers",
     trace_steps: list[int] | None = None,
     exec_mode: str = "eager",
+    post_process: bool = True,
 ) -> str | None:
     """Trace `layers` of `model` under vLLM, streaming traces to S3 as kernels finish.
 
@@ -267,6 +287,10 @@ def trace_vllm(
     instruments graph kernels at capture time (vLLM captures inside LLM(), while tracing is
     off) and gives replayed kernels no launch ids, so "graphs" traces are incomplete; trace
     with "compile" and time with profile_nsys(exec_mode="graphs") instead.
+
+    Storage: with s3_bucket, kernel traces stream to S3 while tracing (no post-processing).
+    Without it, the whole run dir is written to the accelsim-traces volume under /<run_name>/
+    and, if post_process, post-traces-processing runs first (kernelslist.g + .tracez).
 
     Every run logs per-engine-step tracer kernel-id ranges to <run>/trace_steps.json.
 
@@ -324,12 +348,16 @@ def trace_vllm(
         run_step("list_layers", {})
         return None
 
-    if not s3_bucket:
-        raise ValueError("s3_bucket is required (and s3_endpoint for non-AWS S3)")
-    dest = S3Dest(run_name, s3_endpoint, s3_bucket, s3_prefix, s3_region, s3_addressing_style)
-    # Fail fast on an unreachable endpoint / missing bucket before spending GPU time.
-    dest.client.head_bucket(Bucket=dest.bucket)
-    print(f"Uploading to {dest.uri()}", flush=True)
+    use_s3 = bool(s3_bucket)
+    if use_s3:
+        dest = S3Dest(run_name, s3_endpoint, s3_bucket, s3_prefix, s3_region, s3_addressing_style)
+        # Fail fast on an unreachable endpoint / missing bucket before spending GPU time.
+        dest.client.head_bucket(Bucket=dest.bucket)
+    else:
+        dest = VolumeDest(run_name)
+    params["storage"] = "s3" if use_s3 else "modal_volume"
+    params["post_processed"] = False
+    print(f"Saving to {dest.uri()}", flush=True)
 
     status = "failed"
     uploader: KernelTraceUploader | None = None
@@ -351,8 +379,9 @@ def trace_vllm(
                     f"Spinlock detection produced no {spin_file}; see spinlock_phase*.log"
                 )
 
-        uploader = KernelTraceUploader(dest, traces_dir)
-        uploader.start()
+        if use_s3:
+            uploader = KernelTraceUploader(dest, traces_dir)
+            uploader.start()
         trace_err: Exception | None = None
         try:
             run_step("trace", {
@@ -363,19 +392,34 @@ def trace_vllm(
             trace_err = e  # still upload whatever kernels were traced before re-raising
             print(f"Trace step failed: {e!r}; uploading partial traces", flush=True)
         # The traced process has exited (or been killed), so every kernel file is closed.
-        uploader.finish(timeout=max(deadline - time.monotonic(), 0) + 25 * 60)
+        if uploader:
+            uploader.finish(timeout=max(deadline - time.monotonic(), 0) + 25 * 60)
         if trace_err:
             raise trace_err
 
-        if not uploader.uploaded:
+        n_kernels = len(uploader.uploaded) if uploader else len(_kernel_files(traces_dir))
+        if not n_kernels:
             raise RuntimeError(
                 "No kernel traces were produced; check that the layer name is correct and "
                 "that 'Writing results to ...' appears in trace.log"
             )
+        if not use_s3 and post_process:
+            # Writes kernelslist.g + one .tracez per kernel next to the raw traces.
+            _run_logged("post_process", [POST_PROCESS_BIN, str(traces_dir), "-j", "8"],
+                        dict(os.environ), work_dir, deadline + 25 * 60)
+            params["post_processed"] = True
         status = "ok"
         return dest.uri()
     finally:
         _upload_run_files(dest, work_dir, status, uploader, params)
+        if not use_s3:
+            traces_vol.commit()
+
+
+def _kernel_files(traces_dir: Path) -> list[Path]:
+    if not traces_dir.is_dir():
+        return []
+    return [p for p in traces_dir.iterdir() if KERNEL_FILE_RE.match(p.name)]
 
 
 def _workload(meta: dict, exec_mode: str | None = None, script: str = TRACE_SCRIPT) -> list[str]:
@@ -425,7 +469,7 @@ def _run_logged(name: str, cmd: list[str], env: dict, cwd: Path, deadline: float
 
 
 def _upload_run_files(
-    dest: S3Dest, work_dir: Path, status: str, uploader: "KernelTraceUploader | None", params: dict
+    dest: "S3Dest | VolumeDest", work_dir: Path, status: str, uploader: "KernelTraceUploader | None", params: dict
 ):
     """Upload everything except kernel traces (logs, kernelslist/stats, spinlock file, metadata).
 
@@ -443,7 +487,7 @@ def _upload_run_files(
         "gpu": gpu,
         "kernel_traces_uploaded": len(uploader.uploaded) if uploader else 0,
         "bytes_uploaded": uploader.bytes_uploaded if uploader else 0,
-        "post_processed": False,
+        "post_processed": params.get("post_processed", False),
         "post_process_cmd": "post-traces-processing <run>/traces -j 8  # produces kernelslist.g + .tracez",
     }
     (work_dir / "metadata.json").write_text(json.dumps(meta, indent=2))
@@ -458,10 +502,10 @@ def _upload_run_files(
             n += 1
         except Exception as e:
             failed.append(f"{rel}: {e!r}")
-    print(f"[{status}] Uploaded {n} run files (+{meta['kernel_traces_uploaded']} kernel traces, "
+    print(f"[{status}] Saved {n} run files (+{meta['kernel_traces_uploaded']} streamed kernel traces, "
           f"{meta['bytes_uploaded'] / 2**30:.2f} GiB) to {dest.uri()}", flush=True)
     if failed:
-        print("[s3] FAILED uploads:\n  " + "\n  ".join(failed), flush=True)
+        print("FAILED uploads:\n  " + "\n  ".join(failed), flush=True)
 
 
 # --------------------------------------------------------------------------------------
@@ -1236,6 +1280,7 @@ def main(
     trace_scope: str = "layers",
     trace_steps: str = "",
     exec_mode: str = "eager",
+    post_process: bool = True,
 ):
     result = trace_vllm.remote(
         model=model,
@@ -1254,8 +1299,14 @@ def main(
         trace_scope=trace_scope,
         trace_steps=[int(s) for s in trace_steps.split(",") if s.strip()],
         exec_mode=exec_mode,
+        post_process=post_process,
     )
-    if result:
+    if result and not s3_bucket:
+        run = result.rsplit("/", 1)[1]
+        print(f"\nDone. Run saved to volume accelsim-traces:/{run}/\n"
+              f"  modal volume get accelsim-traces {run} ./{run}\n"
+              f"  modal run accelsim_trace.py::nsys_main --trace-run {run}")
+    elif result:
         print(f"\nDone. Traces at {result}")
         print("Next, wherever you download them (CPU-only):\n"
               "  post-traces-processing <run>/traces -j 8\n"

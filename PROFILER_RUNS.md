@@ -1,8 +1,12 @@
 # Profiler runs for sim-to-real calibration
 
-All commands run from the repo root. `trace_vllm` streams traces to S3 (same `--s3-*` flags as
-before); `profile_nsys` reads the trace run directory (`metadata.json`, `traces/stats_ctx_*`,
-`trace_steps.json`) from the `accelsim-traces` Modal volume, as with the existing run.
+All commands run from the repo root. Without `--s3-*` flags, `trace_vllm` writes the whole run
+dir (raw traces, `kernelslist.g` + `.tracez` from post-traces-processing, `metadata.json`,
+`trace_steps.json`, logs) to the `accelsim-traces` Modal volume at `/<run_name>/`, and
+`nsys_main --trace-run <run_name>` reads it from there. The run name is printed at the end (and is
+`<timestamp>__<model>__<scope>__<exec_mode>`; `modal volume ls accelsim-traces` lists them).
+Add `--no-post-process` to skip post-processing, or `--s3-endpoint/--s3-bucket` to stream to S3
+instead (no post-processing; then copy the run dir to the volume yourself before `nsys_main`).
 Defaults are unchanged: `modal run accelsim_trace.py` still traces one layer in eager mode.
 
 ## 1. Whole-model trace of complete engine steps (eager)
@@ -12,12 +16,9 @@ including input prep, logits and sampler kernels. Startup/profiling/warmup kerne
 `LLM()`) are never traced.
 
 ```
-modal run accelsim_trace.py --trace-scope steps --exec-mode eager \
-    --s3-endpoint <endpoint> --s3-bucket <bucket>
+modal run accelsim_trace.py --trace-scope steps --exec-mode eager
 # only some steps, e.g. prefill + first decode:  --trace-steps 0,1
 ```
-
-Then (after the run dir is on the volume):
 
 ```
 modal run accelsim_trace.py::nsys_main --trace-run <run_name>
@@ -31,8 +32,7 @@ tracer launch ids. So trace the same torch.compile'd (Triton) kernels with graph
 time them with graphs on:
 
 ```
-modal run accelsim_trace.py --trace-scope steps --exec-mode compile \
-    --s3-endpoint <endpoint> --s3-bucket <bucket>
+modal run accelsim_trace.py --trace-scope steps --exec-mode compile
 modal run accelsim_trace.py::nsys_main --trace-run <compile_run_name>                     # -> nsys/
 modal run accelsim_trace.py::nsys_main --trace-run <compile_run_name> --exec-mode graphs  # -> nsys_graphs/
 ```
@@ -58,6 +58,7 @@ modal run accelsim_trace.py::microbench_main --n 200 --tokens 1,6
 ## Download
 
 ```
+modal volume get accelsim-traces <run_name> ./<run_name>        # trace dir (incl. nsys*/ once profiled)
 modal volume get accelsim-traces <run_name>/nsys ./nsys
 modal volume get accelsim-traces <run_name>/nsys_graphs ./nsys_graphs
 modal volume get accelsim-traces microbench/<name> ./microbench
@@ -65,7 +66,7 @@ modal volume get accelsim-traces microbench/<name> ./microbench
 
 ## Outputs
 
-Trace run (S3): `trace_steps.json` lists, for each engine step: kind (prefill/decode),
+Trace run: `trace_steps.json` lists, for each engine step: kind (prefill/decode),
 scheduled tokens, wall-clock start/end, and the tracer kernel-id range `[first_kernel_id,
 end_kernel_id)`. Async scheduling is turned off for new runs so that each engine step is
 exactly one forward pass.
