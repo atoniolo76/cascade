@@ -6,7 +6,7 @@ import type { TraceSummary } from "../api/types";
 import { PageHeader } from "../components/AppShell";
 import { QuickLaunch } from "../components/QuickLaunch";
 import { SendTraceGuide } from "../components/SendTraceGuide";
-import { ModelTile, TraceState } from "../components/TraceState";
+import { ModelTile, StepsBadge, TraceState } from "../components/TraceState";
 import { LogoTile } from "../components/BrandLogo";
 import { gpuLogo } from "../domain/logos";
 import { Button, Card, Dash, ErrorNote, Panel, RelTime, SectionTitle, Skeleton, Th } from "../components/ui";
@@ -72,8 +72,11 @@ function TraceName({ t }: { t: TraceSummary }) {
     <span className="flex min-w-0 items-center gap-3">
       <ModelTile model={t.model} fallback={t.id} />
       <span className="min-w-0">
-        <span className="block truncate text-[14px] font-medium text-fg" title={t.id}>
-          {t.model ?? t.id}
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-[14px] font-medium text-fg" title={t.id}>
+            {t.model ?? t.id}
+          </span>
+          {t.has_step_timeline && <StepsBadge />}
         </span>
         <span className="block truncate font-mono text-[12px] leading-4 text-muted" title={t.layers.length > 0 ? t.layers.join(", ") : t.id}>
           {t.layers.length > 0 ? t.layers.join(", ") : t.model === null ? "metadata pending" : t.id}

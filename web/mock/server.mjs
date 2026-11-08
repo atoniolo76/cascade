@@ -3,6 +3,7 @@
 // Usage: npm run mock   (listens on :8000, token "cascade-dev")
 //        MOCK_SCENARIO=empty npm run mock   (no traces or runs; an upload starts after 30s)
 
+import { readFileSync } from "node:fs";
 import http from "node:http";
 import { URL } from "node:url";
 
@@ -77,7 +78,7 @@ function buildKernels(count, seed, kinds = KERNEL_KINDS) {
 }
 const publicKernel = ({ _kind, _ipc, _bias, ...k }) => k;
 
-function makeTrace({ id, state, error = null, createdAgo, model, layers, sourceGpu, arch = "sm_90", suggested = "SM90_H100", kernelCount, bytes, realTiming, seed, kinds }) {
+function makeTrace({ id, state, error = null, createdAgo, model, layers, sourceGpu, arch = "sm_90", suggested = "SM90_H100", kernelCount, bytes, realTiming, stepTimeline = false, seed, kinds }) {
   const created = BOOT - createdAgo;
   const kernels = buildKernels(kernelCount, seed, kinds);
   const real = realTiming
@@ -101,6 +102,7 @@ function makeTrace({ id, state, error = null, createdAgo, model, layers, sourceG
     kernel_count: state === "uploading" ? 0 : kernelCount,
     bytes,
     has_real_timing: Boolean(realTiming),
+    has_step_timeline: stepTimeline,
     _kernels: kernels,
     _real: real,
     _meta: {
@@ -173,6 +175,7 @@ const traces = [
     kernelCount: 21,
     bytes: 14_889_861,
     realTiming: true,
+    stepTimeline: true,
     seed: 1,
   }),
   makeTrace({
@@ -406,18 +409,37 @@ const OOM = {
   log: ["GPGPU-Sim PTX: ERROR ** out of memory while allocating 4194304 bytes for shader core L1D", "Aborted (core dumped)"],
 };
 
+// Real `cascade simulate` + `cascade compare` output (results/20261108-043849, H100 OPT-125m), with each
+// step's kernel list cut to 3 so the mock stays light. Configs borrow it: H100 gets the default run,
+// H200 the one with launch latency subtracted.
+const RESULTS = new URL("../../results/20261108-043849/", import.meta.url);
+function stepResult(dir) {
+  const read = (name) => JSON.parse(readFileSync(new URL(`${dir}/${name}`, RESULTS), "utf8"));
+  const simulated = read("simulated_timeline.json");
+  return { simulated: { ...simulated, steps: simulated.steps.map((s) => ({ ...s, kernels: s.kernels.slice(0, 3) })) }, compare: read("compare.json") };
+}
+const STEP_RESULTS = { SM90_H100: stepResult("accelsim"), SM90_H200: stepResult("accelsim-nolat") };
+const stepTimelines = new Map();
+function attachStepTimelines(run) {
+  const list = run._sims.map((id) => sims.get(id))
+    .filter((s) => s.state === "succeeded" && STEP_RESULTS[s.gpu_config])
+    .toSorted((a, b) => a.gpu_config.localeCompare(b.gpu_config) || a.replica - b.replica)
+    .map((s) => ({ sim_id: s.id, gpu_config: s.gpu_config, replica: s.replica, ...STEP_RESULTS[s.gpu_config] }));
+  stepTimelines.set(run.id, list);
+}
+
 if (SCENARIO !== "empty") {
-createRun({
+attachStepTimelines(createRun({
   trace_id: traces[3].id,
   entries: [{ gpu_config: "SM90_H100", count: 2 }, { gpu_config: "SM90_H200", count: 1 }],
   createdAt: BOOT - 2 * HOUR,
   live: false,
   settle: (sim, at) => {
     settleSucceeded(sim, at);
-    // Like the stand-in fake sim: its log has more kernels than the trace lists.
+    // Like the stand-in replay: its log has more kernels than the trace lists.
     if (sim.gpu_config === "SM90_H200") sim.kernels_done += 3;
   },
-});
+}));
 createRun({
   trace_id: traces[2].id,
   entries: [{ gpu_config: "SM90_H100", count: 2 }, { gpu_config: "SM90_H200", count: 2 }],
@@ -682,6 +704,10 @@ const routes = [
     if (!run) return send(res, 404, { detail: "run not found" });
     const ordered = runSims(run).toSorted((a, b) => a.gpu_config.localeCompare(b.gpu_config) || a.replica - b.replica);
     return send(res, 200, ordered.flatMap((s) => s._stats.map(lightStat)));
+  }],
+  ["GET", /^\/api\/runs\/([^/]+)\/step-timelines$/, ([id], _req, res) => {
+    const run = runs.find((r) => r.id === id);
+    return run ? send(res, 200, stepTimelines.get(id) ?? []) : send(res, 404, { detail: "run not found" });
   }],
   ["GET", /^\/api\/runs\/([^/]+)\/results$/, ([id], _req, res) => {
     const run = runs.find((r) => r.id === id);

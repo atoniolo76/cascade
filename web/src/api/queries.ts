@@ -7,6 +7,7 @@ import type {
   RunCreate,
   RunDetail,
   RunSummary,
+  SimStepTimeline,
   TraceDetail,
   TraceSummary,
 } from "./types";
@@ -21,6 +22,7 @@ export const keys = {
   run: (id: string) => ["runs", id] as const,
   comparison: (id: string) => ["runs", id, "comparison"] as const,
   kernels: (id: string) => ["runs", id, "kernels"] as const,
+  stepTimelines: (id: string) => ["runs", id, "step-timelines"] as const,
   gpuConfigs: ["gpu-configs"] as const,
   simLog: (id: string) => ["sims", id, "log"] as const,
 };
@@ -64,6 +66,15 @@ export function useComparison(runId: string, { live }: { live: boolean }) {
   return useQuery({
     queryKey: keys.comparison(runId),
     queryFn: () => apiJson<Comparison>(`/api/runs/${enc(runId)}/comparison`),
+    refetchInterval: live ? 5000 : false,
+  });
+}
+
+/** Sims post step timing as they finish, so an active run keeps asking. */
+export function useStepTimelines(runId: string, { live }: { live: boolean }) {
+  return useQuery({
+    queryKey: keys.stepTimelines(runId),
+    queryFn: () => apiJson<SimStepTimeline[]>(`/api/runs/${enc(runId)}/step-timelines`),
     refetchInterval: live ? 5000 : false,
   });
 }

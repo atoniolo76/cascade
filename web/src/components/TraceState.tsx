@@ -42,3 +42,15 @@ export function TraceChip({ trace, link = true }: { trace: Pick<TraceSummary, "i
     </EntityChip>
   );
 }
+
+/** The trace carries the profiler's corrected timeline and a kernel mapping, so its runs predict step timing. */
+export function StepsBadge() {
+  return (
+    <span
+      title="Step timing: corrected_timeline.json and kernel_mapping.json are in this trace"
+      className="inline-flex h-5 shrink-0 items-center rounded-[6px] bg-surface-2 px-1.5 text-[11px] font-medium text-fg-2"
+    >
+      Steps
+    </span>
+  );
+}

@@ -10,6 +10,7 @@ import { ComparisonPanel } from "../components/run/ComparisonPanel";
 import { SimGrid } from "../components/run/SimGrid";
 import { SimPanel } from "../components/run/SimPanel";
 import { SimTimePanel } from "../components/run/SimTimePanel";
+import { StepTimingPanel } from "../components/run/StepTimingPanel";
 import { RunTimeline } from "../components/timeline/RunTimeline";
 import { ConfigChips } from "../components/RunsTable";
 import { TraceChip } from "../components/TraceState";
@@ -199,6 +200,8 @@ function RunView({ live, connection, onRun }: { live: Live; connection: Connecti
             <SimTimePanel runId={run.id} sims={run.sims} kernels={live.kernels} series={series} />
             <ComparisonPanel runId={run.id} live={runState === "active"} series={series} />
           </div>
+
+          <StepTimingPanel runId={run.id} live={runState === "active"} series={series} />
         </div>
       </div>
       {selected && (
