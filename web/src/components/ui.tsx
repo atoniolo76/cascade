@@ -33,12 +33,10 @@ export function IconButton({ label, className, children, ...props }: ButtonHTMLA
   );
 }
 
-/** Soft gray content block. */
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
   return <div className={cx("rounded-[18px] border border-border bg-card", className)}>{children}</div>;
 }
 
-/** White block for tables and charts. */
 export function Panel({ className, children }: { className?: string; children: ReactNode }) {
   return <div className={cx("rounded-[18px] border border-border bg-surface shadow-card", className)}>{children}</div>;
 }
@@ -65,7 +63,6 @@ export function PanelHeader({ icon, title, subtitle, actions }: { icon?: ReactNo
   );
 }
 
-/** White chip with a hairline border, for tags and small secondary actions. */
 export function Chip({ children, className, title }: { children: ReactNode; className?: string; title?: string }) {
   return (
     <span
@@ -90,7 +87,6 @@ export function EntityIcon({ tone = "active", children, className }: { tone?: To
   );
 }
 
-/** Inline reference to a trace, config, run or sim: icon plus underlined name. */
 export function EntityChip({
   icon,
   children,

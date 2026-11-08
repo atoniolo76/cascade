@@ -18,7 +18,6 @@ function tileLabel(sim: SimSummary): string {
   return `${sim.gpu_config} replica ${sim.replica}: ${meta.label.toLowerCase()}, ${sim.kernels_done} of ${sim.kernels_total} kernels`;
 }
 
-/** One tile per sim: tinted by state, filled from the bottom by kernel progress. */
 function SimTile({ sim, selected, onSelect }: { sim: SimSummary; selected: boolean; onSelect: () => void }) {
   const meta = SIM_STATE[sim.state];
   const v = TONE_VARS[meta.tone];
@@ -42,7 +41,9 @@ function SimTile({ sim, selected, onSelect }: { sim: SimSummary; selected: boole
         className="absolute inset-x-0 bottom-0 transition-[height,background-color] duration-500 ease-out"
         style={{ height: `${progressOf(sim) * 100}%`, background: v.dot }}
       />
-      {sim.state === "lost" && <span aria-hidden className="absolute inset-0 animate-pulse-soft" style={{ boxShadow: `inset 0 0 0 2px ${v.dot}` }} />}
+      {(sim.state === "lost" || sim.state === "failed") && (
+        <span aria-hidden className={cx("absolute inset-0 rounded-[8px]", sim.state === "lost" && "animate-pulse-soft")} style={{ boxShadow: `inset 0 0 0 2px ${v.dot}` }} />
+      )}
     </button>
   );
 }

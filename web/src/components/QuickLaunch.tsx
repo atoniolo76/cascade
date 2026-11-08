@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router";
 import { Play, Rocket } from "lucide-react";
 import { useCreateRun, useGpuConfigs } from "../api/queries";
@@ -12,10 +13,10 @@ import { ICON, buttonClass } from "./styles";
 const MAX_COUNT = 64;
 const POP_WIDTH = 300;
 
-/** Two clicks from a ready trace to a running run: open, launch. */
 export function QuickLaunch({ trace, size = "md", variant = "primary" }: { trace: TraceSummary; size?: "md" | "sm"; variant?: "primary" | "secondary" }) {
   const [openAt, setOpenAt] = useState<DOMRect | null>(null);
   const anchor = useRef<HTMLButtonElement>(null);
+  useGpuConfigs();
   if (trace.state !== "ready") {
     return (
       <Button size={size} variant={variant} disabled title={`Trace is ${trace.state}; runs need a ready trace`}>
@@ -106,7 +107,7 @@ function LaunchPopover({
     );
   };
 
-  return (
+  return createPortal(
     <div
       ref={pop}
       role="dialog"
@@ -114,7 +115,7 @@ function LaunchPopover({
       onClick={(e) => {
         e.stopPropagation();
       }}
-      className="fixed z-50 flex animate-toast-in flex-col gap-3 rounded-[16px] bg-surface p-4 shadow-pop ring-1 ring-border"
+      className="fixed z-50 flex animate-toast-in flex-col gap-3 rounded-[16px] bg-surface p-4 text-left shadow-pop ring-1 ring-border"
       style={{ width: POP_WIDTH, top: at.bottom + 8, left }}
     >
       <div>
@@ -126,8 +127,8 @@ function LaunchPopover({
       ) : (
         <div className="flex items-center justify-between gap-3">
           <span className="min-w-0">
-            <span className="block truncate font-mono text-[13px] font-medium text-fg">{config.name}</span>
-            <span className="text-[12px] text-muted">replicas</span>
+            <span className="block truncate font-mono text-[14px] font-medium text-fg">{config.name}</span>
+            <span className="block text-[12px] leading-4 text-muted">{config.core_clock_mhz} MHz · replicas</span>
           </span>
           <Stepper label="replicas" value={count} min={1} max={MAX_COUNT} onChange={setCount} />
         </div>
@@ -142,6 +143,7 @@ function LaunchPopover({
           More options
         </Link>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

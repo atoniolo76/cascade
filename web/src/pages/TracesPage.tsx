@@ -9,7 +9,7 @@ import { SendTraceGuide } from "../components/SendTraceGuide";
 import { TraceIcon, TraceState } from "../components/TraceState";
 import { Button, Card, Dash, ErrorNote, Panel, RelTime, SectionTitle, Skeleton, Th } from "../components/ui";
 import { ICON, ROW, THEAD } from "../components/styles";
-import { formatBytes, formatInt } from "../domain/format";
+import { formatBytes, formatInt, plural } from "../domain/format";
 import { paths } from "../paths";
 
 const CELL = "h-[60px] px-4 align-middle";
@@ -165,8 +165,8 @@ function TraceTable({ traces }: { traces: TraceSummary[] }) {
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-1 pl-9 text-[13px] text-muted">
                 {t.source_gpu !== null && <span className="text-fg-2">{t.source_gpu}</span>}
-                <span className="tabular-nums">{formatInt(t.kernel_count)} kernels</span>
-                <span className="tabular-nums">{formatBytes(t.bytes)}</span>
+                {t.state !== "uploading" && <span className="tabular-nums">{plural(t.kernel_count, "kernel")}</span>}
+                {t.state !== "uploading" && <span className="tabular-nums">{formatBytes(t.bytes)}</span>}
                 <RelTime iso={t.created_at} />
               </div>
             </Link>

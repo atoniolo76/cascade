@@ -244,7 +244,6 @@ function ConfigRow({
   );
 }
 
-/** One block per sailbox, in each config's run color, as the run's sim grid will show them. */
 function SailboxPreview({ entries }: { entries: RunEntry[] }) {
   const series = configSeries(entries);
   const blocks = entries.flatMap((e, i) => Array<string>(e.count).fill(series[i]?.color ?? "var(--series-ref)"));

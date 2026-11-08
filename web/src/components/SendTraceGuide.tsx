@@ -42,7 +42,6 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
   );
 }
 
-/** How to get a trace into Cascade: the S3 endpoint and a ready-to-copy profiler command. */
 export function SendTraceGuide({ waiting }: { waiting: boolean }) {
   const [endpoint, setEndpoint] = useState(initialEndpoint);
   const [model, setModel] = useState("facebook/opt-125m");

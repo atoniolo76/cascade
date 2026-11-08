@@ -317,7 +317,10 @@ function createRun({ trace_id, entries, createdAt, live, settle, pace = 1, launc
       sim._plan = {
         pendingMs: 600 + rand() * launchSpread,
         launchMs: 1800 + rand() * 1200,
-        kernelMs: trace._kernels.map((k) => (900 + (k.instructions / 2_400_000) * 2600) * speed * (0.85 + rand() * 0.3)),
+        kernelMs: (() => {
+          const replicaPace = 0.7 + rand() * 0.6;
+          return trace._kernels.map((k) => (900 + (k.instructions / 2_400_000) * 2600) * speed * replicaPace * (0.9 + rand() * 0.2));
+        })(),
       };
       sims.set(sim.id, sim);
       run._sims = [...(run._sims ?? []), sim.id];
@@ -346,7 +349,7 @@ function settleSucceeded(sim, createdAt) {
 }
 
 const OOM = {
-  atKernel: 6,
+  atKernel: 3,
   exit: 134,
   error: "simulator exited 134 (SIGABRT)",
   log: ["GPGPU-Sim PTX: ERROR ** out of memory while allocating 4194304 bytes for shader core L1D", "Aborted (core dumped)"],
@@ -401,9 +404,9 @@ createRun({
   ],
   createdAt: BOOT,
   live: true,
-  pace: 2.6,
+  pace: 1.5,
   launchSpread: 9000,
-  trouble: { "SM90_H200#7": OOM, "SM90_GH200#12": { ...OOM, atKernel: 11 } },
+  trouble: { "SM90_H200#7": OOM, "SM90_GH200#12": { ...OOM, atKernel: 8 } },
 });
 }
 

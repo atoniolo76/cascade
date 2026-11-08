@@ -3,7 +3,6 @@ import type { SimState } from "../api/types";
 import { SIM_BLOCK_ORDER, SIM_STATE, TONE_VARS, type Tone } from "../domain/status";
 import { cx } from "./cx";
 
-/** Three small blocks and a label, the app's status mark. */
 export function Status({ tone, label, live = false, className }: { tone: Tone; label: string; live?: boolean; className?: string }) {
   const v = TONE_VARS[tone];
   return (
@@ -24,7 +23,6 @@ export function Status({ tone, label, live = false, className }: { tone: Tone; l
 
 const BLOCK = "size-[10px] shrink-0 rounded-[3px] transition-colors duration-300";
 
-/** Segmented meter: a row of small blocks, the filled ones in the tone's color. */
 export function BlockMeter({
   value,
   blocks = 10,
