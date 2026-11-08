@@ -20,7 +20,9 @@ from cascade.models import (
     KernelStat,
     RunDetail,
     RunEntry,
+    RunFile,
     RunSummary,
+    SimFile,
     SimMetrics,
     SimState,
     SimStepTimeline,
@@ -104,6 +106,14 @@ CREATE TABLE IF NOT EXISTS step_timelines (
     sim_id TEXT PRIMARY KEY REFERENCES sims(id),
     simulated TEXT NOT NULL,
     compare TEXT
+);
+CREATE TABLE IF NOT EXISTS sim_files (
+    sim_id TEXT NOT NULL REFERENCES sims(id),
+    name TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    content_type TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (sim_id, name)
 );
 """
 
@@ -523,6 +533,49 @@ class Store:
             for r in rows
         ]
 
+    def put_file(self, sim_id: str, name: str, size: int, content_type: str) -> SimFile:
+        """Records a stored output file, replacing an earlier one of the same name."""
+        file = SimFile(name=name, size=size, content_type=content_type, created_at=now())
+        with self._tx() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO sim_files (sim_id, name, size, content_type, created_at)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (sim_id, name, size, content_type, _ts(file.created_at)),
+            )
+        return file
+
+    def sim_files(self, sim_id: str) -> list[SimFile]:
+        rows = self._all("SELECT * FROM sim_files WHERE sim_id = ? ORDER BY name", sim_id)
+        return [_sim_file(r) for r in rows]
+
+    def get_file(self, sim_id: str, name: str) -> SimFile | None:
+        row = self._one("SELECT * FROM sim_files WHERE sim_id = ? AND name = ?", sim_id, name)
+        return _sim_file(row) if row else None
+
+    def files_bytes(self, sim_id: str, excluding: str) -> int:
+        row = self._one(
+            "SELECT COALESCE(SUM(size), 0) FROM sim_files WHERE sim_id = ? AND name != ?",
+            sim_id,
+            excluding,
+        )
+        return row[0]
+
+    def run_files(self, run_id: str) -> list[RunFile]:
+        rows = self._all(
+            "SELECT f.*, s.gpu_config, s.replica FROM sim_files f JOIN sims s ON s.id = f.sim_id"
+            " WHERE s.run_id = ? ORDER BY s.gpu_config, s.replica, s.id, f.name",
+            run_id,
+        )
+        return [
+            RunFile(
+                **_sim_file(r).model_dump(),
+                sim_id=r["sim_id"],
+                gpu_config=r["gpu_config"],
+                replica=r["replica"],
+            )
+            for r in rows
+        ]
+
     def kernel_stats(self, sim_id: str) -> list[KernelStat]:
         rows = self._all(
             "SELECT * FROM kernel_stats WHERE sim_id = ? ORDER BY kernel_index", sim_id
@@ -584,4 +637,13 @@ def _kernel_stat(row: sqlite3.Row) -> KernelStat:
         gpu_ipc=row["gpu_ipc"],
         sim_time_ns=row["sim_time_ns"],
         stats=json.loads(row["stats"]),
+    )
+
+
+def _sim_file(row: sqlite3.Row) -> SimFile:
+    return SimFile(
+        name=row["name"],
+        size=row["size"],
+        content_type=row["content_type"],
+        created_at=_dt(row["created_at"]),
     )

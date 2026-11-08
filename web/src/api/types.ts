@@ -126,6 +126,19 @@ export interface SimStepTimeline extends StepTimelineUpload {
   replica: number;
 }
 
+export interface SimFile {
+  name: string;
+  size: number;
+  content_type: string;
+  created_at: IsoDate;
+}
+
+export interface RunFile extends SimFile {
+  sim_id: string;
+  gpu_config: string;
+  replica: number;
+}
+
 export interface ComparisonRow {
   kernel_index: number;
   kernel_name: string;

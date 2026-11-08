@@ -83,5 +83,10 @@ class Settings:
         """Main-only scratch (post-processing logs and markers, local sim stdout)."""
         return self.data_dir / "work"
 
+    @property
+    def files_root(self) -> Path:
+        """Sims' uploaded output files, at <files_root>/<sim id>/<name>."""
+        return self.data_dir / "files"
+
     def trace_dir(self, trace_id: str) -> Path:
         return self.traces_root / trace_id
