@@ -13,9 +13,9 @@ All `/api` routes require `Authorization: Bearer $CASCADE_TOKEN`, except `GET /a
 | GET | `/api/traces` | `TraceSummary[]`, newest first |
 | GET | `/api/traces/{id}` | `TraceDetail` |
 | GET | `/api/runs` | `RunSummary[]`, newest first |
-| POST | `/api/runs` | body `RunCreate`, returns `RunDetail` (201). 409 if the trace is not `ready`. 422 if a config is unknown or its arch differs from the trace's `trace_gpu_arch`. |
+| POST | `/api/runs` | body `RunCreate`, returns `RunDetail` (201). 409 if the trace is not `ready`, or is a sample (it has no instruction traces). 422 if a config is unknown or its arch differs from the trace's `trace_gpu_arch`. |
 | GET | `/api/runs/{id}` | `RunDetail` |
-| POST | `/api/runs/{id}/cancel` | `RunDetail`. Moves every non-terminal sim to `cancelled` and calls `Launcher.terminate`. Idempotent. |
+| POST | `/api/runs/{id}/cancel` | `RunDetail`. Moves every non-terminal sim to `cancelled` and calls `Launcher.terminate`. Idempotent. On a sample run, whose sim already `succeeded`, it changes nothing. |
 | GET | `/api/runs/{id}/events` | SSE stream of `RunEvent` as plain `data:` lines. First event is a `snapshot` with the run and every `KernelStat` so far, each with an empty `stats` map to keep it small. Full stats are in the results downloads and in live `kernel` events. |
 | GET | `/api/runs/{id}/comparison` | `Comparison` |
 | GET | `/api/runs/{id}/kernels` | `KernelStat[]` for every sim in the run, each with an empty `stats` map, ordered by config, replica, then kernel. Feeds the timeline. |
@@ -52,47 +52,32 @@ Simulator image (the Dockerfile's `BASE_IMAGE`): the app expects the trace post-
 
 ### cascade-samples
 
-The committed [manifest](../scripts/cascade-samples.json) describes real OPT-125m profiler
-runs, not demo labels. H100 (`e2e-plan-v1`, `sm_90`) launches SM90_H100 and SM90_H200;
-A100 (`e2e-a100-plan-v1`, `sm_80`) launches SM80_A100 and is **pending** while profiling finishes.
-Trace binaries are external and must not be committed.
+The built-in [OPT-125m H100 sample](../samples/opt125m-h100-e2e/README.md) belongs to
+`cascade-samples`. It seeds automatically at startup, with recorded SM90_H100 and SM90_H200
+simulations; no upload, instruction traces or simulator execution is needed. Sample traces
+cannot launch new runs. A native A100 sample is **pending** until its capture finishes.
 
-Fetch a run directory from the Modal volume (or use an existing local copy):
+To rebuild bundles from complete profiler run directories (never commit `.tracez` files):
 
 ```sh
 modal volume get accelsim-traces phases/e2e-plan-v1 /path/to/samples/e2e-plan-v1
+uv run python scripts/build_sample.py /path/to/samples/e2e-plan-v1 \
+  --config SM90_H200=/path/to/hw-sweep/SM90_H200
 # When A100 finishes:
 modal volume get accelsim-traces phases/e2e-a100-plan-v1 /path/to/samples/e2e-a100-plan-v1
-uv run python scripts/seed_samples.py --runs-dir /path/to/samples \
-  --app http://127.0.0.1:8030 --s3 http://127.0.0.1:9030 --token "$CASCADE_TOKEN"
+uv run python scripts/build_sample.py /path/to/samples/e2e-a100-plan-v1 --sample opt125m-a100-e2e
 ```
 
-Alternatively, repeat `--source e2e-plan-v1=/local/run/dir` (or the A100 entry id) to override
-individual locations. Missing entries print `SKIP`; a pending entry is automatically seeded
-once its complete local directory exists. No manifest edit is needed for A100. Each invocation
-uploads available entries and launches a new run per trace with one sim per listed config.
-It waits for trace readiness, not for the launched simulations to finish.
-
-The seed stages `traced/traces/` as `traces/`, excludes raw `.trace` / `.trace.xz` files, and
-includes `corrected_timeline.json`, `trace_alignment.json`, `run.json`, and `workload.json`.
-Uploads use `upload_trace.py`, with `metadata.json` last. Metadata includes `trace_gpu_arch`,
-`suggested_sim_config`, `model`, `gpu`, `real_gpu_config`, `sample_sim_configs`, and
-`sample_set: "cascade-samples"`. The last three fields are available on both trace summaries
-and details; the full original metadata is also on details. Launch defaults select all compatible
-sample configs, falling back to the suggested compatible config for non-sample traces.
-
-The seed also writes `sample_pending_configs` in detail metadata. Architecture timing hides a
+`sample.json` supplies `real_gpu_config`, `sample_sim_configs`, `sample_set` and
+`sample_pending_configs` to trace metadata. Architecture timing hides a
 pending entry once a trace in the same set identifies that config as its `real_gpu_config`.
 It includes the latest succeeded run for each other native trace in the set, with its measured
 reference and simulated metrics. Signed E2E error is shown **only** for the current trace's
 `real_gpu_config` on that trace; other traces and counterfactual configs are metrics-only.
 Without an explicit `real_gpu_config`, no error is inferred from the suggested launch config.
 
-For local development, build the web app (`cd web && npm ci && npm run build`), install `rclone`,
-and start `cascade serve --port 8030 --s3-port 9030` with `CASCADE_DATA_DIR`, `CASCADE_TOKEN`,
-`CASCADE_PUBLIC_URL=http://127.0.0.1:8030`, and `CASCADE_ACCELSIM_DIR` pointing at your setup.
-Use a real simulator or set `CASCADE_SIM_CMD` to a replay worker command for UI testing;
-replayed results are not new simulator executions.
+Bundles are seeded once per trace id; use a fresh `CASCADE_DATA_DIR` to inspect rebuilt bundles.
+Live, non-sample traces may also specify `sample_sim_configs` to preselect compatible configs.
 
 `TraceSummary.has_step_timeline` is true when the trace dir holds `corrected_timeline.json`
 (the profiler's phases output) and either `kernel_mapping.json` (a list of
@@ -100,6 +85,7 @@ replayed results are not new simulator executions.
 simulator launch positions through `traces/kernelslist.g` to tracer UIDs, checks names, and
 propagates durations with interpolation. Ingest rechecks the files on every scan, so the flag
 turns true when they land after the trace is `ready`.
+Sample traces already carry recorded step timelines and ingest skips their directories.
 
 When a sim succeeds on such a trace, `cascade worker` imports the sim's kernel durations from its own log (`cascade import-sim-durations` with the config's core clock), runs `cascade simulate` with its defaults and `cascade compare` against the corrected timeline, and posts `{"simulated": simulated_timeline.json, "compare": compare.json}` before its final heartbeat. The shapes of both objects are Alessio's; see [corrected-timeline-simulation.md](corrected-timeline-simulation.md).
 
@@ -123,3 +109,14 @@ uploading | processing → failed
 ```
 
 `uploading` starts when the first file of `<prefix>/<run_name>/` appears. The trace leaves `uploading` when `metadata.json` exists and either lists `files` that are all present with matching sizes, or (older profiler) `traces/kernelslist_ctx_*` exists. A `metadata.json` with `status: "failed"` moves the trace to `failed`.
+
+## Samples
+
+On startup, `cascade serve` seeds each bundle under `samples/` into the workspace once, so a new workspace opens with a finished trace and run to explore while its first trace profiles (about 30 minutes). Set `CASCADE_SAMPLES=false` to skip it; a sample already seeded stays.
+
+Today there is one, [samples/opt125m-h100-e2e](../samples/opt125m-h100-e2e/README.md): Alessio's real facebook/opt-125m run on an H100, simulated with Accel-Sim on SM90_H100. It appears as:
+
+- The trace `sample__facebook_opt-125m__h100-e2e`, `ready`, with `sample: true`. Its trace dir holds `corrected_timeline.json`, `trace_alignment.json`, `trace_steps.json` and `traces/kernelslist.g`, but no `.tracez` instruction traces, so `POST /api/runs` on it is 409.
+- The run `run-sample-opt125m-h100-e2e`, `succeeded`, with `sample: true` and one SM90_H100 sim. Its kernel stats are the 93 kernels Accel-Sim simulated, parsed from their logs, in launch order, with `kernel_launch_uid` set to the tracer's uid. It has the bundle's step timeline and five output files. The trace's real timing is those 93 kernels' nsys durations, in the same order.
+
+Seeding is one SQLite transaction keyed on the trace id, so a restart never duplicates it.

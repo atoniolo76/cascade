@@ -9,6 +9,7 @@
   "body": {
     "ok": true,
     "auth": true,
-    "workspace": "acme-lab"
+    "workspace": "acme-lab",
+    "s3_endpoint": "http://127.0.0.1:9020"
   }
 }

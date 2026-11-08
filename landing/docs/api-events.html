@@ -45,19 +45,19 @@
 <h3 id="errors">Errors<a class="anchor" href="#errors" aria-label="Link to this section">#</a></h3><div class="table-wrap"><table class="table"><thead><tr><th>status</th><th>when</th></tr></thead><tbody><tr><td><a href="errors.html#e401"><code>401</code></a></td><td>The <code>Authorization</code> header is missing, is not <code>Bearer &lt;token&gt;</code>, or the token is wrong.</td></tr><tr><td><a href="errors.html#e404"><code>404</code></a></td><td>No run has this id.</td></tr></tbody></table></div>
 <h3 id="example">Example<a class="anchor" href="#example" aria-label="Link to this section">#</a></h3>
 <div class="tabs"><div class="tab-list" role="tablist"><button type="button" role="tab" data-tab="curl" aria-selected="true">curl</button><button type="button" role="tab" data-tab="Python" aria-selected="false">Python</button><button type="button" role="tab" data-tab="JavaScript" aria-selected="false">JavaScript</button></div><div class="tab-panel" role="tabpanel" data-tab="curl"><div class="code"><div class="code-bar"><span>bash</span><button class="copy" type="button">Copy</button></div><pre><code>curl -N -H <span class="tk-s">"Authorization: Bearer $CASCADE_TOKEN"</span> \
-  <span class="tk-s">"$CASCADE_URL/api/runs/run-a5c5ba6e0ac7/events"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> json
+  <span class="tk-s">"$CASCADE_URL/api/runs/run-210d75c008c4/events"</span></code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="Python" hidden><div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-k">import</span> json
 <span class="tk-k">import</span> os
 
 <span class="tk-k">import</span> httpx
 
 headers = {<span class="tk-s">"Authorization"</span>: <span class="tk-s">f"Bearer {os.environ['CASCADE_TOKEN']}"</span>}
-url = <span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-a5c5ba6e0ac7/events"</span>
+url = <span class="tk-s">f"{os.environ['CASCADE_URL']}/api/runs/run-210d75c008c4/events"</span>
 <span class="tk-k">with</span> httpx.stream(<span class="tk-s">"GET"</span>, url, headers=headers, timeout=<span class="tk-k">None</span>) <span class="tk-k">as</span> resp:
     <span class="tk-k">for</span> line <span class="tk-k">in</span> resp.iter_lines():
         <span class="tk-k">if</span> line.startswith(<span class="tk-s">"data: "</span>):
             event = json.loads(line[6:])
             <span class="tk-k">print</span>(event[<span class="tk-s">"type"</span>])</code></pre></div></div><div class="tab-panel" role="tabpanel" data-tab="JavaScript" hidden><div class="code"><div class="code-bar"><span>js</span><button class="copy" type="button">Copy</button></div><pre><code><span class="tk-c">// EventSource cannot send headers, so pass the token as a query parameter.</span>
-<span class="tk-k">const</span> url = <span class="tk-s">`${CASCADE_URL}/api/runs/run-a5c5ba6e0ac7/events?token=${encodeURIComponent(CASCADE_TOKEN)}`</span>;
+<span class="tk-k">const</span> url = <span class="tk-s">`${CASCADE_URL}/api/runs/run-210d75c008c4/events?token=${encodeURIComponent(CASCADE_TOKEN)}`</span>;
 <span class="tk-k">const</span> events = <span class="tk-k">new</span> EventSource(url);
 events.onmessage = (msg) =&gt; {
   <span class="tk-k">const</span> event = JSON.parse(msg.data);
@@ -82,9 +82,9 @@ data: {"type":"sim","sim":{"id":"sim-70f1ae5fc7c6","state":"running", ...}}
 <div class="code"><div class="code-bar"><span>data: snapshot event</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"type"</span>: <span class="tk-s">"snapshot"</span>,
   <span class="tk-k">"run"</span>: {
-    <span class="tk-k">"id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+    <span class="tk-k">"id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
     <span class="tk-k">"trace_id"</span>: <span class="tk-s">"demo"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"active"</span>,
     <span class="tk-k">"entries"</span>: [
       {
@@ -95,38 +95,40 @@ data: {"type":"sim","sim":{"id":"sim-70f1ae5fc7c6","state":"running", ...}}
     <span class="tk-k">"sim_counts"</span>: {
       <span class="tk-k">"launching"</span>: <span class="tk-n">2</span>
     },
+    <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>,
     <span class="tk-k">"trace"</span>: {
       <span class="tk-k">"id"</span>: <span class="tk-s">"demo"</span>,
       <span class="tk-k">"state"</span>: <span class="tk-s">"ready"</span>,
       <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.379301Z"</span>,
-      <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.381567Z"</span>,
+      <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.587743Z"</span>,
+      <span class="tk-k">"updated_at"</span>: <span class="tk-s">"2026-11-08T08:59:02.592073Z"</span>,
       <span class="tk-k">"model"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"layers"</span>: [],
       <span class="tk-k">"source_gpu"</span>: <span class="tk-l">null</span>,
       <span class="tk-k">"trace_gpu_arch"</span>: <span class="tk-s">"sm_86"</span>,
       <span class="tk-k">"suggested_sim_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
-      <span class="tk-k">"kernel_count"</span>: <span class="tk-n">4</span>,
-      <span class="tk-k">"bytes"</span>: <span class="tk-n">31899901</span>,
+      <span class="tk-k">"kernel_count"</span>: <span class="tk-n">20</span>,
+      <span class="tk-k">"bytes"</span>: <span class="tk-n">16890250</span>,
       <span class="tk-k">"has_real_timing"</span>: <span class="tk-l">false</span>,
-      <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>
+      <span class="tk-k">"has_step_timeline"</span>: <span class="tk-l">true</span>,
+      <span class="tk-k">"sample"</span>: <span class="tk-l">false</span>
     },
     <span class="tk-k">"sims"</span>: [
       {
-        <span class="tk-k">"id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
-        <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+        <span class="tk-k">"id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
+        <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
         <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
         <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
         <span class="tk-k">"state"</span>: <span class="tk-s">"launching"</span>,
         <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-        <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"41125"</span>,
-        <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
+        <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"64418"</span>,
+        <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
         <span class="tk-k">"started_at"</span>: <span class="tk-l">null</span>,
         <span class="tk-k">"finished_at"</span>: <span class="tk-l">null</span>,
         <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-l">null</span>,
         <span class="tk-k">"exit_code"</span>: <span class="tk-l">null</span>,
         <span class="tk-k">"kernels_done"</span>: <span class="tk-n">0</span>,
-        <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+        <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
         <span class="tk-k">"current_kernel"</span>: <span class="tk-l">null</span>,
         <span class="tk-k">"latest"</span>: {
           <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-l">null</span>,
@@ -137,20 +139,20 @@ data: {"type":"sim","sim":{"id":"sim-70f1ae5fc7c6","state":"running", ...}}
         <span class="tk-k">"log_tail"</span>: []
       },
       {
-        <span class="tk-k">"id"</span>: <span class="tk-s">"sim-09e225316002"</span>,
-        <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+        <span class="tk-k">"id"</span>: <span class="tk-s">"sim-e8f63b6b3bed"</span>,
+        <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
         <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
         <span class="tk-k">"replica"</span>: <span class="tk-n">1</span>,
         <span class="tk-k">"state"</span>: <span class="tk-s">"launching"</span>,
         <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-        <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"41126"</span>,
-        <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
+        <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"64419"</span>,
+        <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
         <span class="tk-k">"started_at"</span>: <span class="tk-l">null</span>,
         <span class="tk-k">"finished_at"</span>: <span class="tk-l">null</span>,
         <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-l">null</span>,
         <span class="tk-k">"exit_code"</span>: <span class="tk-l">null</span>,
         <span class="tk-k">"kernels_done"</span>: <span class="tk-n">0</span>,
-        <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+        <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
         <span class="tk-k">"current_kernel"</span>: <span class="tk-l">null</span>,
         <span class="tk-k">"latest"</span>: {
           <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-l">null</span>,
@@ -170,20 +172,20 @@ data: {"type":"sim","sim":{"id":"sim-70f1ae5fc7c6","state":"running", ...}}
 <div class="code"><div class="code-bar"><span>data: sim event</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"type"</span>: <span class="tk-s">"sim"</span>,
   <span class="tk-k">"sim"</span>: {
-    <span class="tk-k">"id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
-    <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+    <span class="tk-k">"id"</span>: <span class="tk-s">"sim-e8f63b6b3bed"</span>,
+    <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
     <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
-    <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
+    <span class="tk-k">"replica"</span>: <span class="tk-n">1</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"running"</span>,
     <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-    <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"41125"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
-    <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.816803Z"</span>,
+    <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"64419"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
+    <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.224173Z"</span>,
     <span class="tk-k">"finished_at"</span>: <span class="tk-l">null</span>,
-    <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.816803Z"</span>,
+    <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.224173Z"</span>,
     <span class="tk-k">"exit_code"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"kernels_done"</span>: <span class="tk-n">0</span>,
-    <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+    <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
     <span class="tk-k">"current_kernel"</span>: <span class="tk-l">null</span>,
     <span class="tk-k">"latest"</span>: {
       <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-l">null</span>,
@@ -198,20 +200,20 @@ data: {"type":"sim","sim":{"id":"sim-70f1ae5fc7c6","state":"running", ...}}
 <div class="code"><div class="code-bar"><span>data: sim event, sim finished</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"type"</span>: <span class="tk-s">"sim"</span>,
   <span class="tk-k">"sim"</span>: {
-    <span class="tk-k">"id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
-    <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-a5c5ba6e0ac7"</span>,
+    <span class="tk-k">"id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
+    <span class="tk-k">"run_id"</span>: <span class="tk-s">"run-210d75c008c4"</span>,
     <span class="tk-k">"gpu_config"</span>: <span class="tk-s">"SM86_RTX3070"</span>,
     <span class="tk-k">"replica"</span>: <span class="tk-n">0</span>,
     <span class="tk-k">"state"</span>: <span class="tk-s">"succeeded"</span>,
     <span class="tk-k">"error"</span>: <span class="tk-l">null</span>,
-    <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"41125"</span>,
-    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.579503Z"</span>,
-    <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T06:56:46.816803Z"</span>,
-    <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.699025Z"</span>,
-    <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T06:56:49.699025Z"</span>,
+    <span class="tk-k">"launcher_ref"</span>: <span class="tk-s">"64418"</span>,
+    <span class="tk-k">"created_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.024065Z"</span>,
+    <span class="tk-k">"started_at"</span>: <span class="tk-s">"2026-11-08T08:59:03.224424Z"</span>,
+    <span class="tk-k">"finished_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.130355Z"</span>,
+    <span class="tk-k">"last_heartbeat_at"</span>: <span class="tk-s">"2026-11-08T08:59:06.130355Z"</span>,
     <span class="tk-k">"exit_code"</span>: <span class="tk-n">0</span>,
     <span class="tk-k">"kernels_done"</span>: <span class="tk-n">6</span>,
-    <span class="tk-k">"kernels_total"</span>: <span class="tk-n">4</span>,
+    <span class="tk-k">"kernels_total"</span>: <span class="tk-n">20</span>,
     <span class="tk-k">"current_kernel"</span>: <span class="tk-s">"_Z10dot_kernelIdEvPKT_S2_PS0_i"</span>,
     <span class="tk-k">"latest"</span>: {
       <span class="tk-k">"gpu_tot_sim_cycle"</span>: <span class="tk-n">76713.0</span>,
@@ -232,7 +234,7 @@ data: {"type":"sim","sim":{"id":"sim-70f1ae5fc7c6","state":"running", ...}}
 <p>New output from one sim, exactly as the simulator sent it in one chunk.</p>
 <div class="code"><div class="code-bar"><span>data: log event</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"type"</span>: <span class="tk-s">"log"</span>,
-  <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-09e225316002"</span>,
+  <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-e8f63b6b3bed"</span>,
   <span class="tk-k">"lines"</span>: [
     <span class="tk-s">"GPGPU-Sim version 4.2.0 (build gpgpu-sim_git-commit-13c67115070dc2f0876254a790d0238073ca364a-modified_590.0) configured with AccelWattch."</span>,
     <span class="tk-s">""</span>,
@@ -246,7 +248,7 @@ data: {"type":"sim","sim":{"id":"sim-70f1ae5fc7c6","state":"running", ...}}
 <div class="code"><div class="code-bar"><span>data: kernel event</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"type"</span>: <span class="tk-s">"kernel"</span>,
   <span class="tk-k">"stat"</span>: {
-    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-4bc665cf326e"</span>,
+    <span class="tk-k">"sim_id"</span>: <span class="tk-s">"sim-1047ddbdf5b1"</span>,
     <span class="tk-k">"kernel_index"</span>: <span class="tk-n">0</span>,
     <span class="tk-k">"kernel_name"</span>: <span class="tk-s">"_Z11init_kernelIdEvPT_S1_S1_S0_S0_S0_"</span>,
     <span class="tk-k">"kernel_launch_uid"</span>: <span class="tk-n">1</span>,

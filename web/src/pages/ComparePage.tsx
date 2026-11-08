@@ -6,7 +6,7 @@ import type { RunSummary, TraceSummary } from "../api/types";
 import { PageHeader } from "../components/AppShell";
 import { ConfigChips } from "../components/RunsTable";
 import { Status } from "../components/meters";
-import { ModelTile } from "../components/TraceState";
+import { ModelTile, SampleBadge } from "../components/TraceState";
 import { TimelineView } from "../components/timeline/TimelineView";
 import { trackMeta } from "../components/timeline/meta";
 import { Button, Card, EmptyState, ErrorNote, Panel, PanelHeader, RelTime, Skeleton } from "../components/ui";
@@ -141,6 +141,7 @@ function RunOption({ run, trace, selected, disabled, onToggle }: { run: RunSumma
         <span className="flex min-w-0 flex-col gap-1">
           <span className="flex min-w-0 items-center gap-2">
             <span className="font-mono text-[13px] font-medium text-fg">{run.id}</span>
+            {run.sample && <SampleBadge />}
             <Status tone={state.tone} live={state.live} label={state.label} className="text-[12px]" />
             <span className="ml-auto shrink-0 text-[12px] text-muted">
               <RelTime iso={run.created_at} />
@@ -197,6 +198,7 @@ function RunPicker({ ids, runs, traces, onChange }: { ids: string[]; runs: RunSu
               <Link to={paths.run(r.id)} className="font-mono text-[13px] font-medium text-fg hover:underline">
                 {r.id}
               </Link>
+              {r.sample && <SampleBadge />}
               <span className="hidden md:inline-flex">
                 <ConfigChips entries={r.entries} />
               </span>

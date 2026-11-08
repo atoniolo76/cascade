@@ -116,3 +116,33 @@ def test_database_from_before_step_timing_gains_the_column(tmp_path):
     s.update_trace("t", has_step_timeline=True)
     s.close()
     assert Store(path).get_trace("t").has_step_timeline is True
+
+
+def test_database_from_before_samples_gains_the_columns(tmp_path):
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.execute(
+        "CREATE TABLE traces (id TEXT PRIMARY KEY, state TEXT NOT NULL, error TEXT,"
+        " created_at TEXT NOT NULL, updated_at TEXT NOT NULL, metadata TEXT,"
+        " kernel_count INTEGER NOT NULL DEFAULT 0, bytes INTEGER NOT NULL DEFAULT 0,"
+        " kernels TEXT NOT NULL DEFAULT '[]', real_timing TEXT,"
+        " has_step_timeline INTEGER NOT NULL DEFAULT 0)"
+    )
+    old.execute(
+        "CREATE TABLE runs (id TEXT PRIMARY KEY, trace_id TEXT NOT NULL REFERENCES traces(id),"
+        " created_at TEXT NOT NULL, entries TEXT NOT NULL)"
+    )
+    old.execute(
+        "INSERT INTO traces (id, state, created_at, updated_at) VALUES"
+        " ('t', 'ready', '2026-11-07T00:00:00+00:00', '2026-11-07T00:00:00+00:00')"
+    )
+    old.execute(
+        "INSERT INTO runs (id, trace_id, created_at, entries) VALUES"
+        " ('run-old', 't', '2026-11-07T00:00:00+00:00', '[]')"
+    )
+    old.commit()
+    old.close()
+    s = Store(path)
+    assert s.get_trace("t").sample is False
+    assert s.get_run("run-old").sample is False
+    assert s.sample_trace_ids() == set()

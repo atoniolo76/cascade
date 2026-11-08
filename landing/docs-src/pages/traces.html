@@ -38,6 +38,7 @@ $CASCADE_POSTPROCESS_CMD <trace dir>/traces -j <cpu count>
 <tr><td>`kernels`</td><td>The rows of `traces/stats_ctx_*`, or `stats.csv` from older tracers.</td></tr>
 <tr><td>`has_real_timing`</td><td>Whether `real_timing.json`, or the file `metadata.json` names in `real_timing`, holds a list of rows with integer `kernel_id`s.</td></tr>
 <tr><td>`has_step_timeline`</td><td>Whether the trace directory holds both `corrected_timeline.json` and `kernel_mapping.json`. The app rechecks on every scan, so it can turn true after the trace is `ready`. See [Step timing](simulator.html#step-timing).</td></tr>
+<tr><td>`sample`</td><td>True only for the sample trace `cascade serve` seeds from `samples/` (see [Introduction](index.html)). It is `ready` but has no instruction traces, so it can't start a run.</td></tr>
 </tbody></table></div>
 
 <h2>Disk space</h2>

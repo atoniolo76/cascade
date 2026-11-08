@@ -8,9 +8,9 @@
   "content_type": "application/json",
   "body": [
     {
-      "id": "run-a5c5ba6e0ac7",
+      "id": "run-210d75c008c4",
       "trace_id": "demo",
-      "created_at": "2026-11-08T06:56:46.579503Z",
+      "created_at": "2026-11-08T08:59:03.024065Z",
       "state": "succeeded",
       "entries": [
         {
@@ -20,7 +20,24 @@
       ],
       "sim_counts": {
         "succeeded": 2
-      }
+      },
+      "sample": false
+    },
+    {
+      "id": "run-sample-opt125m-h100-e2e",
+      "trace_id": "sample__facebook_opt-125m__h100-e2e",
+      "created_at": "2026-11-08T06:50:10Z",
+      "state": "succeeded",
+      "entries": [
+        {
+          "gpu_config": "SM90_H100",
+          "count": 1
+        }
+      ],
+      "sim_counts": {
+        "succeeded": 1
+      },
+      "sample": true
     }
   ]
 }

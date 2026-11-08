@@ -53,7 +53,7 @@
 }</code></pre></div>
 
 <h2 id="e409">409 Conflict<a class="anchor" href="#e409" aria-label="Link to this section">#</a></h2>
-<p>Only <a href="api-runs.html#create-run">Create a run</a> returns <code>409</code>, when the trace exists but isn't <code>ready</code>. Wait for it to finish processing, or check its <code>error</code> if it <code>failed</code>.</p>
+<p>Only <a href="api-runs.html#create-run">Create a run</a> returns <code>409</code>, when the trace exists but isn't <code>ready</code>, or is the bundled sample, which can't be simulated again. Wait for it to finish processing, or check its <code>error</code> if it <code>failed</code>.</p>
 <div class="code"><div class="code-bar"><span>Response · 409 Conflict · application/json</span><button class="copy" type="button">Copy</button></div><pre><code>{
   <span class="tk-k">"detail"</span>: <span class="tk-s">"trace demo-failed is failed, not ready"</span>
 }</code></pre></div>

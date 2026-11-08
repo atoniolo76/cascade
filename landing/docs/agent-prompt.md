@@ -170,7 +170,7 @@ Create a run. Creates a run and starts launching its sims in the background. Eac
 - Body: `RunCreate`.
 - Returns: `201` with a `RunDetail`.
 - `404`: `trace_id` names no trace.
-- `409`: The trace is not `ready`.
+- `409`: The trace is not `ready`, or is a sample, which has no instruction traces.
 - `422`: An entry names an unknown `gpu_config`, or a config whose `arch` differs from the trace's `trace_gpu_arch`.
 - `422`: The body fails validation: `entries` is empty, or a `count` is outside 1 to 64.
 
@@ -190,7 +190,7 @@ Get a run. Returns the run, its trace, and every sim with its state, progress, l
 
 ### POST /api/runs/{run_id}/cancel
 
-Cancel a run. Moves every sim that has not finished to `cancelled` and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets `cancel: true`. Calling it again changes nothing, so it is safe to retry.
+Cancel a run. Moves every sim that has not finished to `cancelled` and asks the launcher to stop it. Sims that already finished keep their state. The next heartbeat from a cancelled sim gets `cancel: true`. Calling it again changes nothing, so it is safe to retry. On a sample run it changes nothing either, since its sim already `succeeded`.
 
 - Path parameter `run_id` (str): The run's `id`, such as `run-9f56e171af08`.
 - Returns: `200` with the `RunDetail` after cancelling.
@@ -356,6 +356,7 @@ One kernel launch from the trace's stats_ctx_* file (original hardware).
 - `bytes` (`int`): Bytes on disk under the trace dir.
 - `has_real_timing` (`bool`): True when the trace has real per-kernel timings (`real_timing.json`). The profiler does not write them yet.
 - `has_step_timeline` (`bool`): corrected_timeline.json + kernel_mapping.json are in the trace dir.
+- `sample` (`bool`): True for the sample trace that `cascade serve` seeds from `samples/` (see Introduction), unless `CASCADE_SAMPLES` is false. It is `ready` but has no instruction traces, so it can't start a run.
 
 ### TraceDetail
 
@@ -382,6 +383,7 @@ Every field of `TraceSummary`, plus these.
 - `state` (`RunState`): Derived from the sims. See `RunState`.
 - `entries` (`list[RunEntry]`): The entries the run was created with.
 - `sim_counts` (`dict[SimState, int]`): How many sims are in each state. States with no sims are left out.
+- `sample` (`bool`): True for the sample run seeded with the sample trace. Its results were recorded when the run was made, not in this workspace, and cancelling it changes nothing.
 
 ### RunDetail
 

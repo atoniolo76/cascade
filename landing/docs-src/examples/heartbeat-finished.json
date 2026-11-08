@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/sims/sim-4bc665cf326e/heartbeat",
+    "path": "/api/sims/sim-1047ddbdf5b1/heartbeat",
     "body": {
       "state": "running"
     }

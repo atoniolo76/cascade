@@ -5,26 +5,6 @@ window.DOCS_INDEX = [
 "g": "Getting started"
 },
 {
-"t": "Worked example: OPT-125m on an H100",
-"u": "index.html#worked-example-opt-125m-on-an-h100",
-"g": "Introduction"
-},
-{
-"t": "Each steady repeat",
-"u": "index.html#each-steady-repeat",
-"g": "Introduction"
-},
-{
-"t": "Where the error comes from",
-"u": "index.html#where-the-error-comes-from",
-"g": "Introduction"
-},
-{
-"t": "Across architectures",
-"u": "index.html#across-architectures",
-"g": "Introduction"
-},
-{
 "t": "How it fits together",
 "u": "index.html#how-it-fits-together",
 "g": "Introduction"
@@ -212,6 +192,21 @@ window.DOCS_INDEX = [
 {
 "t": "Full-request result",
 "u": "sample-analysis-opt125m.html#full-request-result",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Each steady repeat",
+"u": "sample-analysis-opt125m.html#each-steady-repeat",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Where the error comes from",
+"u": "sample-analysis-opt125m.html#where-the-error-comes-from",
+"g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
+},
+{
+"t": "Across architectures",
+"u": "sample-analysis-opt125m.html#across-architectures",
 "g": "OPT-125m sample: GPU profiling → instruction simulation → request replay"
 },
 {

@@ -51,7 +51,7 @@
   -H <span class="tk-s">"Content-Type: application/json"</span> \
   -d <span class="tk-s">'{"trace_id": "demo", "entries": [{"gpu_config": "SM90_H100", "count": 4}, {"gpu_config": "SM90_H200", "count": 2}]}'</span></code></pre></div><p>The app checks the request before creating anything.</p>
 <ul>
-<li>The trace must exist (<code>404</code>) and be <code>ready</code> (<code>409</code>).</li>
+<li>The trace must exist (<code>404</code>), be <code>ready</code>, and not be a sample (<code>409</code>).</li>
 <li>Every <code>gpu_config</code> must be one <a href="api-runs.html#list-gpu-configs">List GPU configs</a> returns, with the trace's architecture (<code>422</code>).</li>
 <li><code>entries</code> can't be empty and every <code>count</code> is 1 to 64 (<code>422</code>).</li>
 </ul>
