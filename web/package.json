@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "node --experimental-strip-types --no-warnings --test 'src/**/*.test.ts'",
     "preview": "vite preview",
-    "mock": "node mock/server.mjs"
+    "mock": "node mock/server.mjs",
+    "build:onboarding": "vite build -c vite.onboarding.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

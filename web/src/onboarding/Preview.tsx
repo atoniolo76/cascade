@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
-import { Activity, Cpu, Layers, Play, Route } from "lucide-react";
+import { Activity, Cpu, Layers, Play } from "lucide-react";
 import { ICON } from "../components/styles";
 import { cx } from "../components/cx";
-import { GlyphIcon, GpuIcon, SourceIcon, WorkspaceIcon } from "./icons";
-import { MiniLanes } from "./MiniLanes";
-import { activity, footer, fleetSize, gpuDef, routerDef, sourceDef, type ActivityIcon, type ActivityRow, type OnboardingState } from "./store";
+import { BrandIcon, GlyphIcon, WorkspaceIcon } from "./icons";
+import { activity, configDef, errorPct, footer, simStates, traceDef, type ActivityIcon, type ActivityRow, type OnboardingState, type SimState } from "./store";
 
 /** "Your workspace, so far": a small copy of the app, drawn only from the onboarding state. */
 export function Preview({ state }: { state: OnboardingState }) {
@@ -18,8 +17,8 @@ export function Preview({ state }: { state: OnboardingState }) {
               <span key={i} className="size-2.5 rounded-full bg-block-off" />
             ))}
           </span>
-          <span className="absolute left-1/2 -translate-x-1/2 rounded-[8px] bg-surface-2 px-2.5 py-0.5 font-mono text-[11.5px] text-muted">
-            {state.workspace}.cascadesim.app
+          <span className="absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-[8px] bg-surface-2 px-2.5 py-0.5 font-mono text-[11.5px] text-muted">
+            {state.workspace} · Sail
           </span>
         </div>
         <div className="flex min-h-0 flex-1">
@@ -35,7 +34,7 @@ export function Preview({ state }: { state: OnboardingState }) {
                   <Row key={row.key} row={row} last={i === rows.length - 1} />
                 ))}
               </ol>
-              <ReplayCard state={state} />
+              <RunCard state={state} />
             </div>
           </main>
         </div>
@@ -45,7 +44,7 @@ export function Preview({ state }: { state: OnboardingState }) {
 }
 
 function Sidebar({ state }: { state: OnboardingState }) {
-  const replaying = state.replay.status === "running";
+  const { run } = state;
   return (
     <aside className="flex w-[188px] shrink-0 flex-col border-r border-border bg-panel px-3 py-3">
       <div className="flex items-center gap-2 px-1">
@@ -53,29 +52,25 @@ function Sidebar({ state }: { state: OnboardingState }) {
         <span className="truncate text-[13px] font-medium text-fg">{state.workspace}</span>
       </div>
       <Section title="Traces" icon={<Layers {...ICON} />} placeholder="A trace">
-        {state.sources.map((s) => (
-          <Item key={s.id} pending={s.status === "connecting"} icon={<SourceIcon id={s.id} size="sm" />}>
-            {s.id === "upload" ? s.detail : sourceDef(s.id).name}
+        {state.trace === null ? [] : [<Item key={state.trace} icon={<BrandIcon brand="meta" size="sm" />}>{traceDef(state.trace).name}</Item>]}
+      </Section>
+      <Section title="GPUs" icon={<Cpu {...ICON} />} placeholder="A GPU config">
+        {state.entries.map((e) => (
+          <Item key={e.config} icon={<BrandIcon brand="nvidia" size="sm" />} aside={<span className="font-mono text-[11.5px] text-muted">×{e.count}</span>}>
+            <span className="font-mono text-[11.5px]">{e.config}</span>
           </Item>
         ))}
       </Section>
-      <Section title="Fleet" icon={<Cpu {...ICON} />} placeholder="Your first GPU">
-        {state.fleet.map((f) => (
-          <Item key={f.gpu} icon={<GpuIcon id={f.gpu} size="sm" />} aside={<span className="font-mono text-[11.5px] text-muted">×{f.count}</span>}>
-            {gpuDef(f.gpu).short}
-          </Item>
-        ))}
-      </Section>
-      <Section title="Router" icon={<Route {...ICON} />} placeholder="A policy">
-        {state.router === null
+      <Section title="Runs" icon={<Play {...ICON} />} placeholder="Your first run">
+        {run.status === "idle"
           ? []
           : [
               <Item
-                key={state.router}
-                icon={<GlyphIcon Icon={Route} size="sm" tone="accent" />}
-                aside={replaying || state.replay.status === "done" ? <span className={cx("size-1.5 rounded-full", replaying ? "animate-pulse-soft bg-accent" : "bg-(--st-ok-dot)")} /> : undefined}
+                key="run"
+                icon={<GlyphIcon Icon={Play} size="sm" tone={run.status === "done" ? "ok" : "accent"} />}
+                aside={<span className={cx("size-1.5 rounded-full", run.status === "running" ? "animate-pulse-soft bg-accent" : "bg-(--st-ok-dot)")} />}
               >
-                {routerDef(state.router).name}
+                First run
               </Item>,
             ]}
       </Section>
@@ -110,9 +105,9 @@ function Section({ title, icon, placeholder, children }: { title: string; icon: 
   );
 }
 
-function Item({ pending = false, icon, aside, children }: { pending?: boolean; icon: ReactNode; aside?: ReactNode; children: ReactNode }) {
+function Item({ icon, aside, children }: { icon: ReactNode; aside?: ReactNode; children: ReactNode }) {
   return (
-    <li className={cx("ob-row-in ob-fade flex h-7 items-center gap-2 rounded-[8px] px-1 text-[12.5px] text-fg-2", pending && "opacity-40")}>
+    <li className="ob-row-in flex h-7 items-center gap-2 rounded-[8px] px-1 text-[12.5px] text-fg-2">
       {icon}
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {aside}
@@ -124,20 +119,18 @@ function RowIcon({ icon }: { icon: ActivityIcon }) {
   switch (icon.kind) {
     case "workspace":
       return <WorkspaceIcon size="md" />;
-    case "source":
-      return <SourceIcon id={icon.id} size="md" />;
-    case "gpu":
-      return <GpuIcon id={icon.id} size="md" />;
-    case "router":
-      return <GlyphIcon Icon={Route} size="md" tone="accent" />;
-    case "replay":
+    case "trace":
+      return <BrandIcon brand="meta" size="md" />;
+    case "config":
+      return <BrandIcon brand="nvidia" size="md" />;
+    case "run":
       return <GlyphIcon Icon={Play} size="md" tone="ok" />;
   }
 }
 
 function Row({ row, last }: { row: ActivityRow; last: boolean }) {
   return (
-    <li className={cx("ob-row-in ob-fade relative flex items-start gap-3 pb-3.5", row.pending && "opacity-40")}>
+    <li className={cx("ob-row-in ob-fade relative flex items-start gap-3 pb-3.5", row.pending && "opacity-50")}>
       {!last && <span className="absolute top-7 bottom-0.5 left-[11.5px] w-px bg-border" aria-hidden />}
       <RowIcon icon={row.icon} />
       <p className="min-w-0 pt-0.5 text-[13px] leading-5 text-muted">
@@ -155,34 +148,50 @@ function Row({ row, last }: { row: ActivityRow; last: boolean }) {
   );
 }
 
-/** The inset under the replay row: the fleet's lanes, filling in as the replay runs. */
-function ReplayCard({ state }: { state: OnboardingState }) {
-  const { replay, fleet } = state;
-  if (replay.status === "idle") return null;
-  const lanes = Math.min(8, fleetSize(fleet));
-  const estimated = fleet.flatMap((f) => Array.from({ length: f.count }, () => gpuDef(f.gpu).profile === "estimated"));
-  const result = replay.result;
+const TILE: Record<SimState, { label: string; ink: string; bg: string; dot: string }> = {
+  forking: { label: "Forking", ink: "var(--st-pending-ink)", bg: "var(--st-pending-bg)", dot: "var(--st-pending-dot)" },
+  running: { label: "Simulating", ink: "var(--st-active-ink)", bg: "var(--st-active-bg)", dot: "var(--st-active-dot)" },
+  done: { label: "Done", ink: "var(--st-ok-ink)", bg: "var(--st-ok-bg)", dot: "var(--st-ok-dot)" },
+};
+
+/** The run's simulations as tiles, one per forked sandbox, like the run page's grid. */
+function RunCard({ state }: { state: OnboardingState }) {
+  const { run, entries, trace } = state;
+  if (run.status === "idle" || trace === null) return null;
+  const configs = entries.flatMap((e) => Array.from({ length: e.count }, (_, i) => ({ config: e.config, replica: i })));
+  const shown = configs.slice(0, 12);
+  const states = simStates(configs.length, run.progress);
+  const e2e = entries.some((e) => configDef(e.config).e2e);
   return (
     <div className="ob-row-in mx-4 mb-4 ml-[52px] rounded-[12px] border border-border bg-window/60 p-3">
-      <div className="relative">
-        <MiniLanes lanes={lanes} hotspots={result?.hotspots ?? []} estimated={estimated} />
-        {result === null && (
-          <div
-            className="absolute inset-y-0 right-0 bg-window/80 transition-[left] duration-100 ease-linear"
-            style={{ left: `calc(40px + (100% - 40px) * ${replay.progress})` }}
-            aria-hidden
-          />
-        )}
+      <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-3">
+        {shown.map((c, i) => {
+          const t = TILE[states[i] ?? "forking"];
+          return (
+            <div key={`${c.config}-${c.replica}`} className="ob-fade rounded-[8px] px-2 py-1.5" style={{ background: t.bg }}>
+              <div className="truncate font-mono text-[11px] text-fg-2">
+                {c.config} <span className="text-faint">#{c.replica}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px]" style={{ color: t.ink }}>
+                <span className={cx("size-1.5 rounded-full", states[i] === "running" && "animate-pulse-soft")} style={{ background: t.dot }} />
+                {t.label}
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <p className="mt-2.5 text-[12px] leading-4">
-        {result === null ? (
-          <span className="text-muted">Replaying on {lanes} lanes</span>
-        ) : (
-          <span className="ob-row-in text-(--st-ok-ink)">
-            twin error <span className="font-mono">±{result.twinErrorPct}%</span> vs real run
-          </span>
-        )}
-      </p>
+      {configs.length > shown.length && <p className="mt-2 font-mono text-[11px] text-muted">+{configs.length - shown.length} more</p>}
+      {run.status === "done" && (
+        <p className="ob-row-in mt-2.5 text-[12px] leading-4 text-(--st-ok-ink)">
+          {e2e ? (
+            <>
+              end-to-end <span className="font-mono">{errorPct(traceDef(trace).recorded)}</span> vs the real run
+            </>
+          ) : (
+            "per-kernel times ready"
+          )}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,98 +1,98 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { activity, canAdvance, checklist, fleetLabel, footer, initialState, MAX_PER_GPU, reducer, replayPhase, scriptedResult, summary, type Action, type OnboardingState } from "./store.ts";
+import {
+  activity,
+  canAdvance,
+  checklist,
+  entriesLabel,
+  errorPct,
+  footer,
+  initialState,
+  MAX_REPLICAS,
+  reducer,
+  resultLine,
+  runPhase,
+  simStates,
+  summary,
+  type Action,
+  type OnboardingState,
+} from "./store.ts";
 
 const run = (...actions: Action[]): OnboardingState => actions.reduce(reducer, initialState);
 
-describe("onboarding store", () => {
-  it("shows a connecting source as a pending row, then confirms it", () => {
-    const pending = run({ type: "connect", id: "modal" });
-    assert.deepEqual(
-      activity(pending).map((r) => [r.subject, r.detail, r.pending]),
-      [
-        ["cascade-demo", null, false],
-        ["Modal", "cascade-demo", true],
-      ],
-    );
-    assert.equal(activity(reducer(pending, { type: "confirm", id: "modal" }))[1]?.pending, false);
-  });
-
-  it("keeps a source gone when it is disconnected before it confirms", () => {
-    const s = run({ type: "connect", id: "vllm" }, { type: "disconnect", id: "vllm" }, { type: "confirm", id: "vllm" });
-    assert.deepEqual(s.sources, []);
-  });
-
-  it("names an upload by its file", () => {
-    const s = run({ type: "connect", id: "upload", detail: "prod-week.parquet" }, { type: "confirm", id: "upload" });
-    assert.equal(activity(s)[1]?.subject, "prod-week.parquet");
-    assert.equal(summary(s), "cascade-demo · 1 trace source");
-  });
-
-  it("needs a connected source before step 1 advances", () => {
-    assert.equal(run({ type: "next" }).step, 1);
-    assert.equal(run({ type: "connect", id: "sample" }, { type: "next" }).step, 1);
-    const s = run({ type: "connect", id: "sample" }, { type: "confirm", id: "sample" }, { type: "next" });
-    assert.equal(s.step, 2);
-    assert.equal(reducer(s, { type: "back" }).direction, -1);
-  });
-});
-
 const ready = (): OnboardingState =>
   run(
-    { type: "connect", id: "sample" },
-    { type: "confirm", id: "sample" },
+    { type: "chooseTrace", trace: "opt125m-h100" },
     { type: "next" },
-    { type: "setCount", gpu: "h100", count: 2 },
-    { type: "setCount", gpu: "l40s", count: 2 },
-    { type: "next" },
-    { type: "chooseRouter", router: "least-loaded" },
+    { type: "setCount", config: "SM90_H100", count: 2 },
+    { type: "setCount", config: "SM90_H200", count: 1 },
   );
 
-describe("onboarding fleet, router and replay", () => {
-  it("adds, changes and removes GPUs in the order they were added", () => {
-    const s = run({ type: "setCount", gpu: "l40s", count: 2 }, { type: "setCount", gpu: "h100", count: 1 }, { type: "setCount", gpu: "h100", count: 3 });
-    assert.equal(fleetLabel(s.fleet), "2× L40S, 3× H100");
-    assert.deepEqual(reducer(s, { type: "setCount", gpu: "l40s", count: 0 }).fleet, [{ gpu: "h100", count: 3 }]);
-    assert.equal(reducer(s, { type: "setCount", gpu: "h100", count: 99 }).fleet[1]?.count, MAX_PER_GPU);
+describe("onboarding store", () => {
+  it("needs a trace before step 1 advances", () => {
+    assert.equal(run({ type: "next" }).step, 1);
+    const s = run({ type: "chooseTrace", trace: "opt125m-a100" }, { type: "next" });
+    assert.equal(s.step, 2);
+    assert.equal(summary(s), "cascade-demo · OPT-125m on A100");
   });
 
-  it("writes the fleet and router into the activity timeline", () => {
-    const rows = activity(ready()).slice(2);
+  it("only takes configs the trace has recorded results for", () => {
+    const s = run({ type: "chooseTrace", trace: "opt125m-a100" }, { type: "setCount", config: "SM90_H100", count: 2 });
+    assert.deepEqual(s.entries, []);
+  });
+
+  it("adds, caps and removes configs in the order they were added", () => {
+    const s = ready();
+    assert.equal(entriesLabel(s.entries), "2× SM90_H100, 1× SM90_H200");
+    assert.equal(reducer(s, { type: "setCount", config: "SM90_H100", count: 500 }).entries[0]?.count, MAX_REPLICAS);
+    assert.equal(entriesLabel(reducer(s, { type: "setCount", config: "SM90_H100", count: 0 }).entries), "1× SM90_H200");
+  });
+
+  it("starts the GPU list over when the trace changes", () => {
+    assert.deepEqual(reducer(ready(), { type: "chooseTrace", trace: "opt125m-a100" }).entries, []);
+  });
+
+  it("writes each choice into the activity timeline", () => {
     assert.deepEqual(
-      rows.map((r) => `${r.lead} ${r.subject} · ${r.detail ?? ""}`),
-      ["You added 2× H100 · measured", "You added 2× L40S · estimated", "You chose least-loaded · engine defaults"],
+      activity(ready()).map((r) => `${r.lead} ${r.subject} · ${r.detail ?? ""}`),
+      ["You created cascade-demo · ", "You opened OPT-125m on H100 · 712 kernels", "You added 2× SM90_H100 · 1980 MHz", "You added 1× SM90_H200 · 1980 MHz"],
     );
-    const custom = reducer(ready(), { type: "setEngine", engine: { batchSize: 16 } });
-    assert.equal(activity(custom).at(-1)?.detail, "custom engine");
   });
 
-  it("starts the replay on step 4 and finishes it after 25 ticks", () => {
+  it("launches on step 3 and lands on done with the recorded result", () => {
     let s = reducer(ready(), { type: "next" });
-    assert.equal(s.step, 4);
-    assert.equal(s.replay.status, "running");
-    assert.equal(canAdvance(s), false);
-    for (let i = 0; i < 25; i++) s = reducer(s, { type: "tick" });
-    assert.equal(s.replay.status, "done");
-    assert.equal(activity(s).at(-1)?.detail, "2 hotspots on gpu2 and gpu1");
-    assert.equal(footer(s), "1 replay");
-    assert.equal(checklist(s).at(-1)?.detail, "p99 TTFT 1,105 ms · 2 hotspots · twin error ±6.8%");
-    assert.equal(s.step, "done");
-  });
-
-  it("drops the replay when the user backs out of step 4", () => {
-    const s = reducer(reducer(ready(), { type: "next" }), { type: "back" });
     assert.equal(s.step, 3);
-    assert.equal(s.replay.status, "idle");
+    assert.equal(s.run.status, "running");
+    assert.equal(canAdvance(s), false);
+    for (let i = 0; i < 30; i++) s = reducer(s, { type: "tick" });
+    assert.equal(s.step, "done");
+    assert.equal(activity(s).at(-1)?.detail, "+3.0% e2e vs real");
+    assert.equal(checklist(s).at(-1)?.detail, "sim e2e 261.11 ms vs 253.44 ms real · +3.0%");
+    assert.equal(footer(s), "1 run");
   });
 
-  it("keeps hotspots on lanes that exist for a small fleet", () => {
-    assert.deepEqual(scriptedResult([{ gpu: "a100", count: 1 }]).hotspots, [{ gpu: 0, cell: 17 }]);
+  it("says when only H200 ran, which has no end-to-end comparison", () => {
+    const s = reducer(ready(), { type: "setCount", config: "SM90_H100", count: 0 });
+    assert.equal(resultLine(s), "Per-kernel times ready · no end-to-end comparison for H200");
   });
 
-  it("narrates the replay phase by progress", () => {
-    assert.equal(replayPhase(0.3), "Replaying request 600 of 1,200 · 00:47");
-    assert.equal(replayPhase(0.5), "Replaying request 1,000 of 1,200 · 01:18");
-    assert.equal(replayPhase(0.7), "Detecting hotspots");
-    assert.equal(replayPhase(0.9), "Comparing to the real run");
+  it("drops the run when the user backs out of step 3", () => {
+    const s = reducer(reducer(ready(), { type: "next" }), { type: "back" });
+    assert.equal(s.step, 2);
+    assert.equal(s.run.status, "idle");
+  });
+
+  it("forks, then finishes the sims one by one", () => {
+    assert.deepEqual(simStates(3, 0.1), ["forking", "forking", "forking"]);
+    assert.deepEqual(simStates(3, 0.5), ["done", "running", "running"]);
+    assert.deepEqual(simStates(3, 0.9), ["done", "done", "done"]);
+    assert.equal(runPhase(3, 0.1), "Forking 3 Sail sandboxes from the workspace checkpoint");
+    assert.equal(runPhase(3, 0.5), "Replaying recorded Accel-Sim results · 1 of 3 done");
+    assert.equal(runPhase(3, 0.9), "Comparing to the real run");
+  });
+
+  it("matches the samples' READMEs", () => {
+    assert.equal(errorPct({ realE2eMs: 253.44, simE2eMs: 261.11 }), "+3.0%");
+    assert.equal(errorPct({ realE2eMs: 222.08, simE2eMs: 229.58 }), "+3.4%");
   });
 });

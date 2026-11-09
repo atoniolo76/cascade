@@ -1,5 +1,12 @@
 # Cascade onboarding — build spec
 
+> **As built (2026-11-09):** the layout, motion and tone below were kept, but the steps were cut to
+> what Cascade really does. There are 3 steps: pick a trace (the two OPT-125m samples, or profile your
+> own on Modal), pick Accel-Sim GPU configs with replicas (1 to 64), then watch the run fork a Sail
+> sandbox per simulation and compare to the real run, using the samples' recorded numbers. The trace
+> connectors, fleet, routers, engine settings and replay numbers in this spec are not in Cascade and
+> were left out. Colors and type follow the app's tokens instead of the ones listed here.
+
 Build the first-run onboarding for Cascade as a 4-step flow modeled on the attached reference frames (`onboarding-ref-*.png`). The reference is a product called Detent; copy its **layout, motion and tone**, not its content or colors. Everything below is the Cascade version.
 
 ## The pattern (from the reference)

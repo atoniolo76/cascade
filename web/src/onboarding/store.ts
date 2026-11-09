@@ -1,180 +1,138 @@
 /**
  * The whole onboarding flow lives in this one state. The form on the left dispatches actions and the
  * preview on the right is a pure render of the state, which is what keeps the two in sync.
+ *
+ * Everything here is what Cascade really does: the two OPT-125m samples every workspace opens with,
+ * the Accel-Sim configs they have recorded results for, and the numbers from their READMEs under
+ * samples/. The run is scripted (the samples replay recorded results, so the shape is the same).
  */
 
-export type Step = 1 | 2 | 3 | 4 | "done";
-export const STEPS = [1, 2, 3, 4] as const;
+export type Step = 1 | 2 | 3 | "done";
+export const STEPS = [1, 2, 3] as const;
 
-/* ---------- Step 1: trace sources ---------- */
+/* ---------- Step 1: trace ---------- */
 
-export type SourceId = "modal" | "vllm" | "aiperf" | "openai" | "sample" | "upload";
+export type TraceId = "opt125m-h100" | "opt125m-a100";
 
-export interface SourceDef {
-  id: SourceId;
-  name: string;
-  /** The status line once connected, before the detail: "Connected" or "Loaded". */
-  done: string;
-  /** What the activity row says: "You connected Modal". */
-  verb: string;
-  /** The name as it reads inside an activity row. */
-  subject: string;
-  /** Shown after "Connected ·". Upload replaces it with the file name. */
-  detail: string;
-  /** The short version for the activity row, when it differs from `detail`. */
-  activityDetail?: string;
+/** What the run reports once it finishes, from the sample's README. */
+export interface Recorded {
+  realE2eMs: number;
+  simE2eMs: number;
 }
 
-export const SOURCES: readonly SourceDef[] = [
-  { id: "modal", name: "Modal", done: "Connected", verb: "connected", subject: "Modal", detail: "cascade-demo" },
-  { id: "vllm", name: "vLLM endpoint", done: "Connected", verb: "connected", subject: "vLLM", detail: "localhost:8000" },
-  { id: "aiperf", name: "AIPerf log", done: "Connected", verb: "imported", subject: "AIPerf log", detail: "aiperf_a100x4_c10.json" },
-  { id: "openai", name: "OpenAI-compatible URL", done: "Connected", verb: "connected", subject: "OpenAI-compatible URL", detail: "api.openai.com/v1" },
+export interface TraceDef {
+  id: TraceId;
+  name: string;
+  /** The GPU it was profiled on. */
+  gpu: string;
+  kernels: number;
+  launches: number;
+  /** The configs this sample has recorded Accel-Sim results for, so a run on it can replay them. */
+  configs: readonly ConfigId[];
+  recorded: Recorded;
+}
+
+export const TRACES: readonly TraceDef[] = [
   {
-    id: "sample",
-    name: "Sample trace",
-    done: "Loaded",
-    verb: "loaded",
-    subject: "sample trace",
-    detail: "1,200 requests · 94.2 s",
-    activityDetail: "1,200 requests",
+    id: "opt125m-h100",
+    name: "OPT-125m on H100",
+    gpu: "H100 80GB HBM3",
+    kernels: 712,
+    launches: 17088,
+    configs: ["SM90_H100", "SM90_H200"],
+    recorded: { realE2eMs: 253.44, simE2eMs: 261.11 },
   },
-  { id: "upload", name: "Upload JSON/Parquet", done: "Uploaded", verb: "uploaded", subject: "a trace", detail: "" },
+  {
+    id: "opt125m-a100",
+    name: "OPT-125m on A100",
+    gpu: "A100",
+    kernels: 624,
+    launches: 14100,
+    configs: ["SM80_A100"],
+    recorded: { realE2eMs: 222.08, simE2eMs: 229.58 },
+  },
 ];
 
-const SOURCE_BY_ID = Object.fromEntries(SOURCES.map((s) => [s.id, s])) as Record<SourceId, SourceDef>;
-export const sourceDef = (id: SourceId): SourceDef => SOURCE_BY_ID[id];
+const TRACE_BY_ID = Object.fromEntries(TRACES.map((t) => [t.id, t])) as Record<TraceId, TraceDef>;
+export const traceDef = (id: TraceId): TraceDef => TRACE_BY_ID[id];
 
-export interface Source {
-  id: SourceId;
-  /** Connecting renders faded in the preview until it is confirmed. */
-  status: "connecting" | "connected";
-  detail: string;
+/* ---------- Step 2: GPU configs ---------- */
+
+export type ConfigId = "SM90_H100" | "SM90_H200" | "SM80_A100";
+
+export interface ConfigDef {
+  id: ConfigId;
+  gpu: string;
+  arch: string;
+  clockMhz: number;
+  /** H200 has kernel times only; the sample has no end-to-end comparison for it. */
+  e2e: boolean;
 }
 
-/** The replay runs against the sample trace for now, whatever the user connected. */
-export const TRACE_REQUESTS = 1200;
-
-/* ---------- Step 2: fleet ---------- */
-
-export type GpuId = "a100" | "h100" | "l40s" | "h200" | "tpu-v6e";
-
-export interface GpuDef {
-  id: GpuId;
-  name: string;
-  /** The short name used in counts: "2× H100". */
-  short: string;
-  memory: string;
-  /** Measured profiles come from real runs; estimated ones are extrapolated and drawn hatched. */
-  profile: "measured" | "estimated";
-  vendor: "nvidia" | "google";
-}
-
-export const GPUS: readonly GpuDef[] = [
-  { id: "a100", name: "A100 80 GB", short: "A100", memory: "80 GB HBM2e", profile: "measured", vendor: "nvidia" },
-  { id: "h100", name: "H100 SXM", short: "H100", memory: "80 GB HBM3", profile: "measured", vendor: "nvidia" },
-  { id: "l40s", name: "L40S 48 GB", short: "L40S", memory: "48 GB GDDR6", profile: "estimated", vendor: "nvidia" },
-  { id: "h200", name: "H200", short: "H200", memory: "141 GB HBM3e", profile: "estimated", vendor: "nvidia" },
-  { id: "tpu-v6e", name: "TPU v6e", short: "TPU v6e", memory: "32 GB HBM", profile: "estimated", vendor: "google" },
+export const CONFIGS: readonly ConfigDef[] = [
+  { id: "SM90_H100", gpu: "H100", arch: "sm_90", clockMhz: 1980, e2e: true },
+  { id: "SM90_H200", gpu: "H200", arch: "sm_90", clockMhz: 1980, e2e: false },
+  { id: "SM80_A100", gpu: "A100", arch: "sm_80", clockMhz: 1410, e2e: true },
 ];
 
-const GPU_BY_ID = Object.fromEntries(GPUS.map((g) => [g.id, g])) as Record<GpuId, GpuDef>;
-export const gpuDef = (id: GpuId): GpuDef => GPU_BY_ID[id];
+const CONFIG_BY_ID = Object.fromEntries(CONFIGS.map((c) => [c.id, c])) as Record<ConfigId, ConfigDef>;
+export const configDef = (id: ConfigId): ConfigDef => CONFIG_BY_ID[id];
 
-export const MAX_PER_GPU = 8;
+/** The API caps each config's replicas at 64. */
+export const MAX_REPLICAS = 64;
 
-export interface FleetEntry {
-  gpu: GpuId;
+export interface Entry {
+  config: ConfigId;
   count: number;
 }
 
-export const fleetSize = (fleet: readonly FleetEntry[]): number => fleet.reduce((n, f) => n + f.count, 0);
+export const simCount = (entries: readonly Entry[]): number => entries.reduce((n, e) => n + e.count, 0);
 
-/** "2× H100, 2× L40S" */
-export const fleetLabel = (fleet: readonly FleetEntry[]): string => fleet.map((f) => `${f.count}× ${gpuDef(f.gpu).short}`).join(", ");
+/** "2× SM90_H100, 1× SM90_H200" */
+export const entriesLabel = (entries: readonly Entry[]): string => entries.map((e) => `${e.count}× ${e.config}`).join(", ");
 
-/* ---------- Step 3: router and engine ---------- */
+/* ---------- Step 3: the run ---------- */
 
-export type RouterId = "round-robin" | "least-loaded" | "kv-aware";
-
-export interface RouterDef {
-  id: RouterId;
-  name: string;
-  blurb: string;
-  /** The GPU types this router suits, shown as a strip against the user's fleet. */
-  suits: readonly GpuId[];
-}
-
-export const ROUTERS: readonly RouterDef[] = [
-  { id: "round-robin", name: "Round-robin", blurb: "Simple and fair. Ignores load.", suits: ["a100", "h100", "h200"] },
-  { id: "least-loaded", name: "Least-loaded", blurb: "Sends each request to the shortest queue.", suits: ["a100", "h100", "l40s", "h200", "tpu-v6e"] },
-  { id: "kv-aware", name: "KV-aware", blurb: "Prefers the GPU that already holds the prompt's cache.", suits: ["a100", "h100", "h200"] },
-];
-
-const ROUTER_BY_ID = Object.fromEntries(ROUTERS.map((r) => [r.id, r])) as Record<RouterId, RouterDef>;
-export const routerDef = (id: RouterId): RouterDef => ROUTER_BY_ID[id];
-
-export interface Engine {
-  maxRequests: number;
-  batchSize: number;
-  tensorParallel: number;
-}
-
-export const DEFAULT_ENGINE: Engine = { maxRequests: 64, batchSize: 32, tensorParallel: 1 };
-
-const isDefaultEngine = (e: Engine): boolean =>
-  e.maxRequests === DEFAULT_ENGINE.maxRequests && e.batchSize === DEFAULT_ENGINE.batchSize && e.tensorParallel === DEFAULT_ENGINE.tensorParallel;
-
-/* ---------- Step 4: replay ---------- */
-
-/** Cells per lane in the preview heatmap. */
-export const LANE_CELLS = 24;
-
-export interface Hotspot {
-  gpu: number;
-  cell: number;
-}
-
-export interface ReplayResult {
-  p99TtftMs: number;
-  hotspots: Hotspot[];
-  twinErrorPct: number;
-  /** p99 change against an all-A100 fleet of the same size, in percent. */
-  vsBaselinePct: number;
-}
-
-export interface Replay {
+export interface Run {
   status: "idle" | "running" | "done";
   /** 0..1 */
   progress: number;
-  result: ReplayResult | null;
 }
 
-/** The scripted replay's step; with a 100 ms tick it finishes in 2.5 s. */
-export const REPLAY_STEP = 0.04;
+/** The scripted run's step; with a 100 ms tick it finishes in 3 s. */
+export const RUN_STEP = 1 / 30;
 
-const IDLE_REPLAY: Replay = { status: "idle", progress: 0, result: null };
+const IDLE_RUN: Run = { status: "idle", progress: 0 };
 
-/** Scripted against the sample trace until the real twin is wired in behind `replay.status`. */
-export function scriptedResult(fleet: readonly FleetEntry[]): ReplayResult {
-  const lanes = Math.max(1, fleetSize(fleet));
-  const spots: Hotspot[] = [
-    { gpu: Math.min(2, lanes - 1), cell: 17 },
-    { gpu: Math.min(1, lanes - 1), cell: 9 },
-  ];
-  const hotspots = spots.filter((h, i) => spots.findIndex((o) => o.gpu === h.gpu) === i);
-  return { p99TtftMs: 1105, hotspots, twinErrorPct: 6.8, vsBaselinePct: -18 };
+/** Forking the sandboxes takes the first stretch of the run, then the sims finish one by one. */
+const FORKED_AT = 0.25;
+const SIMS_DONE_AT = 0.85;
+
+export type SimState = "forking" | "running" | "done";
+
+/** Each simulation's state at this point in the run, in launch order. */
+export function simStates(sims: number, progress: number): SimState[] {
+  return Array.from({ length: sims }, (_, i) => {
+    if (progress < FORKED_AT) return "forking";
+    const finishesAt = FORKED_AT + ((SIMS_DONE_AT - FORKED_AT) * (i + 1)) / sims;
+    return progress >= finishesAt ? "done" : "running";
+  });
 }
 
-/** The replay's sub-line: what the twin is doing at this point in the run. */
-export function replayPhase(progress: number): string {
-  if (progress < 0.6) {
-    const request = Math.max(1, Math.round((progress / 0.6) * TRACE_REQUESTS));
-    const seconds = Math.round((progress / 0.6) * 94);
-    const clock = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
-    return `Replaying request ${request.toLocaleString("en-US")} of ${TRACE_REQUESTS.toLocaleString("en-US")} · ${clock}`;
+/** The run's sub-line: what Cascade is doing at this point. */
+export function runPhase(sims: number, progress: number): string {
+  if (progress < FORKED_AT) return `Forking ${sims} Sail sandbox${sims === 1 ? "" : "es"} from the workspace checkpoint`;
+  if (progress < SIMS_DONE_AT) {
+    const done = simStates(sims, progress).filter((s) => s === "done").length;
+    return `Replaying recorded Accel-Sim results · ${done} of ${sims} done`;
   }
-  return progress < 0.85 ? "Detecting hotspots" : "Comparing to the real run";
+  return "Comparing to the real run";
+}
+
+/** Signed percent error of simulated against real, one decimal: "+3.0%". */
+export function errorPct(r: Recorded): string {
+  const pct = ((r.simE2eMs - r.realE2eMs) / r.realE2eMs) * 100;
+  return `${pct >= 0 ? "+" : "−"}${Math.abs(pct).toFixed(1)}%`;
 }
 
 /* ---------- State ---------- */
@@ -184,88 +142,67 @@ export interface OnboardingState {
   /** Which way the last step change went, so the form slides the right way. */
   direction: 1 | -1;
   workspace: string;
-  /** In the order the user connected them; the activity timeline reads this order. */
-  sources: Source[];
+  trace: TraceId | null;
   /** In the order the user added them. */
-  fleet: FleetEntry[];
-  router: RouterId | null;
-  engine: Engine;
-  replay: Replay;
+  entries: Entry[];
+  run: Run;
 }
 
 export const initialState: OnboardingState = {
   step: 1,
   direction: 1,
   workspace: "cascade-demo",
-  sources: [],
-  fleet: [],
-  router: null,
-  engine: DEFAULT_ENGINE,
-  replay: IDLE_REPLAY,
+  trace: null,
+  entries: [],
+  run: IDLE_RUN,
 };
 
 export type Action =
-  | { type: "connect"; id: SourceId; detail?: string | undefined }
-  | { type: "confirm"; id: SourceId }
-  | { type: "disconnect"; id: SourceId }
-  | { type: "setCount"; gpu: GpuId; count: number }
-  | { type: "chooseRouter"; router: RouterId }
-  | { type: "setEngine"; engine: Partial<Engine> }
+  | { type: "chooseTrace"; trace: TraceId }
+  | { type: "setCount"; config: ConfigId; count: number }
   | { type: "tick" }
   | { type: "next" }
   | { type: "back" };
 
-const ORDER: Step[] = [1, 2, 3, 4, "done"];
+const ORDER: Step[] = [1, 2, 3, "done"];
 
 export function reducer(state: OnboardingState, action: Action): OnboardingState {
   switch (action.type) {
-    case "connect": {
-      if (state.sources.some((s) => s.id === action.id)) return state;
-      const detail = action.detail ?? sourceDef(action.id).detail;
-      return { ...state, sources: [...state.sources, { id: action.id, status: "connecting", detail }] };
-    }
-    case "confirm":
-      // A source disconnected while it was still connecting stays gone.
-      return { ...state, sources: state.sources.map((s) => (s.id === action.id ? { ...s, status: "connected" } : s)) };
-    case "disconnect":
-      return { ...state, sources: state.sources.filter((s) => s.id !== action.id) };
+    case "chooseTrace":
+      if (state.trace === action.trace) return state;
+      // Configs belong to the trace's recorded results, so a new trace starts its GPU list over.
+      return { ...state, trace: action.trace, entries: [] };
     case "setCount": {
-      const count = Math.max(0, Math.min(MAX_PER_GPU, Math.round(action.count)));
-      const has = state.fleet.some((f) => f.gpu === action.gpu);
-      const fleet =
+      if (state.trace === null || !traceDef(state.trace).configs.includes(action.config)) return state;
+      const count = Math.max(0, Math.min(MAX_REPLICAS, Math.round(action.count)));
+      const has = state.entries.some((e) => e.config === action.config);
+      const entries =
         count === 0
-          ? state.fleet.filter((f) => f.gpu !== action.gpu)
+          ? state.entries.filter((e) => e.config !== action.config)
           : has
-            ? state.fleet.map((f) => (f.gpu === action.gpu ? { ...f, count } : f))
-            : [...state.fleet, { gpu: action.gpu, count }];
-      return { ...state, fleet };
+            ? state.entries.map((e) => (e.config === action.config ? { ...e, count } : e))
+            : [...state.entries, { config: action.config, count }];
+      return { ...state, entries };
     }
-    case "chooseRouter":
-      return { ...state, router: action.router };
-    case "setEngine":
-      return { ...state, engine: { ...state.engine, ...action.engine } };
     case "tick": {
-      if (state.replay.status !== "running") return state;
-      const progress = Math.min(1, state.replay.progress + REPLAY_STEP);
-      return {
-        ...state,
-        replay: progress < 1 ? { ...state.replay, progress } : { status: "done", progress: 1, result: scriptedResult(state.fleet) },
-        // A finished replay lands on the done state by itself, the way the reference does.
-        ...(progress < 1 ? {} : { step: "done" as const, direction: 1 as const }),
-      };
+      if (state.run.status !== "running") return state;
+      const progress = Math.min(1, state.run.progress + RUN_STEP);
+      if (progress < 1 - 1e-9) return { ...state, run: { ...state.run, progress } };
+      // A finished run lands on the done state by itself.
+      return { ...state, run: { status: "done", progress: 1 }, step: "done", direction: 1 };
     }
     case "next": {
       if (!canAdvance(state)) return state;
       const step = ORDER[ORDER.indexOf(state.step) + 1] ?? state.step;
-      // Reaching step 4 starts the replay.
-      const replay: Replay = step === 4 ? { status: "running", progress: 0, result: null } : state.replay;
-      return { ...state, step, direction: 1, replay };
+      // Reaching step 3 launches the run.
+      const run: Run = step === 3 ? { status: "running", progress: 0 } : state.run;
+      return { ...state, step, direction: 1, run };
     }
     case "back": {
       const i = ORDER.indexOf(state.step);
       if (i <= 0 || state.step === "done") return state;
-      // Leaving step 4 drops the replay; it reruns on the fleet and router the user goes back to change.
-      return { ...state, step: ORDER[i - 1] ?? state.step, direction: -1, replay: IDLE_REPLAY };
+      // Leaving step 3 drops the run; it relaunches with whatever the user changes.
+      return { ...state, step: ORDER[i - 1] ?? state.step, direction: -1, run: IDLE_RUN };
     }
   }
 }
@@ -273,13 +210,11 @@ export function reducer(state: OnboardingState, action: Action): OnboardingState
 export function canAdvance(state: OnboardingState): boolean {
   switch (state.step) {
     case 1:
-      return state.sources.some((s) => s.status === "connected");
+      return state.trace !== null;
     case 2:
-      return fleetSize(state.fleet) > 0;
+      return simCount(state.entries) > 0;
     case 3:
-      return state.router !== null;
-    case 4:
-      return state.replay.status === "done";
+      return state.run.status === "done";
     case "done":
       return false;
   }
@@ -287,82 +222,62 @@ export function canAdvance(state: OnboardingState): boolean {
 
 /* ---------- Derived views ---------- */
 
-export type ActivityIcon =
-  | { kind: "workspace" }
-  | { kind: "source"; id: SourceId }
-  | { kind: "gpu"; id: GpuId }
-  | { kind: "router" }
-  | { kind: "replay" };
+export type ActivityIcon = { kind: "workspace" } | { kind: "trace" } | { kind: "config" } | { kind: "run" };
 
 export interface ActivityRow {
   key: string;
   icon: ActivityIcon;
-  /** Text before the bold subject; "You connected" or empty when the subject leads. */
+  /** Text before the bold subject; empty when the subject leads. */
   lead: string;
   subject: string;
   /** Text after the subject, before the detail: " finished". */
-  tail?: string;
+  tail?: string | undefined;
   detail: string | null;
   pending: boolean;
 }
+
+const n = (x: number): string => x.toLocaleString("en-US");
 
 /** The timeline in the preview, derived from the state rather than kept beside it. */
 export function activity(state: OnboardingState): ActivityRow[] {
   const rows: ActivityRow[] = [
     { key: "workspace", icon: { kind: "workspace" }, lead: "You created", subject: state.workspace, detail: null, pending: false },
   ];
-  for (const s of state.sources) {
-    const def = sourceDef(s.id);
-    const upload = s.id === "upload";
-    rows.push({
-      key: `source-${s.id}`,
-      icon: { kind: "source", id: s.id },
-      lead: `You ${def.verb}`,
-      subject: upload ? s.detail : def.subject,
-      detail: upload ? null : (def.activityDetail ?? s.detail),
-      pending: s.status === "connecting",
-    });
+  if (state.trace !== null) {
+    const t = traceDef(state.trace);
+    rows.push({ key: `trace-${t.id}`, icon: { kind: "trace" }, lead: "You opened", subject: t.name, detail: `${n(t.kernels)} kernels`, pending: false });
   }
-  for (const f of state.fleet) {
-    const g = gpuDef(f.gpu);
-    rows.push({ key: `gpu-${f.gpu}`, icon: { kind: "gpu", id: f.gpu }, lead: "You added", subject: `${f.count}× ${g.short}`, detail: g.profile, pending: false });
+  for (const e of state.entries) {
+    rows.push({ key: `config-${e.config}`, icon: { kind: "config" }, lead: "You added", subject: `${e.count}× ${e.config}`, detail: `${configDef(e.config).clockMhz} MHz`, pending: false });
   }
-  if (state.router !== null) {
+  if (state.run.status !== "idle" && state.trace !== null) {
+    const sims = simCount(state.entries);
+    const done = state.run.status === "done";
     rows.push({
-      key: "router",
-      icon: { kind: "router" },
-      lead: "You chose",
-      subject: routerDef(state.router).name.toLowerCase(),
-      detail: isDefaultEngine(state.engine) ? "engine defaults" : "custom engine",
-      pending: false,
-    });
-  }
-  if (state.replay.status !== "idle") {
-    const result = state.replay.result;
-    rows.push({
-      key: "replay",
-      icon: { kind: "replay" },
-      lead: "",
-      subject: "Replay",
-      tail: result === null ? " running" : " finished",
-      detail: result === null ? null : hotspotLine(result),
-      pending: result === null,
+      key: "run",
+      icon: { kind: "run" },
+      lead: done ? "" : "You launched",
+      subject: done ? "Run" : "a run",
+      tail: done ? " finished" : undefined,
+      detail: done ? finishLine(state) : `${sims} simulation${sims === 1 ? "" : "s"}`,
+      pending: !done,
     });
   }
   return rows;
 }
 
-function hotspotLine(result: ReplayResult): string {
-  const where = result.hotspots.map((h) => `gpu${h.gpu}`);
-  const n = result.hotspots.length;
-  return `${n} hotspot${n === 1 ? "" : "s"} on ${where.join(" and ")}`;
+/** What the finished run says, from the recorded results of the configs the user picked. */
+function finishLine(state: OnboardingState): string {
+  if (state.trace === null) return "";
+  const t = traceDef(state.trace);
+  return state.entries.some((e) => configDef(e.config).e2e) ? `${errorPct(t.recorded)} e2e vs real` : "kernel times only";
 }
 
 /** The sidebar footer: who is here, then what the workspace holds. */
 export function footer(state: OnboardingState): string {
-  if (state.replay.status === "done") return "1 replay";
-  const n = fleetSize(state.fleet);
-  return n === 0 ? "Just you" : `${n} GPU${n === 1 ? "" : "s"}`;
+  if (state.run.status === "done") return "1 run";
+  const sims = simCount(state.entries);
+  return sims === 0 ? "Just you" : `${sims} simulation${sims === 1 ? "" : "s"} queued`;
 }
 
 export interface CheckItem {
@@ -372,36 +287,36 @@ export interface CheckItem {
   state: "done" | "active" | "queued";
 }
 
-/** Step 4's live checklist. */
+/** Step 3's live checklist. */
 export function checklist(state: OnboardingState): CheckItem[] {
-  const { replay } = state;
-  const done = replay.status === "done";
+  if (state.trace === null) return [];
+  const t = traceDef(state.trace);
+  const sims = simCount(state.entries);
   const items: CheckItem[] = [
-    { key: "trace", label: "Trace loaded", detail: `${TRACE_REQUESTS.toLocaleString("en-US")} requests`, state: "done" },
-    { key: "fleet", label: "Fleet built", detail: fleetLabel(state.fleet), state: "done" },
-    { key: "router", label: "Router set", detail: state.router === null ? "" : routerDef(state.router).name.toLowerCase(), state: "done" },
+    { key: "trace", label: "Trace loaded", detail: `${t.name} · ${n(t.kernels)} kernels`, state: "done" },
+    { key: "configs", label: "GPUs picked", detail: entriesLabel(state.entries), state: "done" },
   ];
-  if (done && replay.result !== null) {
-    const r = replay.result;
-    const n = r.hotspots.length;
-    items.push({
-      key: "replay",
-      label: "Replay done",
-      detail: `p99 TTFT ${r.p99TtftMs.toLocaleString("en-US")} ms · ${n} hotspot${n === 1 ? "" : "s"} · twin error ±${r.twinErrorPct}%`,
-      state: "done",
-    });
+  if (state.run.status === "done") {
+    items.push({ key: "run", label: "Run finished", detail: resultLine(state), state: "done" });
   } else {
-    items.push({ key: "replay", label: "Replaying", detail: replayPhase(replay.progress), state: replay.status === "running" ? "active" : "queued" });
+    items.push({ key: "run", label: "Simulating", detail: runPhase(sims, state.run.progress), state: state.run.status === "running" ? "active" : "queued" });
   }
   return items;
 }
 
+/** "sim e2e 261.11 ms vs 253.44 ms real · +3.0%", or kernel times when only H200 ran. */
+export function resultLine(state: OnboardingState): string {
+  if (state.trace === null) return "";
+  const t = traceDef(state.trace);
+  if (!state.entries.some((e) => configDef(e.config).e2e)) return "Per-kernel times ready · no end-to-end comparison for H200";
+  const r = t.recorded;
+  return `sim e2e ${r.simE2eMs.toFixed(2)} ms vs ${r.realE2eMs.toFixed(2)} ms real · ${errorPct(r)}`;
+}
+
 /** The one-line stand-in for the preview on narrow screens. */
 export function summary(state: OnboardingState): string {
-  const n = state.sources.filter((s) => s.status === "connected").length;
-  const parts = [state.workspace, n === 0 ? "no traces yet" : `${n} trace source${n === 1 ? "" : "s"}`];
-  const gpus = fleetSize(state.fleet);
-  if (gpus > 0) parts.push(`${gpus} GPU${gpus === 1 ? "" : "s"}`);
-  if (state.router !== null) parts.push(state.router);
+  const parts = [state.workspace, state.trace === null ? "no trace yet" : traceDef(state.trace).name];
+  const sims = simCount(state.entries);
+  if (sims > 0) parts.push(`${sims} sim${sims === 1 ? "" : "s"}`);
   return parts.join(" · ");
 }

@@ -1,55 +1,44 @@
-import { useCallback, useEffect, useReducer, useRef, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useReducer, type CSSProperties, type ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router";
 import { BrandTile } from "../components/Logo";
 import { Button } from "../components/ui";
 import { ICON } from "../components/styles";
 import { cx } from "../components/cx";
 import { Preview } from "./Preview";
-import { StepFleet } from "./StepFleet";
-import { StepReplay } from "./StepReplay";
-import { StepRouter } from "./StepRouter";
-import { StepSources } from "./StepSources";
-import { canAdvance, fleetSize, initialState, reducer, STEPS, summary, type OnboardingState, type SourceId } from "./store";
+import { StepGpus } from "./StepGpus";
+import { StepRun } from "./StepRun";
+import { StepTrace } from "./StepTrace";
+import { canAdvance, initialState, reducer, simCount, STEPS, summary, type OnboardingState } from "./store";
 import "./onboarding.css";
 
-/** How long a source shows as "connecting" before it confirms. */
-const CONNECT_MS = 650;
-/** One replay tick; 25 of them make the scripted 2.5 s replay. */
+/** One run tick; 30 of them make the scripted 3 s run. */
 const TICK_MS = 100;
 
-export function OnboardingPage() {
+interface Finish {
+  /** Where "Open Cascade" goes: the app inside a workspace, Get started on the public site. */
+  onFinish: () => void;
+  finishLabel?: string;
+}
+
+export function OnboardingPage({ onFinish, finishLabel = "Open Cascade" }: Finish) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const timers = useRef(new Set<number>());
-
+  // The scripted run ticks only while step 3 is running it.
+  const running = state.run.status === "running";
   useEffect(() => {
-    const live = timers.current;
-    return () => { live.forEach((t) => { window.clearTimeout(t); }); };
-  }, []);
+    if (!running) return;
+    const t = window.setInterval(() => {
+      dispatch({ type: "tick" });
+    }, TICK_MS);
+    return () => {
+      window.clearInterval(t);
+    };
+  }, [running]);
 
-  const connect = useCallback((id: SourceId, detail?: string) => {
-    dispatch({ type: "connect", id, detail });
-    const t = window.setTimeout(() => {
-      timers.current.delete(t);
-      dispatch({ type: "confirm", id });
-    }, CONNECT_MS);
-    timers.current.add(t);
-  }, []);
-
-  // The scripted replay ticks only while step 4 is running it.
-  const replaying = state.replay.status === "running";
-  useEffect(() => {
-    if (!replaying) return;
-    const t = window.setInterval(() => { dispatch({ type: "tick" }); }, TICK_MS);
-    return () => { window.clearInterval(t); };
-  }, [replaying]);
-
-  const navigate = useNavigate();
   const done = state.step === "done";
   const next = useCallback(() => {
-    if (done) void navigate("/");
+    if (done) onFinish();
     else dispatch({ type: "next" });
-  }, [done, navigate]);
+  }, [done, onFinish]);
   const back = useCallback(() => { dispatch({ type: "back" }); }, []);
 
   // Enter advances and Esc goes back, unless focus is on a control that already owns the key.
@@ -77,7 +66,7 @@ export function OnboardingPage() {
             <p className="mb-6 inline-flex h-7 max-w-full items-center truncate rounded-[9px] bg-surface px-2.5 font-mono text-[12px] text-muted ring-1 ring-border ring-inset md:hidden">
               {summary(state)}
             </p>
-            <StepBody state={state} connect={connect} dispatch={dispatch} next={next} back={back} />
+            <StepBody state={state} dispatch={dispatch} next={next} back={back} finishLabel={finishLabel} />
           </div>
         </div>
       </section>
@@ -108,7 +97,7 @@ function TopBar({ step }: { step: OnboardingState["step"] }) {
             />
           ))}
         </ol>
-        <span className="text-[13px] whitespace-nowrap text-muted tabular-nums">{step === "done" ? "All set" : `Step ${step} of 4`}</span>
+        <span className="text-[13px] whitespace-nowrap text-muted tabular-nums">{step === "done" ? "All set" : `Step ${step} of ${STEPS.length}`}</span>
       </div>
     </header>
   );
@@ -116,37 +105,38 @@ function TopBar({ step }: { step: OnboardingState["step"] }) {
 
 interface StepProps {
   state: OnboardingState;
-  connect: (id: SourceId, detail?: string) => void;
   dispatch: (a: Parameters<typeof reducer>[1]) => void;
   next: () => void;
   back: () => void;
+  finishLabel: string;
 }
 
-function StepBody({ state, connect, dispatch, next, back }: StepProps) {
+function StepBody({ state, dispatch, next, back, finishLabel }: StepProps) {
   const ready = canAdvance(state);
   switch (state.step) {
     case 1:
       return (
         <>
-          <Headline lead="Connect a trace source.">Cascade replays what you really ran. Point it at a run, or load the sample.</Headline>
-          <StepSources sources={state.sources} connect={connect} disconnect={(id) => { dispatch({ type: "disconnect", id }); }} />
+          <Headline lead="Pick a trace.">Cascade simulates a run you really profiled. Start with a sample, or send your own.</Headline>
+          <StepTrace trace={state.trace} choose={(trace) => { dispatch({ type: "chooseTrace", trace }); }} />
           <Actions>
             <PrimaryButton disabled={!ready} onClick={next}>
               Continue
             </PrimaryButton>
-            {!ready && <QuietButton onClick={() => { connect("sample"); }}>Use the sample</QuietButton>}
           </Actions>
         </>
       );
     case 2: {
-      const n = fleetSize(state.fleet);
+      const sims = simCount(state.entries);
       return (
         <>
-          <Headline lead="Pick a fleet.">Start from the GPUs you have, then add the ones you don&rsquo;t.</Headline>
-          <StepFleet fleet={state.fleet} setCount={(gpu, count) => { dispatch({ type: "setCount", gpu, count }); }} />
+          <Headline lead="Pick GPUs to simulate.">Each config runs in Accel-Sim. Add replicas to check the result holds.</Headline>
+          {state.trace !== null && (
+            <StepGpus trace={state.trace} entries={state.entries} setCount={(config, count) => { dispatch({ type: "setCount", config, count }); }} />
+          )}
           <Actions>
             <PrimaryButton disabled={!ready} onClick={next}>
-              {n === 0 ? "Continue" : `Continue with ${n} GPU${n === 1 ? "" : "s"}`}
+              {sims === 0 ? "Launch" : `Launch ${sims} simulation${sims === 1 ? "" : "s"}`}
             </PrimaryButton>
             <QuietButton onClick={back}>Back</QuietButton>
           </Actions>
@@ -156,27 +146,8 @@ function StepBody({ state, connect, dispatch, next, back }: StepProps) {
     case 3:
       return (
         <>
-          <Headline lead="Choose a router.">This decides which GPU each request lands on. You can change it any time.</Headline>
-          <StepRouter
-            fleet={state.fleet}
-            router={state.router}
-            engine={state.engine}
-            choose={(router) => { dispatch({ type: "chooseRouter", router }); }}
-            setEngine={(engine) => { dispatch({ type: "setEngine", engine }); }}
-          />
-          <Actions>
-            <PrimaryButton disabled={!ready} onClick={next}>
-              Run the replay
-            </PrimaryButton>
-            <QuietButton onClick={back}>Back</QuietButton>
-          </Actions>
-        </>
-      );
-    case 4:
-      return (
-        <>
-          <Headline lead="Try it out.">Cascade is replaying your trace on the fleet you built.</Headline>
-          <StepReplay state={state} />
+          <Headline lead="Watch it run.">Cascade forks a sandbox per simulation and compares the result to the real run.</Headline>
+          <StepRun state={state} />
           <Actions>
             <PrimaryButton disabled onClick={next} arrow={false}>
               Working…
@@ -188,10 +159,10 @@ function StepBody({ state, connect, dispatch, next, back }: StepProps) {
     case "done":
       return (
         <>
-          <Headline lead="You’re set up.">Cascade ran its first replay. Change the fleet and run it again whenever you like.</Headline>
-          <StepReplay state={state} />
+          <Headline lead="You’re set up.">Your first run finished. Send your own trace whenever you&rsquo;re ready.</Headline>
+          <StepRun state={state} />
           <Actions>
-            <PrimaryButton onClick={next}>Open Cascade</PrimaryButton>
+            <PrimaryButton onClick={next}>{finishLabel}</PrimaryButton>
           </Actions>
         </>
       );
