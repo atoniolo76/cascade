@@ -15,12 +15,11 @@ import "./onboarding.css";
 const TICK_MS = 100;
 
 interface Finish {
-  /** Where "Open Cascade" goes: the app inside a workspace, Get started on the public site. */
+  /** What "Open Cascade" does once the run is in. */
   onFinish: () => void;
-  finishLabel?: string;
 }
 
-export function OnboardingPage({ onFinish, finishLabel = "Open Cascade" }: Finish) {
+export function OnboardingPage({ onFinish }: Finish) {
   const [state, dispatch] = useReducer(reducer, initialState);
   // The scripted run ticks only while step 3 is running it.
   const running = state.run.status === "running";
@@ -66,7 +65,7 @@ export function OnboardingPage({ onFinish, finishLabel = "Open Cascade" }: Finis
             <p className="mb-6 inline-flex h-7 max-w-full items-center truncate rounded-[9px] bg-surface px-2.5 font-mono text-[12px] text-muted ring-1 ring-border ring-inset md:hidden">
               {summary(state)}
             </p>
-            <StepBody state={state} dispatch={dispatch} next={next} back={back} finishLabel={finishLabel} />
+            <StepBody state={state} dispatch={dispatch} next={next} back={back} />
           </div>
         </div>
       </section>
@@ -108,10 +107,9 @@ interface StepProps {
   dispatch: (a: Parameters<typeof reducer>[1]) => void;
   next: () => void;
   back: () => void;
-  finishLabel: string;
 }
 
-function StepBody({ state, dispatch, next, back, finishLabel }: StepProps) {
+function StepBody({ state, dispatch, next, back }: StepProps) {
   const ready = canAdvance(state);
   switch (state.step) {
     case 1:
@@ -162,7 +160,7 @@ function StepBody({ state, dispatch, next, back, finishLabel }: StepProps) {
           <Headline lead="You’re set up.">Your first run finished. Send your own trace whenever you&rsquo;re ready.</Headline>
           <StepRun state={state} />
           <Actions>
-            <PrimaryButton onClick={next}>{finishLabel}</PrimaryButton>
+            <PrimaryButton onClick={next}>Open Cascade</PrimaryButton>
           </Actions>
         </>
       );
